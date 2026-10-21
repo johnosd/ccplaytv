@@ -151,7 +151,7 @@ Trava (na raiz): `.\.planning\scripts\powershell\check-contract-tests.ps1 -Slug 
 | Fase 5 (US3) — renderização | **Concluída sem mudança**: a medição descartou o desenho como gargalo (1 ms com cache) |
 | Fase 6 (US4) — primeira tela | **Concluída**: capas da primeira tela com prioridade de rede; virtualização e lazy preservados |
 | Fase 7 — gates e TV | Gates de código **verdes** (3682 testes, 54/54 E2E, build). **Validação na TV feita e reprovada**: SC-001/002/003 falharam (R-014, R-015) |
-| Fase 8 — convergência | **P0, as medições na TV e o documento de tela fechados** (T064–T072, T076–T080). A abertura lê **um registro do `localStorage`** (p95 0,8 ms sob carga na TV) com o caminho dos candidatos como reserva. Falta T073–T075 e a validação final |
+| Fase 8 — convergência | **P0, as medições na TV e o documento de tela fechados** (T064–T072, T076–T080). A abertura lê **um registro do `localStorage`** (p95 0,8 ms sob carga na TV) com o caminho dos candidatos como reserva. A carga espera a 1ª revelação da sessão (T073). Falta T074/T075 e a validação final |
 | TV | Build de **medição** instalado (`VITE_CCPLAY_PERF` + canal de métricas) — **reinstalar o pacote normal** ao fechar a próxima rodada. Coletor parado |
 | Próximo desenho | `logic/documento-de-tela.md`: P0 (desfazer a regressão da carga) → sonda `montagem086` → documento de tela numa leitura, fora do banco do catálogo |
 | Sonda | `montagem086.js` (4 testes) **rodada na TV, 2 rodadas**, desinstalada ao final. Decidiu P2 = `localStorage`, documento **cru**, e refutou o banco separado. Evidência: `evidencias/sonda-montagem-tv-2026-10-21.md` |
@@ -177,9 +177,12 @@ Trava (na raiz): `.\.planning\scripts\powershell\check-contract-tests.ps1 -Slug 
 
 | 2026-10-21 | Fase 8 (T071, T072, T078) | Documento de tela em `localStorage`: `screenDocumentStore.ts` (o meio) + `screenDocument.ts` (a montagem), lido numa leitura síncrona com validação de geração, dia e visibilidade; refeito no fim da carga por seção e na fila do prefetch, **nunca** na abertura. `loadShowcaseSelections` saiu de `catalogApi.ts`, que ficou menor que antes (2 160 < 2 182 linhas) | Dois testes de outras features pegaram um **defeito real**: sem invalidar o documento ao gravar candidatos, a fileira não acompanharia a pré-carga (FR-008). Corrigido e travado por teste |
 
-**PRÓXIMO**: **T073** — a carga e a pré-carga não começam antes da 1ª revelação da sessão (a sonda mostrou que fatiar
-não é confiável: p95 19,2 e depois 104,9). Depois T074, T075 e a validação final na TV (SC-001 a SC-012), com o pacote
-normal reinstalado ao fim. A feature **não converge** sem esses números.
+| 2026-10-21 | Fase 8 (T073) | A carga por seção só começa depois da 1ª revelação da sessão, com teto de 2,5 s (`lib/assembly/firstReveal.ts`). A espera ficou em `sectionRunner.ts`, em quem decide o momento, não dentro de `loadSection` — que roda no Worker e é chamado direto por testes. Gate completo: 3694 testes e **54/54 E2E** | T074/T075 e a validação final na TV |
+
+**PRÓXIMO**: **validação na TV** (SC-001 a SC-012) — é o que falta para saber se o Início sai dos ~2,1 s, agora que a
+carga não compete com o primeiro desenho e a abertura lê um registro do `localStorage`. T074/T075 (troca atômica e
+casamento externo em 2º plano) podem vir antes ou depois, mas **não** mudam os números de abertura. Reinstalar o pacote
+normal ao fim.
 
 ## Arquivos Principais
 

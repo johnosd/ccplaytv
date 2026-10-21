@@ -327,7 +327,7 @@ carga regredida, nenhum número de abertura vale — foi o que invalidou a rodad
 - [X] T071 Documento de tela por tela (`home`, `movies`, `series`) com fileiras, **trilha de categorias** e capas da
       primeira tela; a montagem passa a fazer **uma** leitura → origem: **SC-003**, **CV-007**, R-009, P1 do logic.
 - [X] T072 O documento mora fora do banco do catálogo, na forma que T070 escolher → origem: **R-015**, P2 do logic.
-- [ ] T073 A carga e a pré-carga cedem a vez à primeira revelação da sessão, em fatias curtas → origem: **FR-017**,
+- [X] T073 A carga e a pré-carga cedem a vez à primeira revelação da sessão, em fatias curtas → origem: **FR-017**,
       **SC-001** (CV-005, CV-006), P3 do logic.
 - [ ] T074 Troca atômica do documento com a tela aberta, sem mover foco nem rolagem → origem: **FR-008**, **FR-018**,
       **SC-005**, P4 do logic.
@@ -383,7 +383,14 @@ Testes executados:
   `src/lib/catalog/sectionLoader.candidatos-por-secao.test.ts` → verdes. O 2º distingue de fato a implementação antiga
   (ela faria 8 `put` e nenhum `bulkPut`).
 
-Pendências (atualizado 2026-10-21):
+Pendências (atualizado 2026-10-21, 2ª revisão):
+- **T074 e T075 não começaram** (troca atômica do documento; casamento externo em 2º plano). As capas da primeira tela
+  entram no documento com elas — o campo `images` existe e vai vazio por enquanto.
+- **Validação final na TV** (SC-001 a SC-012) e **reinstalar o pacote normal**.
+- Nota de desenho (T073): a espera da 1ª revelação ficou em `sectionRunner.ts`, em quem decide o momento de carregar,
+  e **não** dentro de `loadSection` — que também roda no Worker, onde nenhuma tela revela. Pôr a espera dentro da carga
+  deixava um temporizador vivo além de quem o pediu, e a suíte completa acusou isso como rejeição do React.
+- Registro anterior desta fase:
 - **T073–T075 não começaram** (carga cedendo a vez à 1ª revelação; troca atômica; casamento externo em 2º plano).
 - **Validação final na TV** (SC-001 a SC-012), e **reinstalar o pacote normal** — hoje está o de medição.
 - As capas da primeira tela ainda são calculadas pela tela; o campo `images` do documento existe e vai vazio por

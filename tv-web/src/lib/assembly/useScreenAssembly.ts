@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { recordAssembly, recordDeferred, type AssemblyReport } from '../perf/assemblyTiming'
+import { noteFirstReveal } from './firstReveal'
 import {
   ASSEMBLY_CAP_MS,
   LOADING_DELAY_MS,
@@ -161,6 +162,8 @@ export function useScreenAssembly<K extends string>({
   const revealed = !waiting
   useEffect(() => {
     if (!revealed || report.current) return
+    // Feature 086 (T073): a 1ª revelação da sessão libera a carga da lista, que até aqui não compete com o desenho.
+    noteFirstReveal()
     report.current = recordAssembly({
       screen,
       revealMs: Math.round(performance.now() - mountedAt.current),

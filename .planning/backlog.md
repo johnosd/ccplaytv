@@ -124,7 +124,7 @@ update-bug-status.ps1.
 | 083-foco-leve-tv | Foco leve na TV | Convergida | 37/37 tasks | 2026-10-19 |
 | 084-indice-busca-sem-travar | Índice de busca sem travar a tela na TV | Convergida | 33/37 tasks | 2026-10-20 |
 | 085-gravacao-carga-secao-tv | Gravação da carga por seção mais rápida na TV | Convergida | 40/40 tasks | 2026-10-20 |
-| 086-montagem-rapida-telas | Montagem rápida das telas principais com seleções guardadas | Convergência Pendente | 60/66 tasks | 2026-10-21 |
+| 086-montagem-rapida-telas | Montagem rápida das telas principais com seleções guardadas | Convergência Pendente | 61/66 tasks | 2026-10-21 |
 
 ## Bugs
 
