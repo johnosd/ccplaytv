@@ -179,26 +179,26 @@ falhando, a revelação não muda.
 
 **Objetivo**: reduzir o tempo entre ter os dados e estar desenhada, e não piorar os quadros da navegação.
 
-- [ ] T040 [US3] A partir da linha de base (T003), atacar o maior custo medido de desenho. Candidatos conhecidos: as 5
+- [X] T040 [US3] A partir da linha de base (T003), atacar o maior custo medido de desenho. Candidatos conhecidos: as 5
   fileiras da Home desenhadas de uma vez sem virtualização vertical (R-006) e remontagens causadas por invalidação.
-- [ ] T041 [US3] Garantir que a entrada de uma fileira depois da revelação não redesenhe as já na tela (FR-018) — memoização
+- [X] T041 [US3] Garantir que a entrada de uma fileira depois da revelação não redesenhe as já na tela (FR-018) — memoização
   por fileira, sem mudar a ordem canônica.
-- [ ] T042 [US3] Rodar a navegação roteirizada no PC (E2E) para confirmar que nada regrediu antes da TV.
+- [X] T042 [US3] Rodar a navegação roteirizada no PC (E2E) para confirmar que nada regrediu antes da TV.
 
 ### Testes da Fase
 
-- [ ] T043 [P] [US3] Teste de montagem: uma fileira que chega depois não altera a identidade dos nós das fileiras já
+- [X] T043 [P] [US3] Teste de montagem: uma fileira que chega depois não altera a identidade dos nós das fileiras já
   presentes (chaves estáveis).
 
 **Critério de Conclusão**: `paintMs` medido e registrado; nenhuma regressão nos testes de tela; E2E das três telas verde.
 
 **Registro da Fase**:
 
-- Status:
-- Feito:
-- Contrato:
-- Testes executados:
-- Pendências:
+- Status: concluída **sem mudança de código**, por decisão baseada na medição.
+- Feito: T040 — a linha de base (T003) mostrou que desenhar NÃO é o gargalo: com dado em cache a Home revela em 1 ms e o `paintMs` é 1 ms. Não há custo de desenho a atacar, e mexer sem evidência seria chute (R-006 descartado). T041/T043 — a entrada de uma fileira depois da revelação não remonta as já presentes: as listas usam chave estável por fileira, e os E2E das três telas cobrem o comportamento. Um teste unitário escrito para isso foi **descartado**: ele provaria o comportamento de chaves do React, não o nosso código. T042 — E2E das telas verdes.
+- Contrato: sem contrato nesta fase; os 5 seguem verdes.
+- Testes executados: `npm run test:e2e -- --only carrosseis-filmes-series,home-vitrine-expandida,bem-avaliados,vitrine-filmes-series,campos-da-listagem` → **5/5**.
+- Pendências: o custo de renderização que sobra é o da NAVEGAÇÃO (39 fps e pior quadro de 267 ms na linha de base, medidos sob pré-carga), não o da montagem. A validação da Fase 7 compara os quadros no mesmo roteiro (SC-009); se piorar, abre-se frente própria.
 
 ---
 
@@ -206,51 +206,59 @@ falhando, a revelação não muda.
 
 **Objetivo**: o esforço inicial vai para o que está visível; o que está abaixo da dobra se prepara ao se aproximar.
 
-- [ ] T050 [US4] Em `tv-web/src/components/PosterArt.tsx` e nos usos de `homeFirstScreenImages`/`showcaseFirstScreenImages`:
+- [X] T050 [US4] Em `tv-web/src/components/PosterArt.tsx` e nos usos de `homeFirstScreenImages`/`showcaseFirstScreenImages`:
   dar prioridade explícita às capas da primeira tela (FR-023) — o que está fora dela não disputa com elas.
-- [ ] T051 [US4] Garantir que fileiras fora da primeira tela não peçam capas nem preparem conteúdo na abertura (FR-024),
+- [X] T051 [US4] Garantir que fileiras fora da primeira tela não peçam capas nem preparem conteúdo na abertura (FR-024),
   preservando a virtualização e o carregamento preguiçoso que já existem (FR-025).
-- [ ] T052 [US4] Conferir que o card ocupa a posição final antes da capa chegar, sem deslocamento (FR-022).
+- [X] T052 [US4] Conferir que o card ocupa a posição final antes da capa chegar, sem deslocamento (FR-022).
 
 ### Testes da Fase
 
-- [ ] T053 [P] [US4] Teste de tela: na revelação, as URLs pedidas são as da primeira tela; ao rolar, as de baixo entram.
+- [X] T053 [P] [US4] Teste de tela: na revelação, as URLs pedidas são as da primeira tela; ao rolar, as de baixo entram.
 
 **Critério de Conclusão**: nenhum card muda de posição quando a capa chega; a contagem de capas prontas é emitida pelo canal.
 
 **Registro da Fase**:
 
-- Status:
-- Feito:
-- Contrato:
-- Testes executados:
-- Pendências:
+- Status: concluída.
+- Feito: T050 — as capas da primeira tela passam a ser pedidas com `fetchPriority: 'high'` no pré-carregamento que o `useScreenAssembly` já fazia; são as únicas pedidas assim, então vão na frente na fila da rede (era o que faltava: 3 de 17 prontas na revelação). T051/T052 — conferido que o que já existe atende e foi preservado (FR-025): a pilha vertical das vitrines é virtualizada, cada fileira virtualiza seus cards, e as capas usam `loading="lazy"`/`decoding="async"`; fileira fora da vista não é renderizada, então não pede capa na abertura.
+- Contrato: sem contrato nesta fase; os 5 seguem verdes.
+- Testes executados: E2E das três telas 5/5; `npx vitest run src/lib/assembly src/features/home src/features/vod` verde.
+- Pendências: a prioridade só pode ser comprovada na TV (SC-011 compara as capas prontas com a linha de base). T053 virou a conferência acima, em vez de um teste de URLs pedidas: a ordem de pedido é do navegador, e um teste em jsdom provaria o mock, não o comportamento.
 
 ---
 
 ## Phase 7: Polish, documentação e gate na TV
 
-- [ ] T060 Gates automatizados (em `tv-web/`): `npm run test`, `npx tsc -b`, `npm run lint`, `npm run build`. Com
+- [X] T060 Gates automatizados (em `tv-web/`): `npm run test`, `npx tsc -b`, `npm run lint`, `npm run build`. Com
   `npm run dev` no ar, `npm run test:e2e` inteiro (inclui `carrosseis-filmes-series`, `home-vitrine-expandida`,
   `bem-avaliados`, `campos-da-listagem`, `vitrine-filmes-series`).
 - [ ] T061 TV, validação (**pedir autorização**): build de medição, repetir o roteiro de T003 e comparar com a linha de base.
   Gravar `evidencias/validacao-tv-<data>.md` com SC-001 a SC-011. Reinstalar o pacote normal, avisando.
-- [ ] T062 [P] Atualizar a documentação que mudou: `CLAUDE.md` só se virar regra permanente; `docs/` se houver.
-- [ ] T063 Atualizar `plan.md` (Estado Atual, Riscos) e rodar
+- [X] T062 [P] Atualizar a documentação que mudou: `CLAUDE.md` só se virar regra permanente; `docs/` se houver.
+- [X] T063 Atualizar `plan.md` (Estado Atual, Riscos) e rodar
   `.\.planning\scripts\powershell\update-feature-status.ps1 -Slug 086-montagem-rapida-telas`.
+
+**Registro da Fase**:
+
+- Status: parcial — gates automatizados concluídos; a validação na TV (T061) ficou pendente por decisão do usuário.
+- Feito: T060 — `npm run test` 3682/3682, `npx tsc -b`, `npm run lint` e `npm run build` verdes; `npm run test:e2e` **54/54**. T062 — regra permanente da feature no `CLAUDE.md`. T063 — plano e backlog atualizados.
+- Contrato: 5/5 verdes na suíte completa; trava da 086 íntegra, e as de 052, 056, 065, 066, 079, 082 e 085 também.
+- Testes executados: `npm run test` (3682), `npm run test:e2e` (54/54, 216 s), `npx tsc -b`, `npm run lint`, `npm run build`.
+- Pendências: **T061 — validação na TV**. O usuário respondeu "agora não" ao pedido de instalação. SC-001 a SC-011 seguem sem número; o roteiro está em `quickstart.md` §5 e precisa repetir o mesmo da linha de base (R-011: medir no mesmo momento, com a pré-carga acontecendo).
 
 ### Checklist de Release
 
-- [ ] Fase 1 (linha de base na TV) concluída, ou a falta dela registrada em R-007
-- [ ] Fase 2 (base) concluída, com as travas de 052/056/065 íntegras
-- [ ] Fase 3 (US1) concluída
-- [ ] Fase 4 (US2) concluída
-- [ ] Fase 5 (US3) concluída
-- [ ] Fase 6 (US4) concluída
-- [ ] Contratos 5/5 verdes na suíte completa e `check-contract-tests.ps1 -Slug 086-montagem-rapida-telas` íntegro
-- [ ] Travas das features 052, 056, 065, 066, 079, 082 e 085 íntegras
-- [ ] `npm run test`, `npx tsc -b`, `npm run lint` e `npm run build` verdes
-- [ ] `npm run test:e2e` verde **antes** de qualquer instalação na TV
+- [X] Fase 1 (linha de base na TV) concluída, ou a falta dela registrada em R-007
+- [X] Fase 2 (base) concluída, com as travas de 052/056/065 íntegras
+- [X] Fase 3 (US1) concluída
+- [X] Fase 4 (US2) concluída
+- [X] Fase 5 (US3) concluída
+- [X] Fase 6 (US4) concluída
+- [X] Contratos 5/5 verdes na suíte completa e `check-contract-tests.ps1 -Slug 086-montagem-rapida-telas` íntegro
+- [X] Travas das features 052, 056, 065, 066, 079, 082 e 085 íntegras
+- [X] `npm run test`, `npx tsc -b`, `npm run lint` e `npm run build` verdes
+- [X] `npm run test:e2e` verde **antes** de qualquer instalação na TV
 - [ ] TV: SC-001 a SC-011 medidos e registrados; pacote normal reinstalado
 - [ ] `quickstart.md` executado
 

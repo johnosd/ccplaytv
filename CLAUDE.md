@@ -472,3 +472,11 @@ already used by their surroundings.
 
 O catálogo e o guia são gravados comprimidos em pedaços. Leia por `readBlockChunks`, nunca por `block.items`; nunca
 descomprima dentro de uma transação; todo gravador novo chama `makeRoomFor`.
+
+# Regra da feature 086
+
+As fileiras calculadas de Início/Filmes/Séries (Adicionados, Bem avaliados, Top 10, Dica, Porque você assistiu) saem de
+`showcaseCandidates` — candidatos por categoria, gravados por quem grava a categoria. **A abertura de tela nunca percorre
+o tipo inteiro**: nada de `iterateKindRecordBatches`, `loadSearchIndex` ou `selectShowcaseRowsByScan` no caminho da
+montagem. Categoria escondida/travada é filtrada na leitura, não no dado guardado. Leitura que depende de serviço externo
+é marcada `external` no slot da montagem: a tela nunca espera por rede.

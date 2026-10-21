@@ -42,11 +42,19 @@ export interface ScreenAssembly<K extends string> {
   follow: () => void
 }
 
-/** Decodifica a imagem antes de revelar; o `<img>` do card reaproveita o cache. Nunca `fetch`, nunca loga a URL. */
+/**
+ * Decodifica a imagem antes de revelar; o `<img>` do card reaproveita o cache. Nunca `fetch`, nunca loga a URL.
+ *
+ * Feature 086 (FR-023): estas são as capas da PRIMEIRA tela, e só elas são pedidas assim — as fileiras abaixo da dobra
+ * continuam com o carregamento preguiçoso dos cards (FR-024/FR-025). `fetchPriority: 'high'` põe estas na frente na fila
+ * da rede, que é o que a medição mostrou faltar (3 de 17 prontas na revelação).
+ */
 const decodeImage: ImageLoader = (url) => {
   if (typeof Image === 'undefined') return Promise.resolve()
   const image = new Image()
   if (typeof image.decode !== 'function') return Promise.resolve()
+  const priorityAware = image as HTMLImageElement & { fetchPriority?: string }
+  priorityAware.fetchPriority = 'high'
   image.src = url
   return image.decode().then(
     () => undefined,
