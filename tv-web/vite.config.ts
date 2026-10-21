@@ -15,6 +15,8 @@ const TESTES_TS_COM_DOM = [
   'src/lib/tizenColorKey.test.ts',
   'src/lib/tizenExit.test.ts',
   'src/lib/tizenMediaKeys.test.ts',
+  // Feature 086: o documento de tela mora no `localStorage` (decidido pela sonda, T070), então o teste precisa de DOM.
+  'src/lib/catalog/screenDocument.test.ts',
   'src/lib/catalog/sourceConnectionCheck.ime-formularios.contract.test.ts',
   'src/lib/catalog/sourceConnectionCheck.test.ts',
   'src/lib/focus/usePosterColumnWidth.test.ts',

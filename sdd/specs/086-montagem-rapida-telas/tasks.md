@@ -324,9 +324,9 @@ carga regredida, nenhum número de abertura vale — foi o que invalidou a rodad
 - [X] T080 Medir cada etapa da gravação (`prevId`, `assign`, `shared`, `chunks`, `identity`, `pick`, `tx`) via
       `BlockWriteOptions.onStage` (descoberta durante T069: `encodeMs` cobria tudo de uma vez). Foi o que mostrou que a
       3ª sessão não regravou nada — e que a comparação de filmes entre sessões não sustentava a conclusão de regressão.
-- [ ] T071 Documento de tela por tela (`home`, `movies`, `series`) com fileiras, **trilha de categorias** e capas da
+- [X] T071 Documento de tela por tela (`home`, `movies`, `series`) com fileiras, **trilha de categorias** e capas da
       primeira tela; a montagem passa a fazer **uma** leitura → origem: **SC-003**, **CV-007**, R-009, P1 do logic.
-- [ ] T072 O documento mora fora do banco do catálogo, na forma que T070 escolher → origem: **R-015**, P2 do logic.
+- [X] T072 O documento mora fora do banco do catálogo, na forma que T070 escolher → origem: **R-015**, P2 do logic.
 - [ ] T073 A carga e a pré-carga cedem a vez à primeira revelação da sessão, em fatias curtas → origem: **FR-017**,
       **SC-001** (CV-005, CV-006), P3 do logic.
 - [ ] T074 Troca atômica do documento com a tela aberta, sem mover foco nem rolagem → origem: **FR-008**, **FR-018**,
@@ -338,7 +338,7 @@ carga regredida, nenhum número de abertura vale — foi o que invalidou a rodad
 
 - [X] T076 Teste: candidato de categoria liberada pelo orçamento não vira card (T064 + T065), sem ler bloco.
 - [X] T077 Teste: a carga por seção grava os candidatos **uma vez**, não uma por categoria (T066).
-- [ ] T078 Teste: a montagem das três telas faz uma leitura do documento (mais o access), e nenhuma do catálogo (T071).
+- [X] T078 Teste: a montagem das três telas faz uma leitura do documento (mais o access), e nenhuma do catálogo (T071).
 
 ### Critério de Conclusão
 
@@ -383,8 +383,13 @@ Testes executados:
   `src/lib/catalog/sectionLoader.candidatos-por-secao.test.ts` → verdes. O 2º distingue de fato a implementação antiga
   (ela faria 8 `put` e nenhum `bulkPut`).
 
-Pendências:
-- **T069 e T070 dependem da TV** (confirmar a carga de volta à linha de base; sonda `montagem086`, 2 rodadas). Cada
+Pendências (atualizado 2026-10-21):
+- **T073–T075 não começaram** (carga cedendo a vez à 1ª revelação; troca atômica; casamento externo em 2º plano).
+- **Validação final na TV** (SC-001 a SC-012), e **reinstalar o pacote normal** — hoje está o de medição.
+- As capas da primeira tela ainda são calculadas pela tela; o campo `images` do documento existe e vai vazio por
+  enquanto (quem conhece o formato das fileiras é a tela). Fecha com T074/T075.
+- Registro anterior desta fase:
+- **T069 e T070 dependiam da TV** (confirmar a carga de volta à linha de base; sonda `montagem086`, 2 rodadas). Cada
   instalação pede autorização.
 - **T071–T075** (documento de tela, trilha de categorias dentro dele, carga cedendo a vez, troca atômica, casamento
   externo em segundo plano) não começaram — T072 depende do resultado de T070.

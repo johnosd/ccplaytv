@@ -328,3 +328,13 @@
 {"receivedAt":"2026-10-21T03:23:55.315Z","sentAt":1792553031319,"source":"frames","slow":93,"idleSlow":4,"heapMB":10,"heapNowMB":10}
 {"receivedAt":"2026-10-21T03:24:00.296Z","sentAt":1792553036319,"source":"frames","slow":93,"idleSlow":4,"heapMB":10,"heapNowMB":10}
 {"receivedAt":"2026-10-21T03:24:05.322Z","sentAt":1792553041319,"source":"frames","slow":93,"idleSlow":4,"heapMB":10,"heapNowMB":10}
+{"receivedAt":"2026-10-21T03:24:10.296Z","sentAt":1792553046319,"source":"frames","slow":93,"idleSlow":4,"heapMB":10,"heapNowMB":10}
+{"receivedAt":"2026-10-21T03:24:15.321Z","sentAt":1792553051319,"source":"frames","slow":93,"idleSlow":4,"heapMB":10,"heapNowMB":10}
+{"receivedAt":"2026-10-21T03:24:20.298Z","sentAt":1792553056319,"source":"frames","slow":93,"idleSlow":4,"heapMB":10,"heapNowMB":10}
+{"receivedAt":"2026-10-21T03:24:25.306Z","sentAt":1792553061319,"source":"frames","slow":93,"idleSlow":4,"heapMB":10,"heapNowMB":10}
+{"receivedAt":"2026-10-21T03:24:30.295Z","sentAt":1792553066319,"source":"frames","slow":93,"idleSlow":4,"heapMB":10,"heapNowMB":10}
+{"receivedAt":"2026-10-21T03:24:35.298Z","sentAt":1792553071319,"source":"frames","slow":93,"idleSlow":4,"heapMB":10,"heapNowMB":10}
+{"receivedAt":"2026-10-21T03:24:40.293Z","sentAt":1792553076319,"source":"frames","slow":93,"idleSlow":4,"heapMB":10,"heapNowMB":10}
+{"receivedAt":"2026-10-21T03:24:45.299Z","sentAt":1792553081319,"source":"frames","slow":93,"idleSlow":4,"heapMB":10,"heapNowMB":10}
+{"receivedAt":"2026-10-21T03:24:50.337Z","sentAt":1792553086319,"source":"frames","slow":93,"idleSlow":4,"heapMB":10,"heapNowMB":10}
+{"receivedAt":"2026-10-21T03:24:55.308Z","sentAt":1792553091319,"source":"frames","slow":93,"idleSlow":4,"heapMB":10,"heapNowMB":10}

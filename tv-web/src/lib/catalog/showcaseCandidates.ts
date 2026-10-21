@@ -13,6 +13,7 @@ import { createRecentlyAddedAccumulator, showcaseSeed, toShowcaseItem } from './
 import { createRatedSelectionAccumulator } from './ratedSelection'
 import { readBlockChunks } from './blockChunks'
 import { isSectionLoadActive } from './loadActivity'
+import { clearScreenDocuments } from './screenDocumentStore'
 
 /**
  * Teto de tempo de uma rodada do preenchimento em segundo plano (T068). Uma categoria que leve mais que isto consome o
@@ -124,6 +125,10 @@ function isEligible(item: CatalogRecord | BlockItem, currentYear: number): boole
 /** Grava os candidatos de uma categoria (chamado por quem grava a categoria, nunca pela tela). */
 export async function writeCandidates(candidates: ShowcaseCandidates, database: CatalogDb = db): Promise<void> {
   await database.showcaseCandidates.put(candidates)
+  // T071: candidato novo muda as fileiras, e o documento guardado não saberia disso. Sem isto, uma categoria que a
+  // pré-carga acabou de trazer só apareceria na virada do dia (FR-008/FR-012). Quem refaz o documento é a carga ou a
+  // próxima abertura — apagar é o bastante aqui, e nunca perde conteúdo.
+  clearScreenDocuments(candidates.sourceId, candidates.kind)
 }
 
 /**
@@ -133,6 +138,9 @@ export async function writeCandidates(candidates: ShowcaseCandidates, database: 
 export async function writeCandidatesBatch(candidates: readonly ShowcaseCandidates[], database: CatalogDb = db): Promise<void> {
   if (candidates.length === 0) return
   await database.showcaseCandidates.bulkPut(candidates as ShowcaseCandidates[])
+  for (const sourceId of new Set(candidates.map((row) => row.sourceId))) {
+    for (const kind of new Set(candidates.map((row) => row.kind))) clearScreenDocuments(sourceId, kind)
+  }
 }
 
 // Não existe um `clearCandidates` aqui de propósito (FR-011): quem apaga os candidatos é `deleteCategoryItems`

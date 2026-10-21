@@ -33,9 +33,9 @@ import {
 } from '../../lib/catalog/catalogRepository'
 import { readKindCursorPage, type KindCursor } from '../../lib/catalog/kindCursor'
 import { listVisibleCategories } from '../../lib/catalog/categoryAccess'
+import { loadShowcaseSelections } from './showcaseSelections'
 import { READ_WINDOW_MIN_ITEMS, readCategoryWindow } from '../../lib/catalog/categoryWindow'
 import { READ_PROJECTION_CHUNK_SIZE, readItemToRecord } from '../../lib/catalog/readProjection'
-import { buildShowcaseRowsFromCandidates } from '../../lib/catalog/showcaseRows'
 import { ensureCategory, type CategoryFetchOutcome } from '../../lib/catalog/categoryLoader'
 import { markEntry, reportBackgroundRead } from '../../lib/perf/entryTiming'
 import { useEntryFirstPaint } from '../../lib/perf/useEntryFirstPaint'
@@ -1635,13 +1635,6 @@ const SHOWCASE_STALE_MS = 60_000
 /** Registros entre duas cessões da thread na passada das vitrines. */
 const SHOWCASE_SLICE = 2000
 
-interface ShowcaseSelections {
-  recent: CatalogItemOut[]
-  rated: CatalogItemOut[]
-  coveredCategories: number
-  totalCategories: number
-}
-
 /**
  * Feature 086 (FR-002/FR-014): o índice de nomes que o Top 10 e a Dica usam para casar títulos do serviço externo é a
  * ÚNICA coisa que ainda percorre o tipo inteiro — e por isso saiu da montagem para uma consulta própria. O slot dessas
@@ -1671,22 +1664,6 @@ function useDiscoveryIndex(sourceId: string | null, kind: FavoritableKind, enabl
   })
 }
 
-/**
- * Feature 065 (D-005, FR-006): uma passada pelo tipo, bloco a bloco, cedendo a thread em fatias — retém só os 12 mais novos e
- * os candidatos de "Bem avaliados", nunca o tipo inteiro (antes: `loadSearchIndex` + seleção síncrona no `select`). Mesmas
- * regras e desempates: a ordem da passada é a de `listAllOfKind` (categoria na ordem da fonte, itens na ordem do bloco).
- */
-async function loadShowcaseSelections(sourceId: string, kind: FavoritableKind & StoredKind, now: number): Promise<ShowcaseSelections> {
-  // Feature 086 (FR-001/FR-002): as fileiras saem dos candidatos guardados por categoria — a abertura não varre o tipo.
-  const rows = await buildShowcaseRowsFromCandidates(sourceId, kind as 'movie' | 'series', { now })
-  const toOut = (item: Parameters<typeof readItemToRecord>[0]): CatalogItemOut => toItemOut(readItemToRecord(item), kind)
-  return {
-    recent: rows.recent.map(toOut),
-    rated: rows.rated.map(toOut),
-    coveredCategories: rows.coveredCategories,
-    totalCategories: rows.totalCategories,
-  }
-}
 
 /** Vitrine do tipo: a chave fica sob `catalog-search-index`, então a pré-carga e a sincronização a invalidam junto com o índice. */
 function useShowcaseSelections(sourceId: string | null, kind: FavoritableKind, enabled: boolean) {
@@ -1694,7 +1671,8 @@ function useShowcaseSelections(sourceId: string | null, kind: FavoritableKind, e
   const [now] = useState(() => Date.now())
   return useQuery({
     queryKey: ['catalog-search-index', sourceId, kind, 'showcase', dayKey(now)],
-    queryFn: () => loadShowcaseSelections(sourceId as string, kind as FavoritableKind & StoredKind, now),
+    queryFn: () => loadShowcaseSelections(sourceId as string, kind as 'movie' | 'series', now,
+      (item) => toItemOut(readItemToRecord(item), kind)),
     enabled: enabled && sourceId !== null && kind !== 'channel',
     // Não relê o tipo a cada montagem da tela: a pré-carga (categoria nova) e o fim de uma sincronização a invalidam.
     staleTime: SHOWCASE_STALE_MS,

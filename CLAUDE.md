@@ -478,5 +478,14 @@ descomprima dentro de uma transação; todo gravador novo chama `makeRoomFor`.
 As fileiras calculadas de Início/Filmes/Séries (Adicionados, Bem avaliados, Top 10, Dica, Porque você assistiu) saem de
 `showcaseCandidates` — candidatos por categoria, gravados por quem grava a categoria. **A abertura de tela nunca percorre
 o tipo inteiro**: nada de `iterateKindRecordBatches`, `loadSearchIndex` ou `selectShowcaseRowsByScan` no caminho da
-montagem. Categoria escondida/travada é filtrada na leitura, não no dado guardado. Leitura que depende de serviço externo
-é marcada `external` no slot da montagem: a tela nunca espera por rede.
+montagem. Leitura que depende de serviço externo é marcada `external` no slot da montagem: a tela nunca espera por rede.
+
+A abertura lê o **documento de tela** (`screenDocument.ts`, no `localStorage`) e só cai nos candidatos se ele não valer.
+Medido na TV: com a carga da lista em curso, ler o documento custa p95 0,8 ms, contra ~20 ms num `get` do IndexedDB e
+223 ms num banco separado — o gargalo é a **thread**, não a fila. O documento é refeito pela carga por seção e pela fila
+do prefetch, **nunca** na abertura; quem grava candidatos o invalida (`clearScreenDocuments`), senão a fileira não
+acompanha a pré-carga.
+
+Sobre categoria escondida/travada: ela continua sendo **decidida na leitura**, nunca pelo dado guardado. O documento
+registra o conjunto de categorias excluídas de quando foi construído; se a visibilidade mudar, ele é recusado e a
+mesclagem dos candidatos assume. Não faça o documento guardar só o resultado sem esse conjunto.

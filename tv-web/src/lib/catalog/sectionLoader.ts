@@ -32,6 +32,7 @@ import { readCredential } from './sourceRepository'
 import { SectionTimer, type SectionLoadTimings } from './sectionTimings'
 import { writeCandidatesBatch, type ShowcaseCandidates } from './showcaseCandidates'
 import { beginSectionLoad } from './loadActivity'
+import { refreshScreenDocument } from './screenDocument'
 
 /** Etapa da gravação → campo dos tempos da seção (feature 086, T080). */
 const STAGE_FIELD: Record<string, 'prevIdMs' | 'assignMs' | 'sharedMs' | 'chunksMs' | 'identityMs' | 'pickMs' | 'txMs'> = {
@@ -265,6 +266,10 @@ async function runSectionLoad(
     }
     // Feature 086 (FR-003): uma transação para os candidatos de toda a seção, aqui no fim — como a limpeza do preparo.
     await timer.time('candidatesMs', () => writeCandidatesBatch(pendingCandidates, database)).catch(() => undefined)
+    // Feature 086 (T071): com os candidatos no lugar, o documento da tela é refeito — aqui, não na abertura.
+    if (kind === 'movie' || kind === 'series') {
+      await timer.time('documentMs', () => refreshScreenDocument(sourceId, kind, { database, now: now() })).catch(() => undefined)
+    }
     // Feature 085 (D-004): o preparo sai uma vez, no fim, em vez de uma limpeza por categoria.
     if (staged.size > 0) await timer.time('stageClearMs', () => clearStagedItems(sourceId, undefined, database))
   } catch (error) {
