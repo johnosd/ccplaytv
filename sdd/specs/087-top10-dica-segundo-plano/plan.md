@@ -152,7 +152,17 @@ de Conclusão de cada fase as cobra.
 
 ## Estado Atual
 
-<!-- Sobrescrita a cada checkpoint pelo sdd-execute. Vazia na criação. -->
+| Área | Estado |
+| --- | --- |
+| Contratos travados (087) | **5/5 verdes** dentro da suíte completa. Trava íntegra (regravada pela emenda do R-006) |
+| Travas de outras features (057, 086) | Íntegras |
+| Código | Produtor, fila, leitura, as três ações da pessoa e o canal de aviso — **completos** |
+| As 14 garantias | **Todas no lugar novo**; os dois arquivos de teste antigos removidos |
+| `npm run test` | **3708/3708**, 683 arquivos |
+| `tsc` / `lint` / `build` | Verdes; ratchet podado (`catalogApi.ts` 2160 -> 2056) |
+| `npm run test:e2e` | **54/54**; `top10-dica.mjs` adaptado ao novo desenho (T045) |
+| `CLAUDE.md` | Regra da 087 registrada; a da 086 deixou de listar Top 10/Dica |
+| **TV (T043/T044)** | **Pendente — espera autorização do usuário.** É o gate de SC-007 e SC-008 |
 
 ## Riscos e Decisões
 
@@ -163,6 +173,9 @@ de Conclusão de cada fase as cobra.
 | R-003 | Os 14 testes de comportamento mudam de lugar; perder uma garantia no caminho é silencioso | Regressão invisível em "sem rede", "chave recusada", "troca de idioma" | O FR-017 e a tabela do `logic` §8 listam cada garantia e o destino dela. O Critério de Conclusão da Fase 4 exige a tabela inteira coberta |
 | R-004 | A estabilidade do sorteio da Dica **muda de natureza**: era "fixado na montagem da tela", passa a ser "fixado no período gravado" | Um teste de hoje cobre o comportamento antigo e não tem equivalente direto | Esperado e mais forte (sobrevive a remontagens). Registrado no `logic` §8; o teste equivalente verifica a estabilidade pelo `periodKey` |
 | R-005 | `catalogApi.ts` tem teto de linhas no ratchet | Build vermelho por 1 linha, como aconteceu na 086 | Remover o bloco da tela **reduz** o arquivo. Rodar `node scripts/architecture.mjs` antes de fechar a fase, e **não** aproveitar para mover outras coisas para lá |
+| R-006 | **Emenda aprovada ao contrato 1** (2026-10-21, Fase 3): a referência do teste lia `database.channels`, vazia desde a feature 082 (itens em bloco comprimido). Como escrito, ele exigia fileira vazia com 3 títulos cruzando — e contradizia o contrato 2, que exige `>= TOP10_MIN` com a mesma semeadura | Nenhum produtor satisfazia os dois contratos ao mesmo tempo | **Resolvido**: a referência passou a ler os itens por `iterateKindRecordBatches`, onde eles estão (7 linhas no próprio teste, intenção intacta — as mesmas funções da 057 sobre os mesmos dados). Trava regravada com `-Write`. Nada no código de produção mudou por causa disto; a comparação virou real (3 itens, ranks 1/3/4) em vez de vazia contra vazia |
+| R-007 | **A invalidação que o plano supunha não alcançava a fileira** (descoberto na T027): o `logic` §7 dizia que a chave sob `catalog-search-index` bastaria, porque "a pré-carga e a sincronização já invalidam esse prefixo". Mas a pré-carga só invalida quando **uma categoria chega**, e o produtor roda no `housekeeping` — justamente quando não há mais nenhuma a chegar; e a invalidação que a 086 instalou é estreita (`…, kind, 'showcase'`) | O FR-006 não se cumpriria: a fileira só apareceria na próxima visita à tela | **Resolvido** pela T028, espelhando o canal da feature 086 (`onScreenDocumentRefreshed`): o produtor avisa ao gravar e `usePrefetchForSource` invalida **só** `['catalog-search-index', sourceId, kind, 'external']` — o foco e a rolagem ficam onde estão. Coberto por teste nos dois lados (produtor avisa / a tela relê sem remontar) |
+| R-008 | **A validade pelo período sozinha perdia a garantia 4** (descoberto na T033): uma categoria que chega depois **não** muda o período, então o produtor recusava refazer e a fileira ficava parada no catálogo de quando foi produzida até a semana virar -- o teste de hoje (categoria que chega depois atualiza a fileira) não teria equivalente | Fileira desatualizada por até uma semana durante a pré-carga, que é justamente quando o catálogo cresce | **Resolvido** pela T036: a **cobertura gravada** (`coveredCategories`/`totalCategories`, que o registro já guardava) entra na validade junto com o período. Refazer não consulta nada -- o ranking do período já está em cache. Limite registrado: uma categoria **renovada** com a mesma contagem só entra quando o período virar |
 
 ## Execution Notes
 
@@ -170,11 +183,28 @@ de Conclusão de cada fase as cobra.
 
 | Data | Fase/Story | Resumo | Pendência Principal |
 | --- | --- | --- | --- |
+| 2026-10-21 | Fase 1 (Setup) | T001/T002: 5 contratos vermelhos pelo motivo esperado (3 `not implemented`, 2 asserção) e as três travas (087/057/086) íntegras | Nenhuma |
+| 2026-10-21 | Fase 2 (Foundational) | T010: `localDay` exportado (uma linha); `tsc` verde e trava da 057 íntegra | Nenhuma |
+| 2026-10-21 | Fase 3 (US1 — MVP) | T020–T028: produtor pronto e ligado na fila; a tela só lê; `catalogApi.ts` 2160 → 2066 linhas. 3/3 contratos da fase verdes. **Emenda R-006** ao contrato 1 (referência lia `channels`, vazia desde a 082) aprovada pelo usuário e trava regravada. **R-007**: a invalidação suposta no plano não alcançava a fileira — resolvido pela T028 | As 15 garantias do lugar antigo seguem vermelhas até a T033 (Fase 4) |
+| 2026-10-21 | Fase 4 (US2/US3) | T030–T036: salvar acorda a fila; remover apaga os registros na transação da chave; trocar o idioma mantém e marca para refazer. **As 14 garantias movidas** e os 2 arquivos antigos removidos — área com 1009 passed, 0 falhas. **R-008**: a validade só por período perdia a garantia 4 -> a cobertura gravada entra na conta | O ratchet de `catalogApi.ts` quebrou por 12 linhas e foi corrigido enxugando comentários (R-005) |
+| 2026-10-21 | Fase 5 (Polish) | T040–T042 e T045: gates verdes (`test` 3708/3708, `tsc`, `lint`+ratchet podado, `build`), **E2E 54/54** e `CLAUDE.md` com a regra da 087. O roteiro `top10-dica.mjs` codificava o comportamento antigo em três pontos e foi adaptado (T045) | T043/T044 na TV, esperando autorização |
+
+PRÓXIMO: **T043 e T044 na TV** — roteiro de duração fixa do `quickstart.md` §4 (SC-007 e SC-008), com build de medição, e depois reinstalar o pacote normal. **Pedem autorização do usuário a cada instalação.** Todo o resto está fechado.
 
 ## Arquivos Principais
 
-<!-- Sobrescrita a cada checkpoint pelo sdd-execute. -->
+- `tv-web/src/lib/catalog/externalRows.ts` — o produtor (stub; T020/T021)
+- `tv-web/src/lib/metadata/tmdbDiscovery.ts` — só exportar `localDay` (T010)
+- `tv-web/src/lib/catalog/prefetch/index.ts` — `housekeeping` chama o produtor (T022)
+- `tv-web/src/features/catalog/catalogApi.ts` — os dois hooks passam a ler (T023/T024)
+- `tv-web/src/lib/catalog/externalRows.top10-dica-segundo-plano.contract.test.ts` — 3 contratos travados
+- `tv-web/src/features/catalog/catalogApi.top10-dica-segundo-plano.contract.test.tsx` — 2 contratos travados
 
 ## Cuidados para Retomada
 
-<!-- Anexado pelo sdd-execute quando descobrir armadilha operacional. -->
+- **O teto do ratchet de `catalogApi.ts` quebra por qualquer linha acrescentada depois da poda.** Pode (`node scripts/architecture.mjs --prune`) **uma vez, no fim**: podei na Fase 3 (2066) e a Fase 4 voltou a 2078. O contrato `scripts/architecture.codigo-saudavel.contract.test.mjs` reprova, e `npm run test` leva ~2,4 min para contar isso.
+- **`catalogApi.ts` e `externalRows.ts` têm fim de linha diferente** (CRLF no antigo, LF no criado pelo Write). Editar por script sem detectar o fim de linha gera arquivo **misto** e as âncoras de texto param de casar. Normalize o arquivo inteiro antes de editar.
+- **`queryClient.removeQueries` não faz uma consulta com observador ativo reler**: a tela fica com o dado anterior até sair e voltar. Para a fileira sumir na hora, é `invalidateQueries`. Custou uma rodada de depuração no contrato do FR-011.
+- **`page.waitForFunction` não espera uma Promise devolvida pelo predicado** (trata o objeto como verdadeiro e segue): a espera da produção no E2E foi para o lado do Node, com `page.evaluate` em laço. O roteiro passava e falhava na asserção seguinte.
+- **Heredoc de shell com backtick quebra o parsing** neste ambiente: scripts de edição maiores vão para arquivo `.py` no scratchpad e são executados por caminho.
+

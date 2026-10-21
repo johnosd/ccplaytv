@@ -475,10 +475,11 @@ descomprima dentro de uma transação; todo gravador novo chama `makeRoomFor`.
 
 # Regra da feature 086
 
-As fileiras calculadas de Início/Filmes/Séries (Adicionados, Bem avaliados, Top 10, Dica, Porque você assistiu) saem de
+As fileiras calculadas de Início/Filmes/Séries (Adicionados, Bem avaliados, Porque você assistiu) saem de
 `showcaseCandidates` — candidatos por categoria, gravados por quem grava a categoria. **A abertura de tela nunca percorre
 o tipo inteiro**: nada de `iterateKindRecordBatches`, `loadSearchIndex` ou `selectShowcaseRowsByScan` no caminho da
 montagem. Leitura que depende de serviço externo é marcada `external` no slot da montagem: a tela nunca espera por rede.
+**Top 10 e Dica saíram deste caminho na feature 087** — veja a regra abaixo.
 
 A abertura lê o **documento de tela** (`screenDocument.ts`, no `localStorage`) e só cai nos candidatos se ele não valer.
 Medido na TV: com a carga da lista em curso, ler o documento custa p95 0,8 ms, contra ~20 ms num `get` do IndexedDB e
@@ -489,3 +490,20 @@ acompanha a pré-carga.
 Sobre categoria escondida/travada: ela continua sendo **decidida na leitura**, nunca pelo dado guardado. O documento
 registra o conjunto de categorias excluídas de quando foi construído; se a visibilidade mudar, ele é recusado e a
 mesclagem dos candidatos assume. Não faça o documento guardar só o resultado sem esse conjunto.
+
+# Regra da feature 087
+
+O **Top 10** e a **Dica** são produzidos em segundo plano (`lib/catalog/externalRows.ts`, no `housekeeping` da fila do
+prefetch) e gravados em `showcaseExternalRows`. A tela **só lê** (`readExternalRow`): nunca consulta o TMDB e nunca monta
+o índice de nomes do tipo. As **regras** de seleção continuam em `lib/metadata/discoveryRules.ts` (feature 057, contrato
+travado) — a 087 mudou **onde** e **quando** rodam, nada do que escolhem.
+
+A validade do registro é o **período** (semana no Top 10, dia na Dica) **mais a cobertura gravada** (`coveredCategories`/
+`totalCategories`): uma categoria que chega depois não muda o período, e sem a cobertura na conta a fileira ficaria parada
+até a semana virar. Abaixo do mínimo de cruzados **grava vazio** — é o que impede a fila de remontar o índice do tipo a
+cada rodada. Resposta de outro período (serviço fora do ar) **não** é gravada: o guardado continua valendo.
+
+Quem grava **avisa** (`onExternalRowRefreshed`), e `usePrefetchForSource` invalida só `['catalog-search-index', fonte, tipo,
+'external']` — sem esse aviso a fileira só apareceria na próxima visita, porque a invalidação da pré-carga depende de uma
+categoria chegar. Remover a chave do TMDB apaga `showcaseExternalRows` na mesma transação (`removeTmdbKey`); trocar o
+idioma **mantém** o registro e só zera o `periodKey`.

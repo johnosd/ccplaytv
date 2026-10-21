@@ -63,7 +63,7 @@ function pad(value: number): string {
 }
 
 /** Dia local `AAAA-MM-DD` de `now` — o período do cache da Dica (mesma saída de `dayKey` de `ratedSelection.ts`). */
-function localDay(now: number): string {
+export function localDay(now: number): string {
   const date = new Date(now)
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`
 }

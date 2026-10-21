@@ -188,12 +188,16 @@ export async function testTmdbKey(options: MetadataOptions = {}): Promise<TmdbSt
 export async function removeTmdbKey(options: MetadataOptions = {}): Promise<void> {
   const database: CatalogDb = options.database ?? db
   removalEpochs.set(database, removalEpoch(database) + 1)
-  await database.transaction('rw', database.integrations, database.titleMetadata, database.tmdbPeople, database.discoveryCache, async () => {
+  await database.transaction('rw', database.integrations, database.titleMetadata, database.tmdbPeople, database.discoveryCache,
+    database.showcaseExternalRows, async () => {
     await database.integrations.delete(TMDB_ID)
     // Filmografias também vieram do TMDB (feature 035, FR-021).
     await database.tmdbPeople.clear()
     // Top 10 e Dica também (feature 057): sem chave as fileiras somem, sem cache de outra época.
     await database.discoveryCache.clear()
+    // Feature 087 (FR-011): e o resultado que o segundo plano já produziu sai na mesma transação — a tabela é só
+    // projeção do que veio do TMDB, então remover a chave é a pessoa pedindo que ela saia inteira.
+    await database.showcaseExternalRows.clear()
     await database.titleMetadata.toCollection().modify((record) => {
       delete record.tmdb
       delete record.tmdbFetchedAt

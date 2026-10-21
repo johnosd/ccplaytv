@@ -18,6 +18,7 @@ import { listVisibleCategories } from '../categoryAccess'
 import { hasStorageHeadroom } from '../storageRelief'
 import { fillNextCandidates } from '../showcaseCandidates'
 import { refreshMissingScreenDocuments } from '../screenDocument'
+import { refreshStaleExternalRows } from '../externalRows'
 
 export const prefetchGate = createActivityGate()
 
@@ -74,6 +75,10 @@ async function housekeeping(sourceId: string): Promise<boolean> {
   // Feature 086 (T071): o documento de tela que falta é refeito aqui — nunca na abertura da tela. Com ele, a próxima
   // abertura lê um registro do `localStorage` (p95 0,8 ms sob carga na TV) em vez de mesclar os candidatos.
   if (await refreshMissingScreenDocuments(sourceId)) return true
+  // Feature 087 (T022): o Top 10 e a Dica saíram da tela e são produzidos aqui, uma fileira por rodada. Esta fila já
+  // espera o aparelho quieto, cede a vez à primeira tela da sessão e se cala durante a carga — os três portões que o
+  // FR-014 pede, sem acrescentar nenhum. **Nunca** chamar isto ao fim da carga por seção (Decisão Invariante 5).
+  if (await refreshStaleExternalRows(sourceId)) return true
   // Feature 082: categorias liberadas com o banco cheio (carimbadas sem itens) — depois de converter, que é o que
   // libera espaço; o reparo precisa gravar.
   const repair = await repairOrphanCategories()

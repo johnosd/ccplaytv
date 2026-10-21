@@ -1,6 +1,10 @@
-// Roteiro E2E da feature 057 (Top 10 da semana e Dica, TMDB, em Filmes e Séries; o Início deixou de tê-los no ad-hoc de
-// 2026-10-09) — gate da constitution ("Testes E2E antes
-// da validação em TV"). Capturas em `test-results/top10-dica-tmdb/`.
+// Roteiro E2E das fileiras do TMDB em Filmes e Séries — regras da feature 057 (Top 10 da semana e Dica; o Início
+// deixou de tê-los no ad-hoc de 2026-10-09), produzidas em segundo plano desde a feature **087**. Gate da constitution
+// ("Testes E2E antes da validação em TV"). Capturas em `test-results/top10-dica-tmdb/`.
+//
+// Feature 087: a tela **não** calcula mais nada — ela lê um resultado que a fila de segundo plano gravou. Por isso o
+// roteiro espera a produção (`esperarProducao`) em vez de esperar um cruzamento na própria tela, e o período gravado
+// passa a ser a validade: dentro dele, abrir a tela não dispara consulta nenhuma.
 //
 // Painel Xtream FICTÍCIO e TMDB SIMULADO (interceptação de `api.themoviedb.org`, nunca a rede real), ambos criados por este script.
 // A chave TMDB é uma sequência fictícia semeada direto no IndexedDB. Mede:
@@ -138,20 +142,25 @@ const SEEDS = {
         tx.onerror = () => reject(tx.error)
       }
     }),
-  dropKeyAndCache: () =>
+  // Feature 087: remover a chave passa pelo caminho **real** (`removeTmdbKey`), que apaga a chave, o cache e o
+  // resultado já produzido na MESMA transação. Apagar só a chave no IndexedDB deixaria o registro para trás, e a
+  // fileira continuaria na tela — exatamente o que o FR-011 proíbe.
+  dropKeyAndCache: async () => {
+    const { removeTmdbKey } = await import('/src/lib/metadata/tmdbKeyRepository.ts')
+    await removeTmdbKey()
+  },
+  producedRows: () =>
     new Promise((resolve, reject) => {
       const open = indexedDB.open('ccplaytv')
       open.onerror = () => reject(open.error)
       open.onsuccess = () => {
         const db = open.result
-        const tx = db.transaction(['integrations', 'discoveryCache'], 'readwrite')
-        tx.objectStore('integrations').delete('tmdb')
-        tx.objectStore('discoveryCache').clear()
-        tx.oncomplete = () => {
+        const request = db.transaction('showcaseExternalRows', 'readonly').objectStore('showcaseExternalRows').count()
+        request.onsuccess = () => {
           db.close()
-          resolve()
+          resolve(request.result)
         }
-        tx.onerror = () => reject(tx.error)
+        request.onerror = () => reject(request.error)
       }
     }),
   cacheCount: () =>
@@ -204,6 +213,25 @@ async function reopenApp(page) {
 async function goHome(page) {
   await openViaTopbar(page, 'home')
   await page.waitForSelector('.home-content', { timeout: 10000 })
+}
+
+/**
+ * Feature 087: espera a fila de segundo plano gravar as **quatro** fileiras (Top 10 e Dica, de filmes e de séries).
+ *
+ * A fila faz uma tarefa por rodada e cede a vez à primeira tela da sessão, então isto leva dezenas de segundos — e é
+ * o ponto: a fileira entra com a tela aberta, sem a pessoa sair e voltar. Esperar as quatro também deixa as contagens
+ * de consulta ao TMDB determinísticas no resto do roteiro, em vez de depender de quando a fila termina.
+ */
+async function esperarProducao(page, minimo = 4, timeoutMs = 120000) {
+  const limite = Date.now() + timeoutMs
+  for (;;) {
+    const total = await page.evaluate(SEEDS.producedRows)
+    if (total >= minimo) return total
+    if (Date.now() > limite) throw new Error(`a fila não produziu ${minimo} fileiras em ${timeoutMs} ms (${total})`)
+    // Espera do lado do Node de propósito: `waitForFunction` com uma Promise trata o objeto como verdadeiro e não
+    // espera o resultado — o roteiro seguia antes de a fila terminar, e a fileira seguinte ainda não existia.
+    await page.waitForTimeout(1000)
+  }
 }
 
 async function run() {
@@ -264,6 +292,10 @@ async function run() {
     console.log((step = '=== Com chave: o Início continua sem Top 10/Dica (ad-hoc 2026-10-09) ==='))
     // O Início só tem fileiras do aparelho desde o ad-hoc de 2026-10-09; Top 10 e Dica ficam nas vitrines de Filmes e Séries.
     await page.evaluate(SEEDS.putKey, KEY)
+    // Feature 087: quem produz as fileiras é a fila de segundo plano. A chave foi semeada direto no IndexedDB, sem
+    // passar por Integrações — que é quem acorda a fila na hora (FR-010) —, então a sessão é reaberta: é o que acontece
+    // na próxima abertura do app, e dali a fila trabalha.
+    await reopenApp(page)
     await goHome(page)
     await page.waitForTimeout(1500)
     assert(!(await rowLabels(page, '.home-content')).some(isDiscovery), 'Início com chave: nenhuma linha Top 10/Dica')
@@ -271,6 +303,10 @@ async function run() {
 
     console.log((step = '=== Filmes: Top 10 e Dica ==='))
     await openShowcase(page, 'movies')
+    // FR-002/FR-006: a fileira entra com a tela ABERTA, quando a fila termina de produzir.
+    const produzidas = await esperarProducao(page)
+    assert(produzidas >= 4, `a fila produziu as quatro fileiras, 2 tipos x Top 10/Dica (${produzidas})`)
+    await page.waitForSelector('section.vod-row[aria-label="Em alta esta semana"] .content-card', { timeout: 20000 })
     await enterRows(page)
     await gotoRow(page, 'Em alta esta semana', ['Lançamentos', 'Fora do ar'])
     const topRow = 'section.vod-row[aria-label="Em alta esta semana"]'
@@ -335,7 +371,10 @@ async function run() {
     await openShowcase(page, 'movies')
     const offlineTop = 'section.vod-row[aria-label="Em alta esta semana"]'
     await page.waitForSelector(`${offlineTop} .content-card`, { timeout: 20000 })
-    assert(callsTo('/3/trending/movie/week') > 1 || tmdbCalls.length > callsBeforeOffline, 'tentou a rede (que falhou) antes de usar o cache')
+    // Feature 087 (FR-007/FR-008): o período gravado no resultado é a validade, e ele ainda vale — então **nada** é
+    // pedido ao serviço, nem para falhar, e a fileira é o último resultado produzido. Antes da 087 a tela tentava a
+    // rede a cada abertura e só então caía no cache; agora quem decide buscar o período seguinte é o segundo plano.
+    assert(tmdbCalls.length === callsBeforeOffline, `dentro do período, nenhuma consulta nova (${tmdbCalls.length - callsBeforeOffline})`)
     assert(JSON.stringify(await ranksOf(page, offlineTop)) === JSON.stringify(['1', '2', '3']), 'Filmes offline: a última fileira em alta guardada')
     assert((await page.locator('.error-state, [role="alert"]').count()) === 0, 'nenhum erro na tela sem rede')
     await shot(page, '06-filmes-offline-com-cache')

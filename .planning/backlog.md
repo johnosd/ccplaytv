@@ -125,7 +125,7 @@ update-bug-status.ps1.
 | 084-indice-busca-sem-travar | Índice de busca sem travar a tela na TV | Convergida | 33/37 tasks | 2026-10-20 |
 | 085-gravacao-carga-secao-tv | Gravação da carga por seção mais rápida na TV | Convergida | 40/40 tasks | 2026-10-20 |
 | 086-montagem-rapida-telas | Montagem rápida das telas principais com seleções guardadas | Convergida | 68/73 tasks | 2026-10-21 |
-| 087-top10-dica-segundo-plano | 087-top10-dica-segundo-plano | Planejada | 0/31 tasks | 2026-10-21 |
+| 087-top10-dica-segundo-plano | 087-top10-dica-segundo-plano | Em Execução | 29/34 tasks | 2026-10-21 |
 
 ## Bugs
 

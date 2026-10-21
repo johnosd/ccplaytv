@@ -2,6 +2,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { CatalogDb, type CatalogRecord } from './db'
 import { renewCategoryItems, storeCategories } from './catalogRepository'
+import { iterateKindRecordBatches } from './catalogDerivedRows'
 import { readExternalRow } from './showcaseRows'
 import { refreshExternalRow } from './externalRows'
 import { selectTop10, matchDiscoveryTitlesAsync, TOP10_MIN } from '../metadata/discoveryRules'
@@ -84,8 +85,12 @@ describe('produção do Top 10 e da Dica em segundo plano (087)', () => {
     expect(await refreshExternalRow(SOURCE, 'movie', 'top10', { database, now: NOW })).toBe(true)
 
     const guardado = await readExternalRow(SOURCE, 'movie', 'top10', database)
-    // A referência: as mesmas funções da feature 057, aplicadas aos mesmos dados.
-    const locais = await database.channels.where('sourceId').equals(SOURCE).toArray()
+    // A referência: as mesmas funções da feature 057, aplicadas aos mesmos dados. Os itens vivem no bloco
+    // comprimido da feature 082 (`channels` fica vazia), então a referência os lê por onde eles estão.
+    const locais: CatalogRecord[] = []
+    for await (const lote of iterateKindRecordBatches(SOURCE, 'movie', { database })) {
+      locais.push(...lote)
+    }
     const casados = await matchDiscoveryTitlesAsync(titulos, locais, {
       id: (record) => String(record.id),
       name: (record) => record.originalName,

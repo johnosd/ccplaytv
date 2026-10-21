@@ -5,6 +5,8 @@ import { protectCatalogSource } from '../../lib/catalog/storageRelief'
 import { subscribeCatalogReleases, touchSource } from '../../lib/catalog/storageBudget'
 import { db } from '../../lib/catalog/db'
 import { onScreenDocumentRefreshed } from '../../lib/catalog/screenDocument'
+import { markExternalRowsForRefresh, onExternalRowRefreshed } from '../../lib/catalog/externalRows'
+import { subscribeAppLanguage } from '../../lib/i18n/appLanguage'
 import type { PrefetchHint } from '../../lib/catalog/prefetch/prefetchOrder'
 import type { PrefetchProgress } from '../../lib/catalog/prefetch/prefetchScheduler'
 
@@ -191,11 +193,26 @@ export function usePrefetchForSource(sourceId: string | null): void {
     const unsubscribeDocument = onScreenDocumentRefreshed((sourceId, kind) => {
       void queryClient.invalidateQueries({ queryKey: ['catalog-search-index', sourceId, kind, 'showcase'] })
     })
+    // Feature 087 (T028/FR-006): o mesmo para o Top 10 e a Dica. A invalidação da pré-carga depende de uma categoria
+    // chegar, e o produtor roda quando não há mais nenhuma a chegar — sem este aviso a fileira só entraria na próxima
+    // visita. Invalida só a chave daquele tipo: o foco e a rolagem ficam onde estão.
+    const unsubscribeExternal = onExternalRowRefreshed((sourceId, kind) => {
+      void queryClient.invalidateQueries({ queryKey: ['catalog-search-index', sourceId, kind, 'external'] })
+    })
+    // Feature 087 (FR-012): trocar o idioma **mantém** a fileira na tela com o resultado anterior e marca para refazer.
+    // A assimetria com remover a chave é deliberada: trocar o idioma não é pedido para esvaziar nada.
+    const unsubscribeLanguage = subscribeAppLanguage(() => {
+      void markExternalRowsForRefresh().then(() => {
+        prefetchScheduler.wake()
+      })
+    })
     return () => {
       setPrefetchCategoryDone(undefined)
       invalidator.dispose()
       unsubscribe()
       unsubscribeDocument()
+      unsubscribeExternal()
+      unsubscribeLanguage()
     }
   }, [queryClient])
 
