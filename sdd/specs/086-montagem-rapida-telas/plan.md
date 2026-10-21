@@ -126,7 +126,7 @@ Trava (na raiz): `.\.planning\scripts\powershell\check-contract-tests.ps1 -Slug 
 | R-002 | `eligibleCount` por categoria soma com duplicatas entre categorias, superestimando o total | O mínimo de 5 para a fileira existir, e o aviso de cobertura, podem diferir num catálogo pequeno | Contar elegíveis distintos na mesclagem (os candidatos já estão em mãos), não somar os números por categoria |
 | R-003 | Os candidatos ocupam espaço: ~48+12 itens × 390 categorias × 3 listas | Teto de armazenamento da 082 | Gravar pelos caminhos que já chamam `makeRoomFor`; medir o tamanho real na Fase 2 e baixar `RATED_CANDIDATES` se passar de ~1 MB por lista |
 | R-004 | Mover a seleção de `features/vod` para `lib/` pode quebrar os contratos travados das features 052, 056 e 065 | Trava de outra feature vermelha | **Resolvido (T011, 2026-10-20)**: código movido com reexport nos caminhos antigos; as três travas verificadas íntegras e 194 testes de `features/vod` passando |
-| R-005 | A vitrine é invalidada a cada lote da pré-carga (até 1/s) e hoje revarre tudo (`prefetchApi.ts`, achado do `logic` §5) | Com a leitura barata deixa de doer, mas pode sobrar custo de remontagem | **Aberto**: a medição (T003) não teve tela aberta durante o pico da pré-carga, então não confirmou nem descartou. Reavaliar na Fase 4 (T034) com a leitura já barata |
+| R-005 | A vitrine é invalidada a cada lote da pré-carga (até 1/s) e hoje revarre tudo (`prefetchApi.ts`, achado do `logic` §5) | Com a leitura barata deixa de doer, mas pode sobrar custo de remontagem | **Resolvido (T034)**: a vitrine passou a ler candidatos (barata) e segue acompanhando cada lote — o que mantém o frescor (FR-008); a consulta pesada que sobrou (índice de nomes do Top 10/Dica) entrou no grupo de remontagem limitada |
 | R-006 | A Home desenha as 5 fileiras de uma vez, sem virtualização vertical (as vitrines têm) | Pode ser parte do custo de renderização | **Resolvido: descartado pela medição (T003, 2026-10-20).** Com dado em cache, a Home revela em 1 ms e `paintMs` é 1 ms — desenhar não é o gargalo. Não virtualizar a Home nesta feature |
 | R-007 | A TV é gate, com 2 passadas planejadas, e cada instalação pede autorização | A feature pode parar esperando a TV | Pedir autorização por instalação; fechar sem a TV só por decisão explícita do usuário, registrada aqui |
 | R-012 | **Emenda aprovada dos contratos C1 e C2 (2026-10-20, autorizada pelo usuário)**: o C1 montava os candidatos a partir de `block?.items ?? items`, mas os blocos são comprimidos desde a 082 (`block.items` não existe), então passava registros **sem id local** — e o sorteio de "Bem avaliados" usa o id, o que fazia os dois caminhos divergirem por construção. O C2 gravava a preferência por nome (`n:Cat 0`) enquanto a categoria casa por `p:100`, e travava sem PIN configurado (sem PIN nada bloqueia, feature 067) | Os contratos não podiam passar sem quebrar FR-004 ou a feature 066 | **Resolvido**: C1 passa a ler os itens gravados por `readBlockChunks`; C2 passa `providerCategoryId` e configura o PIN antes de travar. O que cada teste verifica não mudou — só o preparo do cenário. Trava regravada; 5/5 verdes |
@@ -145,7 +145,8 @@ Trava (na raiz): `.\.planning\scripts\powershell\check-contract-tests.ps1 -Slug 
 | Fase 1 — medição | Concluída: instrumentação por leitura + pico de heap; linha de base medida na TV (`evidencias/linha-de-base-tv-2026-10-20.md`) |
 | Fase 2 — base | Concluída: schema v17, seleção movida para `lib/` com reexport, varredura de referência pronta |
 | Fase 3 (US1) — fileiras guardadas | **Concluída**: 5/5 contratos verdes; a abertura não varre mais o tipo |
-| Fases 4–6 | Pendentes (serviço externo fora da montagem, renderização, primeira tela) |
+| Fase 4 (US2) — serviço externo | **Concluída** (T031 parcial): a montagem não espera rede, e o índice do Top 10/Dica saiu da abertura |
+| Fases 5–6 | Pendentes (renderização, primeira tela) |
 | TV | Pacote normal reinstalado; coletor parado |
 
 ## Execution Notes
@@ -157,8 +158,9 @@ Trava (na raiz): `.\.planning\scripts\powershell\check-contract-tests.ps1 -Slug 
 | 2026-10-20 | Fase 1 (T001–T004) | Instrumentação por leitura e pico de heap; linha de base na TV: Início revela por `cap` em 2 039 ms com **6 de 6 leituras pendentes**; Séries espera 1 074 ms só por `categories`; reentrada em cache revela em 1 ms | R-006 descartado (renderização não é o gargalo); R-009 (categorias ~1 s) e R-010 (memória não mensurável) abertos |
 | 2026-10-20 | Fase 2 (T010–T013) | Schema v17 com as 2 tabelas; seleção movida para `lib/catalog/{showcaseSelection,ratedSelection}.ts` com reexport em `features/vod`; `selectShowcaseRowsByScan` pronta; limpeza da lista | Travas de 052/056/065 confirmadas íntegras; teto de linhas do `db.ts` ajustado no baseline |
 | 2026-10-20 | Fase 3 (US1, T020–T029) | Candidatos por categoria gravados junto do bloco; montagem lê dezenas de linhas em vez de varrer o tipo; 5/5 contratos verdes e 1060 testes passando | Emenda dos contratos C1/C2 (R-012); 2 testes de outras features atualizados por mudança deliberada |
+| 2026-10-20 | Fase 4 (US2, T030–T036) | Slots de serviço externo deixam de segurar a revelação; índice de nomes do Top 10/Dica saiu da montagem para consulta própria e entrou no limite de remontagem do prefetch | T031 parcial: o casamento ainda roda na tela, não em segundo plano |
 
-**PRÓXIMO**: Fase 4 (T030–T036) — Top 10/Dica/Porque você assistiu de dado guardado, e a montagem deixando de esperar serviço externo — schema v17, mover a lógica de seleção para `lib/catalog/showcaseSelection.ts` com reexport em `features/vod` (R-004) e a varredura de referência.
+**PRÓXIMO**: Fase 5 (T040–T043) — renderização: só mexer no que a medição sustentar; depois Fase 6 e a validação na TV — schema v17, mover a lógica de seleção para `lib/catalog/showcaseSelection.ts` com reexport em `features/vod` (R-004) e a varredura de referência.
 
 ## Arquivos Principais
 

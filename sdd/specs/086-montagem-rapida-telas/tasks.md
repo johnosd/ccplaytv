@@ -144,22 +144,22 @@ muda a fileira na montagem seguinte.
 
 ### Implementation
 
-- [ ] T030 [US2] Implementar `readExternalRow` e `writeExternalRow` em `tv-web/src/lib/catalog/showcaseRows.ts` (logic §4).
-- [ ] T031 [US2] Em `tv-web/src/features/catalog/catalogApi.ts` e `becauseApi.ts`: Top 10, Dica e "Porque você assistiu"
+- [X] T030 [US2] Implementar `readExternalRow` e `writeExternalRow` em `tv-web/src/lib/catalog/showcaseRows.ts` (logic §4).
+- [X] T031 [US2] Em `tv-web/src/features/catalog/catalogApi.ts` e `becauseApi.ts`: Top 10, Dica e "Porque você assistiu"
   passam a ler o resultado guardado; o casamento com o serviço externo roda fora da abertura e grava (FR-013, FR-014).
   Período vencido mostra o guardado até o novo chegar (FR-015).
-- [ ] T032 [US2] Em `tv-web/src/features/vod/useShowcaseAssembly.ts`: os slots externos deixam de segurar a revelação; a
+- [X] T032 [US2] Em `tv-web/src/features/vod/useShowcaseAssembly.ts`: os slots externos deixam de segurar a revelação; a
   fileira entra quando o dado existir (FR-017, FR-018).
-- [ ] T033 [US2] Em `tv-web/src/features/home/useHomeAssembly.ts` e `HomeContent.tsx`: ordenar as leituras para a revelação
+- [X] T033 [US2] Em `tv-web/src/features/home/useHomeAssembly.ts` e `HomeContent.tsx`: ordenar as leituras para a revelação
   acontecer com conteúdo — as baratas primeiro, as calculadas já prontas pela US1 (FR-017).
-- [ ] T034 [US2] Conforme o resultado de T004: se a invalidação por lote da vitrine ainda pesar, dar à chave da vitrine o
+- [X] T034 [US2] Conforme o resultado de T004: se a invalidação por lote da vitrine ainda pesar, dar à chave da vitrine o
   mesmo limite do índice em `tv-web/src/features/catalog/prefetchApi.ts` (R-005).
 
 ### Testes da Fase
 
-- [ ] T035 [P] [US2] `useShowcaseAssembly.test.ts` / `useHomeAssembly.test.ts`: com os slots externos pendentes, a tela revela
+- [X] T035 [P] [US2] `useShowcaseAssembly.test.ts` / `useHomeAssembly.test.ts`: com os slots externos pendentes, a tela revela
   por `ready` e não por `cap`.
-- [ ] T036 [P] [US2] `showcaseRows.test.ts`: período vencido devolve o guardado; sem resultado guardado, `undefined` e
+- [X] T036 [P] [US2] `showcaseRows.test.ts`: período vencido devolve o guardado; sem resultado guardado, `undefined` e
   nenhuma chamada de rede.
 
 **Critério de Conclusão**: C1–C5 seguem verdes; nenhuma das três telas revela por `cap` nos testes de montagem; com `fetch`
@@ -167,11 +167,11 @@ falhando, a revelação não muda.
 
 **Registro da Fase**:
 
-- Status:
-- Feito:
-- Contrato:
-- Testes executados:
-- Pendências:
+- Status: concluída, com uma ressalva registrada.
+- Feito: T030 — `readExternalRow`/`writeExternalRow` implementadas (geração conferida; período vencido continua valendo). T032 — slots `top10`, `tip` e `because` marcados como `external`: `stepAssembly` deixa de esperá-los no caminho "pronta", então rede lenta ou fora do ar não atrasa mais a revelação. T034 — **o índice de nomes do Top 10/Dica saiu da montagem** para uma consulta própria (`useDiscoveryIndex`): `loadShowcaseSelections` não percorre mais o tipo em nenhum caso, e a consulta nova entrou no grupo de remontagem limitada do `prefetchApi` (antes a vitrine era invalidada a cada lote da pré-carga, R-005).
+- Contrato: os 5 seguem verdes; trava íntegra.
+- Testes executados: `npx vitest run src/features src/lib` → **2991 passaram** (só o flake conhecido do `VodShowcaseScreen`); `npx tsc -b` limpo; `npm run lint` ok. Novos: `useShowcaseAssembly.externo.test.ts` (3) e `showcaseRows.externo.test.ts` (3).
+- Pendências: **T031 parcial** — o Top 10/Dica ainda fazem o casamento na tela (com o índice vindo de consulta própria, fora da montagem) em vez de ler um resultado já gravado em `showcaseExternalRows`. O efeito que a spec pede (a montagem nunca espera por rede, FR-013) está atendido pela T032; o que falta é o casamento rodar em segundo plano e gravar (FR-014 na forma plena). As funções de leitura/gravação já existem e estão testadas. **T033 não alterou a ordem das leituras da Home**: a medição da Fase 1 mostrou que o custo era obter o dado, não a ordem (R-006 descartado) — mexer sem evidência seria chute; a validação da Fase 7 confirma.
 
 ---
 

@@ -1640,7 +1640,35 @@ interface ShowcaseSelections {
   rated: CatalogItemOut[]
   coveredCategories: number
   totalCategories: number
-  entries?: DiscoveryEntries // com chave TMDB: índice compacto para o Top 10/Dica cruzarem na MESMA passada
+}
+
+/**
+ * Feature 086 (FR-002/FR-014): o índice de nomes que o Top 10 e a Dica usam para casar títulos do serviço externo é a
+ * ÚNICA coisa que ainda percorre o tipo inteiro — e por isso saiu da montagem para uma consulta própria. O slot dessas
+ * fileiras é `external`, então a tela nunca espera por ela (`logic/selecoes-guardadas.md` §4).
+ */
+function useDiscoveryIndex(sourceId: string | null, kind: FavoritableKind, enabled: boolean) {
+  return useQuery({
+    queryKey: ['catalog-search-index', sourceId, kind, 'discovery-entries'],
+    queryFn: async ({ signal }): Promise<{ entries: DiscoveryEntries; coveredCategories: number; totalCategories: number }> => {
+      const compact: CatalogRecord[] = []
+      let sinceYield = 0
+      for await (const records of iterateKindRecordBatches(sourceId as string, kind as StoredKind, { signal, pageSize: SHOWCASE_SLICE })) {
+        for (const record of records) compact.push(compactSearchRecord(record))
+        sinceYield += records.length
+        if (sinceYield >= SHOWCASE_SLICE) {
+          sinceYield = 0
+          await yieldToMain()
+        }
+      }
+      const built = buildSearchIndex(compact, { coveredCategories: 0, totalCategories: 0 })
+      const categories = await listVisibleCategories(sourceId as string, kind as StoredKind)
+      return { entries: built.entries, coveredCategories: categories.filter(isCovered).length, totalCategories: categories.length }
+    },
+    enabled: enabled && sourceId !== null && kind !== 'channel',
+    staleTime: SHOWCASE_STALE_MS,
+    gcTime: 30_000,
+  })
 }
 
 /**
@@ -1648,32 +1676,15 @@ interface ShowcaseSelections {
  * os candidatos de "Bem avaliados", nunca o tipo inteiro (antes: `loadSearchIndex` + seleção síncrona no `select`). Mesmas
  * regras e desempates: a ordem da passada é a de `listAllOfKind` (categoria na ordem da fonte, itens na ordem do bloco).
  */
-async function loadShowcaseSelections(sourceId: string, kind: FavoritableKind & StoredKind, now: number, signal: AbortSignal, withEntries: boolean): Promise<ShowcaseSelections> {
+async function loadShowcaseSelections(sourceId: string, kind: FavoritableKind & StoredKind, now: number): Promise<ShowcaseSelections> {
   // Feature 086 (FR-001/FR-002): as fileiras saem dos candidatos guardados por categoria — a abertura não varre o tipo.
   const rows = await buildShowcaseRowsFromCandidates(sourceId, kind as 'movie' | 'series', { now })
   const toOut = (item: Parameters<typeof readItemToRecord>[0]): CatalogItemOut => toItemOut(readItemToRecord(item), kind)
-  // O índice de nomes só existe para o Top 10/Dica cruzarem títulos do serviço externo; a feature 086 o tira da abertura
-  // na Fase 4 (US2). Enquanto isso, ele só é montado quando há chave configurada.
-  let entries: DiscoveryEntries | undefined
-  if (withEntries) {
-    const compact: CatalogRecord[] = []
-    let sinceYield = 0
-    for await (const records of iterateKindRecordBatches(sourceId, kind, { signal, pageSize: SHOWCASE_SLICE })) {
-      for (const record of records) compact.push(compactSearchRecord(record))
-      sinceYield += records.length
-      if (sinceYield >= SHOWCASE_SLICE) {
-        sinceYield = 0
-        await yieldToMain()
-      }
-    }
-    entries = buildSearchIndex(compact, { coveredCategories: 0, totalCategories: 0 }).entries
-  }
   return {
     recent: rows.recent.map(toOut),
     rated: rows.rated.map(toOut),
     coveredCategories: rows.coveredCategories,
     totalCategories: rows.totalCategories,
-    entries,
   }
 }
 
@@ -1681,12 +1692,10 @@ async function loadShowcaseSelections(sourceId: string, kind: FavoritableKind & 
 function useShowcaseSelections(sourceId: string | null, kind: FavoritableKind, enabled: boolean) {
   // Fixado por montagem: a virada do dia com a tela aberta não troca os cards sob o foco.
   const [now] = useState(() => Date.now())
-  const tmdbStatus = useTmdbStatus() // status ilegível conta como "sem chave": as fileiras locais nunca esperam por ele
-  const withEntries = tmdbStatus.data !== undefined && tmdbStatus.data.state !== 'not_configured'
   return useQuery({
-    queryKey: ['catalog-search-index', sourceId, kind, 'showcase', dayKey(now), withEntries],
-    queryFn: ({ signal }) => loadShowcaseSelections(sourceId as string, kind as FavoritableKind & StoredKind, now, signal, withEntries),
-    enabled: enabled && sourceId !== null && kind !== 'channel' && (tmdbStatus.data !== undefined || tmdbStatus.isError),
+    queryKey: ['catalog-search-index', sourceId, kind, 'showcase', dayKey(now)],
+    queryFn: () => loadShowcaseSelections(sourceId as string, kind as FavoritableKind & StoredKind, now),
+    enabled: enabled && sourceId !== null && kind !== 'channel',
     // Não relê o tipo a cada montagem da tela: a pré-carga (categoria nova) e o fim de uma sincronização a invalidam.
     staleTime: SHOWCASE_STALE_MS,
     gcTime: 30_000,
@@ -1796,7 +1805,8 @@ function useDiscoveryRow<R>(
     staleTime: (query) => (query.state.data?.status === 'ok' && !query.state.data.stale ? 30 * 60 * 1000 : 0),
   })
   const titles = tmdb.data?.titles
-  const index = useShowcaseSelections(sourceId, kind, titles !== undefined && titles.length > 0) // 065: mesma passada das vitrines
+  // Feature 086: índice próprio, fora da montagem — a fileira entra quando ele e o serviço externo estiverem prontos.
+  const index = useDiscoveryIndex(sourceId, kind, titles !== undefined && titles.length > 0)
 
   // O cruzamento NÃO roda na renderização (nem no `select` do react-query): com a lista real ele prendia a thread por ≈200 ms
   // e atrasava o primeiro desenho. Roda depois do desenho, em fatias que cedam a thread (`matchDiscoveryTitlesAsync`), e o
@@ -1808,8 +1818,7 @@ function useDiscoveryRow<R>(
   const [computed, setComputed] = useState<DiscoveryComputed<R> | undefined>(() =>
     queryClient.getQueryData<DiscoveryComputed<R>>(discoveryResultKey(cacheKey)),
   )
-  const showcase = index.data
-  const indexData = useMemo(() => (showcase?.entries ? { ...showcase, entries: showcase.entries } : undefined), [showcase])
+  const indexData = index.data
   useEffect(() => {
     if (sourceId === null || indexData === undefined || titles === undefined || titles.length === 0) return
     const controller = new AbortController()

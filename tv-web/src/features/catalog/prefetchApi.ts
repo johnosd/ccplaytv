@@ -39,8 +39,17 @@ export const ALL_PAGES_REFETCH_MAX = 2
  */
 export const SEARCH_INDEX_REFRESH_MS = 10_000
 
-/** `['catalog-search-index', fonte, tipo]`: o índice. A vitrine tem mais elementos e segue invalidada a cada lote. */
+/** `['catalog-search-index', fonte, tipo]`: o índice de busca. */
 const CATALOG_INDEX_KEY_LENGTH = 3
+
+/**
+ * Consultas que percorrem o tipo inteiro e por isso têm remontagem limitada (feature 084, FR-006): o índice de busca e,
+ * desde a feature 086, o índice de nomes do Top 10/Dica. A vitrine NÃO entra aqui: desde a 086 ela lê candidatos
+ * guardados, é barata, e precisa acompanhar cada lote para a fileira não ficar velha com a tela aberta (FR-008).
+ */
+function isHeavyIndexKey(queryKey: readonly unknown[]): boolean {
+  return queryKey.length === CATALOG_INDEX_KEY_LENGTH || queryKey[queryKey.length - 1] === 'discovery-entries'
+}
 
 /**
  * Invalida, agrupado, o que depende de uma categoria que acabou de chegar ao
@@ -108,9 +117,9 @@ export function createPrefetchInvalidator(queryClient: QueryClient, batchMs = IN
         : [...pendingSource.byKind.keys()].map((kind) => ['catalog-search-index', sourceId, kind])
       for (const prefix of indexPrefixes) {
         // A vitrine e o resto sob o prefixo seguem como sempre; o índice (3 elementos) é remontado com limite.
-        void queryClient.invalidateQueries({ queryKey: prefix, predicate: (query) => query.queryKey.length !== CATALOG_INDEX_KEY_LENGTH })
+        void queryClient.invalidateQueries({ queryKey: prefix, predicate: (query) => !isHeavyIndexKey(query.queryKey) })
         refreshIndexes(queryClient.getQueryCache()
-          .findAll({ queryKey: prefix, predicate: (query) => query.queryKey.length === CATALOG_INDEX_KEY_LENGTH })
+          .findAll({ queryKey: prefix, predicate: (query) => isHeavyIndexKey(query.queryKey) })
           .map((query) => query.queryKey))
       }
       for (const kind of pendingSource.byKind.keys()) {
