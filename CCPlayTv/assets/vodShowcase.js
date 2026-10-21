@@ -1,0 +1,1 @@
+import"./accountCheck.js";function e(e,t,n=12){let r=e.slice(0,n);return r.length>0&&r.every(e=>t.has(e.id))}export{e as t};
