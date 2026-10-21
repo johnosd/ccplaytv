@@ -1,7 +1,8 @@
 /** Gravação e renovação dos itens de uma categoria. Parte da divisão de `catalogRepository.ts` (feature 063); a fachada reexporta. */
 
 import { db, type CatalogDb, type CatalogRecord, type CategoryKind, type StoredCatalogRecord } from '../db'
-import { BlockRevisionConflict, blockWriteTables, commitBlockWrite, prepareBlockWrite, writeCompressedBlock } from '../blockWrite'
+import { BlockRevisionConflict, blockWriteTables, commitBlockWrite, prepareBlockWrite, writeCompressedBlock,
+  type BlockWriteOptions } from '../blockWrite'
 import { KEY_MAX, KEY_MIN, StorageFullError, isQuotaError } from './shared'
 
 /** Identifica a categoria alvo de uma substituição integral de itens. */
@@ -53,10 +54,15 @@ export async function renewCategoryItems(
    * (`StorageFullError`, nada gravado).
    */
   room?: (needBytes: number) => Promise<boolean>,
+  /**
+   * Feature 086 (FR-003): quem carrega uma seção inteira junta os candidatos das categorias e grava uma vez no fim.
+   * Sem isto, cada categoria grava os seus na hora — o certo quando é uma categoria só.
+   */
+  collectCandidates?: BlockWriteOptions['collectCandidates'],
 ): Promise<{ written: boolean }> {
   try {
     // Feature 082: formato comprimido em pedaços, em duas fases (`blockWrite.ts`) — sem 2ª cópia (projeção 065).
-    const result = await writeCompressedBlock(target, items, now, database, { room })
+    const result = await writeCompressedBlock(target, items, now, database, { room, collectCandidates })
     if (result.storageFull) throw new StorageFullError()
     return { written: result.written }
   } catch (error) {

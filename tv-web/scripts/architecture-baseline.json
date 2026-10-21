@@ -9,8 +9,7 @@
     "features/catalog/catalogApi.ts": [
       "features/live/groupChannels.ts",
       "features/vod/detailProgress.ts",
-      "features/vod/ratedSelection.ts",
-      "features/vod/vodShowcase.ts"
+      "features/vod/ratedSelection.ts"
     ],
     "features/catalog/categoryCount.ts": [
       "features/live/channelNumber.ts"
@@ -241,7 +240,7 @@
     "components/player/usePlayerKeyboard.ts": 406,
     "components/player/usePlayerPanels.ts": 367,
     "components/player/usePlayerSession.ts": 592,
-    "features/catalog/catalogApi.ts": 2187,
+    "features/catalog/catalogApi.ts": 2182,
     "features/home/HomeContent.tsx": 628,
     "features/import/AddSourceScreen.tsx": 387,
     "features/import/ImportProgressScreen.tsx": 313,
@@ -255,7 +254,7 @@
     "features/profiles/ProfilesScreen.tsx": 415,
     "features/search/SearchScreen.tsx": 345,
     "features/series/SeriesDetailScreen.tsx": 1005,
-    "features/vod/VodCategoryScreen.tsx": 949,
+    "features/vod/VodCategoryScreen.tsx": 930,
     "features/vod/VodShowcaseScreen.tsx": 733,
     "lib/catalog/categoryLoader.ts": 328,
     "lib/catalog/classifier.ts": 305,

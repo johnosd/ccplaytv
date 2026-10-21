@@ -302,18 +302,18 @@ carga regredida, nenhum número de abertura vale — foi o que invalidou a rodad
 
 ### Implementação
 
-- [ ] T064 [US1] Descartar na montagem o item que não está mais no aparelho, em `lib/catalog/showcaseRows.ts` →
+- [X] T064 [US1] Descartar na montagem o item que não está mais no aparelho, em `lib/catalog/showcaseRows.ts` →
       origem: **FR-010** (CV-001, CRITICAL). Hoje `buildShowcaseRowsFromCandidates` só filtra categoria visível; um
       item liberado pelo orçamento continua aparecendo como card. O descarte é na leitura, sem ler bloco do catálogo
       (o contrato C3 proíbe) — use o que o próprio candidato guarda mais a existência da categoria/bloco.
-- [ ] T065 [US1] Chamar `clearCandidates` quando o orçamento liberar uma categoria, em `lib/catalog/storageRelease.ts`
+- [X] T065 [US1] Chamar `clearCandidates` quando o orçamento liberar uma categoria, em `lib/catalog/storageRelease.ts`
       → origem: **FR-011** (CV-002, CRITICAL). A função existe e não tem chamador.
-- [ ] T066 Recalcular os candidatos **uma vez ao fim da carga por seção**, acumulando em memória durante a
+- [X] T066 Recalcular os candidatos **uma vez ao fim da carga por seção**, acumulando em memória durante a
       codificação que já acontece, em `lib/catalog/sectionLoader.ts` e `lib/catalog/blockWrite.ts` → origem:
       **FR-003** (CV-003, HIGH). Hoje são 34 transações próprias, uma por categoria.
-- [ ] T067 `PreparedBlock` deixa de reter `blockItems`; nada é retido para `channel` → origem: CV-004 (HIGH),
+- [X] T067 `PreparedBlock` deixa de reter `blockItems`; nada é retido para `channel` → origem: CV-004 (HIGH),
       `plan: logic/documento-de-tela.md` P0.1.
-- [ ] T068 `fillNextCandidates` ganha orçamento de tempo por rodada e não roda enquanto a carga está ativa, em
+- [X] T068 `fillNextCandidates` ganha orçamento de tempo por rodada e não roda enquanto a carga está ativa, em
       `lib/catalog/prefetch/index.ts` → origem: CV-010 (MEDIUM).
 - [ ] T069 TV (**pedir autorização**): confirmar que a carga por seção voltou à linha de base (séries ≤ ~3,5 s,
       filmes ≤ ~8 s) → gate de P0. Sem isto, não medir abertura.
@@ -331,8 +331,8 @@ carga regredida, nenhum número de abertura vale — foi o que invalidou a rodad
 
 ### Testes da fase
 
-- [ ] T076 Teste: candidato de categoria liberada pelo orçamento não vira card (T064 + T065), sem ler bloco.
-- [ ] T077 Teste: a carga por seção grava os candidatos **uma vez**, não uma por categoria (T066).
+- [X] T076 Teste: candidato de categoria liberada pelo orçamento não vira card (T064 + T065), sem ler bloco.
+- [X] T077 Teste: a carga por seção grava os candidatos **uma vez**, não uma por categoria (T066).
 - [ ] T078 Teste: a montagem das três telas faz uma leitura do documento (mais o access), e nenhuma do catálogo (T071).
 
 ### Critério de Conclusão
@@ -346,8 +346,43 @@ carga regredida, nenhum número de abertura vale — foi o que invalidou a rodad
 
 ### Registro da Fase
 
-Status:
+Status: **Em andamento** — P0 (a regressão) fechado; o documento de tela e a TV seguem pendentes.
+
 Feito:
-Contrato:
+- **T064 e T065 eram falso positivo da convergência.** FR-010 e FR-011 **já estavam garantidos**: `deleteCategoryItems`
+  (`blockChunks.ts`) apaga os candidatos **na mesma transação** que apaga o bloco, e `markCategoryReleased` devolve a
+  categoria a "nunca obtida". A auditoria concluiu "sem chamador" porque procurou pela função `clearCandidates`, e a
+  limpeza é feita direto na transação — o que é melhor, porque é atômico. Nenhum código novo de descarte foi escrito;
+  em vez disso o acoplamento (invisível pelo nome de `deleteCategoryItems`) ficou travado por teste (T076), e a função
+  morta `clearCandidates` saiu, com um comentário no lugar explicando por que ela não deve existir.
+- **T066/T067**: `prepareBlockWrite` escolhe os candidatos onde os itens já estão em mãos e devolve **só eles** (~60
+  itens), nunca mais o bloco inteiro (~1 300) — e nada para `channel`, que não tem fileiras. A nova opção
+  `collectCandidates` faz a carga por seção juntar os candidatos de todas as categorias e gravar **uma vez** no fim,
+  com `writeCandidatesBatch` (`bulkPut`), ao lado da limpeza do preparo que já acontecia ali. Sem o coletor a gravação
+  segue na hora, que é o certo para uma categoria só (entrada numa categoria, conversão de bloco da 082).
+- **T068**: `loadActivity.ts` (novo) dá o sinal de "carga em andamento" que o portão do agendador não tinha — ele só
+  sabe de teclas. `fillNextCandidates` se cala durante a carga e ganha teto de 400 ms por rodada.
+- `candidatesMs` entra em `SectionLoadTimings`, então a próxima medição na TV mostra o custo desta etapa separado.
+- Baseline do ratchet podado: 129 → 128 imports herdados (a exceção `catalogApi -> features/vod/vodShowcase` ficou
+  obsoleta com esta feature).
+
+Contrato: `npx vitest run src/lib/catalog/showcaseRows.montagem-rapida.contract.test.ts
+src/lib/catalog/showcaseCandidates.montagem-rapida.contract.test.ts` → **5/5 verdes**; `check-contract-tests.ps1`
+íntegro para 086, 082 e 085.
+
 Testes executados:
+- `npx vitest run src/lib/catalog src/features/catalog src/features/vod` → 988/988
+- `npm run test` → **3683/3683** (um a mais que antes: T076; depois somou T077)
+- `npx tsc -b`, `npm run lint` (ratchet ok), `npm run build` → verdes
+- `npx vitest run src/lib/catalog/showcaseRows.liberacao-orcamento.test.ts` e
+  `src/lib/catalog/sectionLoader.candidatos-por-secao.test.ts` → verdes. O 2º distingue de fato a implementação antiga
+  (ela faria 8 `put` e nenhum `bulkPut`).
+
 Pendências:
+- **T069 e T070 dependem da TV** (confirmar a carga de volta à linha de base; sonda `montagem086`, 2 rodadas). Cada
+  instalação pede autorização.
+- **T071–T075** (documento de tela, trilha de categorias dentro dele, carga cedendo a vez, troca atômica, casamento
+  externo em segundo plano) não começaram — T072 depende do resultado de T070.
+- T078 (a montagem faz uma leitura só) só faz sentido depois de T071.
+- A TV está com o **build de medição** instalado; reinstalar o normal ao fechar a fase.
+- `npm run test:e2e` ainda não rodou nesta fase (gate antes da TV).

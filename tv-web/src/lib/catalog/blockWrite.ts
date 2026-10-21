@@ -13,7 +13,7 @@ import type { BlockItem, CatalogDb, CatalogRecord, CategoryBlockRecord, Category
 import { blockItemId, identityKey, itemsSignature, legacyRowsOf, type BlockTarget } from './categoryBlocks'
 import { encodeBlockChunks, encodeIdentityIndex, sharedOf } from './blockCodec'
 import { categoryChunks, IDENTITY_CHUNK, type CategoryChunkRecord } from './chunkTables'
-import { pickCandidates, writeCandidates } from './showcaseCandidates'
+import { pickCandidates, writeCandidates, type ShowcaseCandidates } from './showcaseCandidates'
 import { forgetCachedChunks, readHeaderChunks, readIdentityIndex } from './blockChunks'
 import { noteMovedIds } from './blockMemo'
 import { invalidateCategoryReadModel } from './readProjection'
@@ -31,10 +31,12 @@ export interface PreparedBlock {
   moves: Array<[number, number]>
   signature: string
   storedBytes: number
-  /** Feature 086: os itens já com id local, para quem grava a categoria escolher os candidatos das fileiras sem reler. */
-  blockItems: BlockItem[]
-  /** Ordem da categoria na fonte — desempate da mesclagem das fileiras (feature 086). */
-  categoryOrder: number
+  /**
+   * Feature 086 (FR-003): os candidatos das fileiras desta categoria, escolhidos **aqui**, onde os itens já estão em
+   * mãos. Guardamos os candidatos (~60 itens) e **nunca** o bloco inteiro (~1 300): retê-lo custou 8× na carga de
+   * séries na TV (R-014). `undefined` para `channel`, que não tem fileiras calculadas.
+   */
+  candidates?: ShowcaseCandidates
 }
 
 export interface BlockWriteOptions {
@@ -42,6 +44,12 @@ export interface BlockWriteOptions {
   convert?: boolean
   /** Chamado com os bytes codificados antes da transação; `false` = não há espaço (orçamento, `makeRoomFor`). */
   room?: (needBytes: number) => Promise<boolean>
+  /**
+   * Feature 086 (FR-003): recebe os candidatos em vez de gravá-los aqui. Quem carrega uma seção inteira junta os de
+   * todas as categorias e grava **uma vez**, no fim — uma transação por categoria custou 34 transações extras numa
+   * carga de filmes (R-014). Sem isto, a gravação acontece na hora, que é o certo para uma categoria só.
+   */
+  collectCandidates?: (candidates: ShowcaseCandidates) => void
 }
 
 export class BlockRevisionConflict extends Error {}
@@ -141,9 +149,14 @@ export async function prepareBlockWrite(target: BlockTarget, items: readonly Cat
   ]
   const header: CategoryBlockRecord = { ...target, format: 2, shared, count: blockItems.length, chunkCount: encoded.length,
     storedBytes, revision }
+  // Feature 086 (FR-003/R-013): escolhidos com os itens que já estão em mãos, sem nenhuma leitura extra. `now` do
+  // parâmetro é o carimbo de obtenção da categoria; a régua de ano de "Bem avaliados" compara com o ano CORRENTE,
+  // então aqui vai `Date.now()` (`logic/selecoes-guardadas.md` §3).
+  const candidates = target.kind === 'movie' || target.kind === 'series'
+    ? pickCandidates({ ...target, kind: target.kind, order: category.order }, blockItems, Date.now())
+    : undefined
   return { target, expected: headerState(old), header, rows, legacyIds: legacy.map((row) => row.id as number), moves,
-    signature, storedBytes,
-    blockItems, categoryOrder: category.order }
+    signature, storedBytes, candidates }
 }
 
 /** Fase 2: roda **dentro** de uma transação `rw` com `blockWriteTables`. Só banco — nada de compressão aqui. */
@@ -190,15 +203,11 @@ export async function writeCompressedBlock(target: BlockTarget, items: readonly 
     try {
       const written = await database.transaction('rw', blockWriteTables(database), () => commitBlockWrite(prepared, now, database, options))
       forgetCachedChunks(database, target.categoryId)
-      // Feature 086 (FR-003): os candidatos das fileiras saem dos itens que já estão em mãos — nenhuma leitura extra, e
-      // a abertura da tela deixa de varrer o tipo. Falha aqui nunca derruba a gravação do catálogo.
-      if (written && (target.kind === 'movie' || target.kind === 'series')) {
-        // `now` aqui é o carimbo de obtenção da categoria, não o relógio: a régua de ano de "Bem avaliados" compara com o
-        // ano CORRENTE, então os candidatos são escolhidos com `Date.now()` (`logic/selecoes-guardadas.md` §3).
-        await writeCandidates(
-          pickCandidates({ ...target, kind: target.kind, order: prepared.categoryOrder }, prepared.blockItems, Date.now()),
-          database,
-        ).catch(() => undefined)
+      // Feature 086 (FR-003): os candidatos já saíram da codificação (`prepareBlockWrite`). Quem carrega uma seção
+      // junta e grava uma vez no fim; sem coletor, grava aqui mesmo. Falha aqui nunca derruba a gravação do catálogo.
+      if (written && prepared.candidates) {
+        if (options.collectCandidates) options.collectCandidates(prepared.candidates)
+        else await writeCandidates(prepared.candidates, database).catch(() => undefined)
       }
       return { written }
     } catch (error) {

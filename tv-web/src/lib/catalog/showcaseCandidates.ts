@@ -13,6 +13,13 @@ import { createRecentlyAddedAccumulator } from './showcaseSelection'
 import { RATED_FIELDS, showcaseSeed, toShowcaseItem } from './showcaseSelection'
 import { createRatedSelectionAccumulator } from './ratedSelection'
 import { readBlockChunks } from './blockChunks'
+import { isSectionLoadActive } from './loadActivity'
+
+/**
+ * Teto de tempo de uma rodada do preenchimento em segundo plano (T068). Uma categoria que leve mais que isto consome o
+ * intervalo inteiro, e o agendador espera a próxima rodada em vez de emendar outra descompressão.
+ */
+const FILL_BUDGET_MS = 400
 
 /** Os mais novos guardados por categoria: um item fora dos 12 mais novos da sua categoria nunca entra nos 12 do tipo. */
 export const RECENT_CANDIDATES = 12
@@ -96,10 +103,19 @@ export async function writeCandidates(candidates: ShowcaseCandidates, database: 
   await database.showcaseCandidates.put(candidates)
 }
 
-/** Apaga os candidatos de uma categoria (liberação pelo orçamento, geração trocada, lista apagada). */
-export async function clearCandidates(categoryId: number, database: CatalogDb = db): Promise<void> {
-  await database.showcaseCandidates.delete(categoryId)
+/**
+ * Grava os candidatos de várias categorias de uma vez (FR-003: "ao fim de cada carga por seção"). Uma transação em vez
+ * de uma por categoria — na TV, 34 transações extras numa carga de filmes custaram caro (R-014).
+ */
+export async function writeCandidatesBatch(candidates: readonly ShowcaseCandidates[], database: CatalogDb = db): Promise<void> {
+  if (candidates.length === 0) return
+  await database.showcaseCandidates.bulkPut(candidates as ShowcaseCandidates[])
 }
+
+// Não existe um `clearCandidates` aqui de propósito (FR-011): quem apaga os candidatos é `deleteCategoryItems`
+// (`blockChunks.ts`), **na mesma transação** que apaga o bloco — atomicidade que uma função chamada de fora
+// quebraria, deixando por um instante uma fileira com card que não abre. Travado por
+// `showcaseRows.liberacao-orcamento.test.ts`.
 
 /** Candidatos da geração ativa de uma lista e tipo, na ordem da fonte. Nunca lê blocos. */
 export async function readCandidates(
@@ -123,6 +139,9 @@ export async function readCandidates(
  * @returns `true` se preencheu uma categoria (há mais trabalho a fazer), `false` quando não falta nenhuma.
  */
 export async function fillNextCandidates(sourceId: string, database: CatalogDb = db): Promise<boolean> {
+  // T068: com uma carga em andamento, esta tarefa se cala — descomprimir um bloco aqui degradou a carga e as leituras
+  // de categoria na TV (R-014). `false` = "nada a fazer agora"; a próxima rodada do agendador tenta de novo.
+  if (isSectionLoadActive()) return false
   const generation = (await database.sources.get(sourceId))?.activeGeneration
   if (generation === undefined) return false
   const categories = (await database.categories.where('sourceId').equals(sourceId).toArray())
@@ -133,6 +152,7 @@ export async function fillNextCandidates(sourceId: string, database: CatalogDb =
   const pending = categories.find((category) => !existing.has(category.id as number) && (category.itemsCount ?? 0) > 0)
   if (!pending) return false
   const categoryId = pending.id as number
+  const startedAt = Date.now()
   const items = await readBlockChunks(database, categoryId)
   if (items.length === 0) {
     // Categoria carimbada com itens mas sem bloco (liberada pelo orçamento): grava vazio para não tentar de novo.
@@ -145,5 +165,7 @@ export async function fillNextCandidates(sourceId: string, database: CatalogDb =
       items, Date.now()),
     database,
   )
-  return true
+  // Orçamento por rodada (T068): esta categoria sozinha já consumiu o quanto cabe num intervalo de segundo plano, então
+  // devolve `false` para o agendador esperar a próxima rodada em vez de emendar outra descompressão.
+  return Date.now() - startedAt < FILL_BUDGET_MS
 }
