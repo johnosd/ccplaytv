@@ -430,7 +430,7 @@ T081 é CRITICAL e vem primeiro: é regressão de comportamento, não de tempo.
       Hoje `refreshMissingScreenDocuments` troca o documento em silêncio: a tela relê **antes** disso, recebe o
       documento vencido e só vê o conteúdo novo se a pessoa sair e voltar. Aceitar o documento vencido é o que tirou a
       pré-carga do caminho da abertura (Início 355 ms) — a correção é ligar o aviso, **não** voltar a recusá-lo.
-- [ ] T082 [US2] Casamento com o serviço externo em 2º plano, gravando em `showcaseExternalRows` → origem: **FR-014**
+- [~] T082 [US2] **MOVIDO para o backlog como feature própria (decisão do usuário, 2026-10-21)** — casamento com o serviço externo em 2º plano, gravando em `showcaseExternalRows` → origem: **FR-014**
       (CV-013). Fecha o parcial de T031/T075; `readExternalRow`/`writeExternalRow` já existem e estão testadas.
       **TENTADO E REVERTIDO em 2026-10-21** — o escopo é maior do que este rótulo sugere, e está medido: a mudança
       ficou pronta e funcional (produtor em `lib/catalog/externalRows.ts`, registro estendido com `ranks`, `backdrops`,
@@ -444,16 +444,16 @@ T081 é CRITICAL e vem primeiro: é regressão de comportamento, não de tempo.
       calculando) nem 14 testes às pressas.
 - [X] T083 Decidir o destino de `ScreenDocument.images`: usar (as capas da 1ª tela vindo na mesma leitura, FR-023) ou
       remover o campo → origem: CV-017.
-- [ ] T084 Rastrear o flake `window is not defined` da suíte completa, ou registrá-lo em `## Cuidados para Retomada`
+- [X] T084 Rastrear o flake `window is not defined` da suíte completa, ou registrá-lo em `## Cuidados para Retomada`
       com o que já foi eliminado → origem: **SC-013** (CV-018).
 
 ### Decisões que precisam do usuário (não implementar sem resposta)
 
-- [ ] T085 **SC-003**: a 1ª abertura tem 6 leituras pendentes (meta ≤ 2) com o tempo em 313–380 ms. Perguntar se o
+- [X] T085 **SC-003**: a 1ª abertura tem 6 leituras pendentes (meta ≤ 2) com o tempo em 313–380 ms. Perguntar se o
       critério muda (com justificativa registrada) ou se as pendentes devem cair → origem: SC-003 (CV-014).
-- [ ] T086 **SC-005/SC-006**: combinar uma passada curta na TV só para esses dois (atualizar com a tela aberta; sem
+- [X] T086 **SC-005/SC-006**: combinar uma passada curta na TV só para esses dois (atualizar com a tela aberta; sem
       rede) → origem: CV-015.
-- [ ] T087 **SC-008/009/010/012**: definir método de prova ou declarar não verificáveis nesta TV, como já foi feito
+- [X] T087 **SC-008/009/010/012**: definir método de prova ou declarar não verificáveis nesta TV, como já foi feito
       com SC-010 (R-010) → origem: CV-016.
 
 ### Testes da fase

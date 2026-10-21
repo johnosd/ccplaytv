@@ -205,6 +205,28 @@ da TV. A feature **não converge** enquanto cada critério não for medido ou de
 
 ## Cuidados para Retomada
 
+### Flake conhecido da suíte unitária: `window is not defined` (T084, 2026-10-21)
+
+`npm run test` acusa, de forma **intermitente** (observado ~1 em 2–3 execuções; todas com 3699–3701 testes passando),
+uma `Unhandled Rejection` com `ReferenceError: window is not defined`, vinda do agendador do react-dom
+(`resolveUpdatePriority` → `requestUpdateLane`). **Não mascarar** marcando a suíte como verde sem a nota.
+
+O que já foi eliminado, para não repetir:
+
+- **Não reproduz isolado**: `ProfilesScreen.test.tsx`, `importApi.epg.test.tsx` e `App.licensing.test.tsx` rodados
+  sozinhos passam sem erro nenhum.
+- **Não é falha de teste**: nenhum teste falha quando ele aparece; é trabalho assíncrono que sobrevive ao fim do
+  ambiente jsdom e então toca o React.
+- **Tem relação com trabalho adiável que vaza do ciclo de vida**: apareceu quando a espera da 1ª revelação (T073) ficou
+  **dentro** de `loadSection`, e desapareceu quando ela foi para `sectionRunner.ts`. Reapareceu depois, o que indica que
+  há (ao menos) uma segunda fonte do mesmo padrão.
+- **Caminho provável para achar**: um handler de `unhandledRejection` no setup do vitest que imprima o arquivo de teste
+  ativo — o relatório atual não atribui a rejeição a nenhum arquivo.
+
+### Outros cuidados
+
+
+
 <!-- Armadilhas operacionais específicas desta feature, anexadas conforme descobertas. -->
 
 - (nenhum ainda)

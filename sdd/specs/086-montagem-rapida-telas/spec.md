@@ -244,23 +244,48 @@ Medidos na TV física, com a lista real, em pelo menos 2 aberturas, pelo canal d
 - **SC-002**: Nenhuma das três telas revela pelo teto de espera na abertura comum. Linha de base: o Início revelou pelo teto
   nas duas medições.
 - **SC-003**: Filmes e Séries aparecem em **≤ 1 s** com no máximo 2 leituras pendentes. Linha de base: ~0,37 s com 2 a 6.
+  **Atualização (T085, 2026-10-21, autorizada pelo usuário)**: a contagem passa a ser de **leituras locais** pendentes.
+  Motivo: o critério foi escrito antes de existir o slot `external` (FR-013), e uma leitura de serviço externo **por
+  desenho** não segura a tela — contá-la premiaria exatamente o comportamento que a feature quis eliminar.
+  **Medido com o critério novo e ainda reprovado**: a 1ª abertura tem **3** locais pendentes (`continue`, `favorites`,
+  `categories`) contra a meta de 2; o tempo passa com folga (313–380 ms). A emenda esclareceu o critério, **não** o fez
+  passar.
 - **SC-004**: Montar as fileiras calculadas de um tipo custa **≤ 100 ms**. Linha de base: ~300 ms no PC para filmes,
   estimados ~1,2 s na TV.
 - **SC-005**: Com a tela aberta durante uma atualização da lista, as fileiras passam a refletir o conteúdo novo **sem sair da
   tela**, e o foco e a rolagem permanecem onde estavam.
+  **Atualização (T086, 2026-10-21)**: **não verificado**, por decisão do usuário. O mecanismo existe e está coberto por
+  teste (`screenDocument.aviso.test.ts`: documento vencido → refresh → aviso → conteúdo novo, FR-008), mas o roteiro na
+  TV não foi executado — então não há veredito sobre foco e rolagem, que é a parte que só a tela mostra.
 - **SC-006**: Com o serviço externo indisponível ou lento, a abertura das três telas fica dentro das mesmas metas de tempo.
+  **Atualização (T086, 2026-10-21)**: **não verificado** na TV, por decisão do usuário. Indício a favor, não prova: as
+  leituras de serviço externo são slots `external` e a montagem não espera por elas (`screenAssembly.ts`), e nas 12
+  aberturas medidas o `revealMs` não variou com elas pendentes (313–380 ms).
 - **SC-007**: As fileiras calculadas mostram os mesmos itens, na mesma quantidade e ordem, que a varredura atual produz para o
   mesmo catálogo — verificável sem a TV.
 - **SC-008**: O tempo entre as leituras ficarem prontas e a tela estar desenhada é registrado para as três telas e **não é
   maior** que a linha de base da mesma sessão.
+  **Atualização (T087, 2026-10-21)**: **não verificável como escrito**. O registro existe (`paintMs`), mas a linha de
+  base não produziu o número comparável: lá a 1ª Home revelava com **todas** as leituras pendentes, então não havia
+  "leituras prontas" de onde contar. O que há: em reabertura, 1 ms nas duas medições; na 1ª abertura, 291–379 ms agora
+  contra nada antes.
 - **SC-009**: Numa navegação roteirizada nas três telas (mover foco entre cards e fileiras, rolar), os quadros longos **não
   aumentam** em relação à linha de base da mesma sessão.
+  **Atualização (T087, 2026-10-21)**: **não verificável** com as amostras que temos — a linha de base e a validação têm
+  durações muito diferentes (minutos contra ~14 min), e quadros longos acumulam com o tempo. A mediana melhorou (38
+  contra ~32 fps), e isso é registro, não aprovação. Verificar exigiria um roteiro de duração fixa e cronometrada.
 - **SC-010**: O pico de memória durante a abertura das três telas não é maior que o de hoje, medido na mesma sessão, e a
   montagem deixa de reter o conjunto do tipo (hoje: dezenas de MB por tipo).
+  **Atualização (T087, 2026-10-21)**: **não verificável nesta TV** (R-010): `performance.memory` devolveu 10 MB fixos em
+  todas as amostras de todas as sessões. A segunda metade do critério — a montagem não retém o conjunto do tipo — está
+  provada pelo contrato C3 (a montagem não lê bloco do catálogo) e pela remoção de `blockItems` do `PreparedBlock`.
 - **SC-011**: Nenhum card muda de posição quando uma capa chega, e o número de capas da primeira tela prontas até 1 s depois
   da revelação **aumenta** em relação à linha de base da mesma sessão. Linha de base: 3 de 17 na revelação.
 - **SC-012**: Na abertura, nenhuma capa de fileira fora da primeira tela é pedida antes das da primeira tela; ao rolar, as
   fileiras de baixo se preparam conforme entram na vista.
+  **Atualização (T087, 2026-10-21)**: **verificado por teste automatizado**, não na TV —
+  `useScreenAssembly.capas-primeira-tela.test.tsx`. É onde o critério é observável com precisão: quais capas são
+  pedidas e em que ordem. Na TV só se vê quantas ficaram prontas, que é o SC-011.
 - **SC-013**: Sem regressão: a suíte unitária, os roteiros de tela das três telas e os testes de contrato travados das
   features 079, 065, 056, 066, 082 e 085 continuam passando.
 
