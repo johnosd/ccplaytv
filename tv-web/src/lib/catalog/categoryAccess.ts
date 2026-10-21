@@ -8,6 +8,7 @@
  * guardam o dado bruto e o filtro vem depois deles (D-003).
  */
 
+import { clearAllScreenDocuments } from './screenDocumentStore'
 import { db, type CatalogDb, type CatalogItemKind, type CatalogRecord, type CategoryKind, type CategoryRecord } from './db'
 // Pela fachada (feature 063, D-001): `repository/` também importa daqui, e só a fachada conhece aqueles módulos.
 import { activeGeneration, listCategories, type CatalogCategory } from './catalogRepository'
@@ -61,6 +62,10 @@ let savedRules = new WeakMap<CatalogDb, Map<string, Promise<Omit<Rule, 'unlocked
 /** Avisa quem desenha (reset das consultas, D-005) e esquece a regra em memória. Usado também por `lib/parental/listPin.ts`. */
 export function notifyCategoryAccessChanged(): void {
   savedRules = new WeakMap()
+  // Feature 086 (T089): o documento de tela guarda as fileiras já filtradas, e a leitura dele é síncrona, sem consultar
+  // o banco — então é **aqui** que a mudança de visibilidade tem de alcançá-lo. Sem isto, a tela poderia mostrar
+  // categoria escondida ou travada até o próximo recálculo.
+  clearAllScreenDocuments()
   for (const listener of listeners) listener()
 }
 

@@ -51,9 +51,13 @@ export interface ScreenDocument {
   totalCategories: number
   /** Capas da primeira tela, para o decode começar na mesma leitura que traz as fileiras (FR-023). */
   images: string[]
+  /** Calculado na leitura (não gravado): há candidatos novos desde que este documento foi montado. */
+  stale?: boolean
 }
 
 const keyOf = (sourceId: string, kind: string): string => `ccplay.showcase.${sourceId}.${kind}`
+/** Marca de "vencido" em chave própria: gravar um número é barato, reescrever o documento inteiro não seria. */
+const staleKeyOf = (sourceId: string, kind: string): string => `ccplay.showcase.${sourceId}.${kind}.stale`
 
 /** Lê o que está guardado, sem validar nada além do JSON. Quem valida é `readScreenDocument`. */
 export function loadRawScreenDocument(sourceId: string, kind: 'movie' | 'series'): ScreenDocument | undefined {
@@ -91,18 +95,64 @@ export function saveScreenDocument(document: ScreenDocument): boolean {
 }
 
 /**
- * Apaga o documento de um tipo (ou de todos, sem `kind`).
- *
- * **Chamado por quem grava candidatos** (FR-008/FR-012): uma categoria que a pré-carga acabou de trazer muda as
- * fileiras, e o documento guardado não saberia disso — sem esta invalidação, a tela só veria o conteúdo novo na virada
- * do dia ou na troca de geração. Nunca lança.
+ * Apaga o documento de um tipo (ou de todos, sem `kind`). Para quando ele não pode mais ser mostrado: geração trocada,
+ * lista apagada. Nunca lança.
  */
 export function clearScreenDocuments(sourceId: string, kind?: 'movie' | 'series'): void {
   for (const each of kind ? [kind] : (['movie', 'series'] as const)) {
     try {
       localStorage.removeItem(keyOf(sourceId, each))
+      localStorage.removeItem(staleKeyOf(sourceId, each))
     } catch {
       // sem estado: nada a fazer
     }
+  }
+}
+
+/**
+ * Apaga **todos** os documentos, de todas as listas. Para quando a regra de visibilidade muda (feature 066): a tela não
+ * pode mostrar categoria escondida nem por um quadro, e a leitura do documento é síncrona, sem consultar o banco.
+ */
+export function clearAllScreenDocuments(): void {
+  try {
+    const doomed: string[] = []
+    for (let index = 0; index < localStorage.length; index += 1) {
+      const key = localStorage.key(index)
+      if (key !== null && key.startsWith('ccplay.showcase.')) doomed.push(key)
+    }
+    for (const key of doomed) localStorage.removeItem(key)
+  } catch {
+    // sem estado: nada a fazer
+  }
+}
+
+/**
+ * Marca o documento como **vencido, mas ainda usável** — chamado por quem grava candidatos (FR-008/FR-012).
+ *
+ * Por que não apagar: a pré-carga grava uma categoria por rodada, e apagar a cada gravação fazia o documento quase
+ * nunca sobreviver. Na TV isso deixou a 1ª abertura do Início em ~1,81 s nas três entradas medidas, sempre
+ * caindo no caminho dos candidatos. Mostrar o documento de um instante atrás e trocá-lo quando o novo estiver pronto é
+ * o que a spec pede (FR-008: atualiza **na própria sessão**, sem a pessoa pedir nada).
+ *
+ * Conteúdo que não pode ser mostrado (categoria escondida, geração trocada) **não** passa por aqui: a validação da
+ * leitura recusa o documento nesses casos.
+ */
+export function markScreenDocumentsStale(sourceId: string, kind?: 'movie' | 'series'): void {
+  for (const each of kind ? [kind] : (['movie', 'series'] as const)) {
+    try {
+      localStorage.setItem(staleKeyOf(sourceId, each), String(Date.now()))
+    } catch {
+      // sem estado: o documento continua valendo; o refresh de 2º plano o atualiza de todo jeito
+    }
+  }
+}
+
+/** O documento guardado está vencido (há candidatos novos desde que foi montado)? */
+export function isScreenDocumentStale(sourceId: string, kind: 'movie' | 'series', builtAt: number): boolean {
+  try {
+    const marked = localStorage.getItem(staleKeyOf(sourceId, kind))
+    return marked !== null && Number(marked) > builtAt
+  } catch {
+    return false
   }
 }

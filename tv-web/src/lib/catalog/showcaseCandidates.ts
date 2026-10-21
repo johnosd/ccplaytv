@@ -13,7 +13,7 @@ import { createRecentlyAddedAccumulator, showcaseSeed, toShowcaseItem } from './
 import { createRatedSelectionAccumulator } from './ratedSelection'
 import { readBlockChunks } from './blockChunks'
 import { isSectionLoadActive } from './loadActivity'
-import { clearScreenDocuments } from './screenDocumentStore'
+import { markScreenDocumentsStale } from './screenDocumentStore'
 
 /**
  * Teto de tempo de uma rodada do preenchimento em segundo plano (T068). Uma categoria que leve mais que isto consome o
@@ -125,10 +125,10 @@ function isEligible(item: CatalogRecord | BlockItem, currentYear: number): boole
 /** Grava os candidatos de uma categoria (chamado por quem grava a categoria, nunca pela tela). */
 export async function writeCandidates(candidates: ShowcaseCandidates, database: CatalogDb = db): Promise<void> {
   await database.showcaseCandidates.put(candidates)
-  // T071: candidato novo muda as fileiras, e o documento guardado não saberia disso. Sem isto, uma categoria que a
-  // pré-carga acabou de trazer só apareceria na virada do dia (FR-008/FR-012). Quem refaz o documento é a carga ou a
-  // próxima abertura — apagar é o bastante aqui, e nunca perde conteúdo.
-  clearScreenDocuments(candidates.sourceId, candidates.kind)
+  // T071/T084: candidato novo muda as fileiras. O documento é marcado como **vencido**, não apagado: a tela continua
+  // mostrando o de um instante atrás e o refresh de 2º plano o troca (FR-008). Apagar fazia a pré-carga derrubar o
+  // documento a cada categoria, e a abertura do Início voltava a custar ~1,8 s na TV.
+  markScreenDocumentsStale(candidates.sourceId, candidates.kind)
 }
 
 /**
@@ -139,7 +139,7 @@ export async function writeCandidatesBatch(candidates: readonly ShowcaseCandidat
   if (candidates.length === 0) return
   await database.showcaseCandidates.bulkPut(candidates as ShowcaseCandidates[])
   for (const sourceId of new Set(candidates.map((row) => row.sourceId))) {
-    for (const kind of new Set(candidates.map((row) => row.kind))) clearScreenDocuments(sourceId, kind)
+    for (const kind of new Set(candidates.map((row) => row.kind))) markScreenDocumentsStale(sourceId, kind)
   }
 }
 

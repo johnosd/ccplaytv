@@ -51,6 +51,19 @@ export function recordAssembly(report: AssemblyReport): AssemblyReport | null {
 }
 
 /** Atualiza as fileiras adiadas de um relatório já publicado (chegaram depois do teto). */
+/**
+ * Feature 086 (T087): os tempos de **todas** as leituras, quando a última resolve.
+ *
+ * `recordAssembly` reporta o retrato do instante da revelação — e, na TV, a 1ª Home revelou com 5 das 6 leituras ainda
+ * pendentes, então justamente as que interessavam ficaram sem número. Isto fecha essa lacuna sem mexer no que já é
+ * reportado.
+ */
+export function recordAllSlotsSettled(screen: string, slotMs: Record<string, number>, sinceMountMs: number): void {
+  if (!isPerfEnabled()) return
+  emitMetric({ source: 'assembly', screen, settledMs: Math.round(sinceMountMs), ...slotMs })
+  logger.log(`[perf] montagem ${screen}: todas as leituras prontas em ${Math.round(sinceMountMs)}ms`)
+}
+
 export function recordDeferred(entry: AssemblyReport | null, deferred: readonly string[]): void {
   if (!entry || deferred.length === entry.deferred.length) return
   entry.deferred = [...deferred]

@@ -27,6 +27,7 @@ import { AnnouncerRegion } from './components/AnnouncerRegion.tsx'
 import { PerfOverlay } from './components/PerfOverlay.tsx'
 import { ImeProbeOverlay } from './components/ImeProbeOverlay.tsx'
 import { prepareLocalStartup } from './lib/startupReadiness.ts'
+import { warmCatalogDb } from './lib/catalog/dbWarmup.ts'
 import { I18nProvider } from './lib/i18n/I18nProvider.tsx'
 
 const queryClient = new QueryClient()
@@ -35,6 +36,10 @@ const queryClient = new QueryClient()
 // movimento, se já ligada numa sessão anterior, precisa valer desde o
 // primeiro quadro — nunca um flash de animação antes de aplicar a classe.
 prepareLocalStartup()
+
+// Feature 086 (T086): a 1ª abertura do IndexedDB é um custo comum a todas as leituras da Home, e na TV ela aparecia
+// inteira no tempo da 1ª tela. Começar aqui paga essa conta durante a splash e a seleção de lista, onde ninguém espera.
+void warmCatalogDb()
 
 // Sonda opt-in de desenvolvimento da 069, eliminada do build normal.
 if (import.meta.env.VITE_CCPLAY_PLATFORM_PROBE === '1') {

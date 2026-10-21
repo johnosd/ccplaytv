@@ -47,8 +47,13 @@ export function PerfOverlay() {
       emitMetric({ source: 'frames', slow, idleSlow, ...(keyed ? { fps: keyed.fps, worstMs: keyed.worstMs, over50: keyed.over50 } : {}),
         ...(peakHeap > 0 ? { heapMB: Math.round(peakHeap / 1048576), heapNowMB: Math.round(heapNow() / 1048576) } : {}) })
     }, 5_000)
-    // Feature 085/082: o orçamento medido sem gravar nada, 3× (20 s, 80 s e 140 s depois de abrir), para ter as etapas no app real.
-    const budgetTimers = [20_000, 80_000, 140_000].map((delay) => window.setTimeout(() => { void probeBudget() }, delay))
+    // Feature 085/082: o orçamento medido sem gravar nada, 3× (20 s, 80 s e 140 s depois de abrir), para ter as etapas
+    // no app real. **Opt-in desde a feature 086 (T088)**: na TV estas três chamadas custaram 1,2–4,9 s cada e apareceram
+    // disputando o aparelho com a abertura das telas — ou seja, a medição alterava o que estava medindo. Ligue com
+    // `VITE_CCPLAY_BUDGET_PROBE=1` quando o alvo for o orçamento; para medir a montagem, deixe desligado.
+    const budgetTimers = import.meta.env.VITE_CCPLAY_BUDGET_PROBE === '1'
+      ? [20_000, 80_000, 140_000].map((delay) => window.setTimeout(() => { void probeBudget() }, delay))
+      : []
     let previous = performance.now()
     let active = true
     let frame = 0

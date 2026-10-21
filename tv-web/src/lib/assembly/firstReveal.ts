@@ -10,12 +10,27 @@
  * uma lista nova e a carga é justamente o que ela espera), a espera solta sozinha pouco depois do app subir.
  */
 
-/** Teto da espera, contado do carregamento do módulo — logo, do início da sessão. */
+/** Teto da espera, contado de quando o sinal foi armado. */
 export const FIRST_REVEAL_WAIT_MS = 2_500
 
-const startedAt = Date.now()
+/**
+ * Quando a contagem começou. **Rearmado ao abrir uma lista** (`armFirstReveal`), não só no carregamento do app: a
+ * medição na TV mostrou o porquê — a pessoa abre o app, fica na seleção de lista mais de 2,5 s escolhendo, o teto
+ * expira, e quando ela entra na lista a Home monta sem proteção nenhuma, competindo com a carga e com o guia. A tela de
+ * seleção não é uma das três telas montadas, então ninguém revela por ela.
+ */
+let startedAt = Date.now()
 let revealed = false
 let waiting: (() => void)[] = []
+
+/**
+ * Arma o sinal: a próxima revelação é a que conta, e o teto passa a contar de agora. Chamado quando a pessoa abre uma
+ * lista — o mesmo instante em que a carga e a sincronização do guia são disparadas.
+ */
+export function armFirstReveal(): void {
+  revealed = false
+  startedAt = Date.now()
+}
 
 /** Chamado pela montagem quando uma tela revela. Idempotente: só a primeira revelação conta. */
 export function noteFirstReveal(): void {
@@ -58,5 +73,6 @@ export function waitForFirstReveal(signal?: AbortSignal): Promise<void> {
 /** Só para teste: devolve o módulo ao estado inicial. */
 export function resetFirstRevealForTests(): void {
   revealed = false
+  startedAt = Date.now()
   waiting = []
 }

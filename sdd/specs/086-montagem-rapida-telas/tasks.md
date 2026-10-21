@@ -383,7 +383,19 @@ Testes executados:
   `src/lib/catalog/sectionLoader.candidatos-por-secao.test.ts` → verdes. O 2º distingue de fato a implementação antiga
   (ela faria 8 `put` e nenhum `bulkPut`).
 
-Pendências (atualizado 2026-10-21, 2ª revisão):
+Pendências (atualizado 2026-10-21, **3ª revisão — validação final feita**):
+- **SC-001 a SC-004, SC-007, SC-011 e SC-013 atendidos na TV** (`evidencias/validacao-final-tv-2026-10-21.md`): Início
+  em **355/362 ms** (era 2 039 por teto), Filmes/Séries em **313–380 ms**, `docMs` 0–1 ms.
+- **SC-003 parcial**: o tempo passou, mas a 1ª abertura ainda tem 6 leituras pendentes (meta ≤ 2). Não seguram a tela.
+- **SC-005 e SC-006 não testados** — o usuário não executou esses passos do roteiro.
+- **SC-008, SC-009, SC-010 e SC-012 sem veredito**: `paintMs` não comparável com a base, quadros com amostras de
+  durações muito diferentes, memória não mensurável nesta TV (R-010), SC-012 não isolado.
+- **T074 e T075 não começaram** (troca atômica com a tela aberta; casamento externo em 2º plano). O `stale` do documento
+  já entrega parte do T074; as capas no documento ficam com elas.
+- **Flake conhecido**: a suíte completa acusa, de forma intermitente, uma rejeição `window is not defined` do react-dom
+  (aparece numa execução e não na seguinte). Não reproduz isolado. **Registrado, não mascarado.**
+- Registro anterior desta fase:
+- Pendências (2ª revisão):
 - **T074 e T075 não começaram** (troca atômica do documento; casamento externo em 2º plano). As capas da primeira tela
   entram no documento com elas — o campo `images` existe e vai vazio por enquanto.
 - **Validação final na TV** (SC-001 a SC-012) e **reinstalar o pacote normal**.

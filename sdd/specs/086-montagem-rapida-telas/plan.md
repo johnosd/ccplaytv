@@ -151,8 +151,8 @@ Trava (na raiz): `.\.planning\scripts\powershell\check-contract-tests.ps1 -Slug 
 | Fase 5 (US3) — renderização | **Concluída sem mudança**: a medição descartou o desenho como gargalo (1 ms com cache) |
 | Fase 6 (US4) — primeira tela | **Concluída**: capas da primeira tela com prioridade de rede; virtualização e lazy preservados |
 | Fase 7 — gates e TV | Gates de código **verdes** (3682 testes, 54/54 E2E, build). **Validação na TV feita e reprovada**: SC-001/002/003 falharam (R-014, R-015) |
-| Fase 8 — convergência | **P0, as medições na TV e o documento de tela fechados** (T064–T072, T076–T080). A abertura lê **um registro do `localStorage`** (p95 0,8 ms sob carga na TV) com o caminho dos candidatos como reserva. A carga espera a 1ª revelação da sessão (T073). Falta T074/T075 e a validação final |
-| TV | Build de **medição** instalado (`VITE_CCPLAY_PERF` + canal de métricas) — **reinstalar o pacote normal** ao fechar a próxima rodada. Coletor parado |
+| Fase 8 — convergência | **P0, as medições na TV e o documento de tela fechados** (T064–T072, T076–T080). A abertura lê **um registro do `localStorage`** (p95 0,8 ms sob carga na TV) com o caminho dos candidatos como reserva. **Validação final na TV feita e aprovada** (T089): Início 355/362 ms, Filmes/Séries 313–380 ms, `docMs` 0–1 ms. Falta T074/T075 e 4 critérios sem veredito |
+| TV | **Pacote normal reinstalado** (sem `VITE_CCPLAY_PERF`, sem canal de métricas — confirmado: 0 marcadores no `dist`). Coletor parado, sonda desinstalada |
 | Próximo desenho | `logic/documento-de-tela.md`: P0 (desfazer a regressão da carga) → sonda `montagem086` → documento de tela numa leitura, fora do banco do catálogo |
 | Sonda | `montagem086.js` (4 testes) **rodada na TV, 2 rodadas**, desinstalada ao final. Decidiu P2 = `localStorage`, documento **cru**, e refutou o banco separado. Evidência: `evidencias/sonda-montagem-tv-2026-10-21.md` |
 
@@ -179,10 +179,11 @@ Trava (na raiz): `.\.planning\scripts\powershell\check-contract-tests.ps1 -Slug 
 
 | 2026-10-21 | Fase 8 (T073) | A carga por seção só começa depois da 1ª revelação da sessão, com teto de 2,5 s (`lib/assembly/firstReveal.ts`). A espera ficou em `sectionRunner.ts`, em quem decide o momento, não dentro de `loadSection` — que roda no Worker e é chamado direto por testes. Gate completo: 3694 testes e **54/54 E2E** | T074/T075 e a validação final na TV |
 
-**PRÓXIMO**: **validação na TV** (SC-001 a SC-012) — é o que falta para saber se o Início sai dos ~2,1 s, agora que a
-carga não compete com o primeiro desenho e a abertura lê um registro do `localStorage`. T074/T075 (troca atômica e
-casamento externo em 2º plano) podem vir antes ou depois, mas **não** mudam os números de abertura. Reinstalar o pacote
-normal ao fim.
+| 2026-10-21 | Fase 8 (T079–T089) | **A causa real era minha**: eu havia posto duas consultas ao IndexedDB para validar o documento, e elas custavam `prepareMs` 883–3 986 ms na abertura, contra `docMs` 1–17 ms para ler o documento. Invertido — quem escreve invalida (troca de geração, mudança de visibilidade), e a leitura não toca o banco. Mais o banco aberto na splash (`dbOpenMs` 926/544 ms) e a sondagem do orçamento do `PerfOverlay` virando opt-in, porque disputava o aparelho com o que media. Resultado: **Início 355/362 ms**, Filmes/Séries **313–380 ms**, nenhuma revelação por teto | Antes disto, **4 hipóteses minhas caíram na medição** (§3 da evidência). SC-003 parcial; SC-005/006 não testados; SC-008/009/010/012 sem veredito |
+
+**PRÓXIMO**: `sdd-converge` para fechar a fase, declarando o que ficou sem veredito. Depois, se valer, **T074/T075**
+(troca atômica com a tela aberta e casamento externo em 2º plano) e os critérios não medidos — nenhum deles muda os
+números de abertura já aprovados.
 
 ## Arquivos Principais
 

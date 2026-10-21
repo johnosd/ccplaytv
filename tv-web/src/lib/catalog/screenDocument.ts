@@ -13,18 +13,14 @@ import { isCovered } from './catalogSearch'
 import { buildShowcaseRowsFromCandidates } from './showcaseRows'
 import { dayKey } from './ratedSelection'
 import {
+  isScreenDocumentStale,
   loadRawScreenDocument,
   saveScreenDocument,
   SCREEN_DOCUMENT_VERSION,
   type ScreenDocument,
 } from './screenDocumentStore'
 
-export { clearScreenDocuments, type ScreenDocument, type ScreenDocumentCategory } from './screenDocumentStore'
-
-/** Igualdade de conjuntos de categorias excluídas (os dois lados chegam ordenados). */
-function sameExcluded(a: readonly number[], b: readonly number[]): boolean {
-  return a.length === b.length && a.every((value, index) => value === b[index])
-}
+export { clearAllScreenDocuments, clearScreenDocuments, type ScreenDocument, type ScreenDocumentCategory } from './screenDocumentStore'
 
 /**
  * Lê o documento guardado, **se ele ainda vale**: mesma versão, geração ativa, mesmo dia e mesmo conjunto de categorias
@@ -35,16 +31,22 @@ function sameExcluded(a: readonly number[], b: readonly number[]): boolean {
 export function readScreenDocument(
   sourceId: string,
   kind: 'movie' | 'series',
-  expected: { generation: number; now: number; excluded: readonly number[] },
+  expected: { now: number },
 ): ScreenDocument | undefined {
   const document = loadRawScreenDocument(sourceId, kind)
   if (document === undefined) return undefined
   if (document.v !== SCREEN_DOCUMENT_VERSION || document.kind !== kind || document.sourceId !== sourceId) return undefined
-  if (document.generation !== expected.generation) return undefined
+  // O dia é a única validação que sobra aqui, porque é a única que não precisa do banco (a semente de "Bem avaliados" é
+  // diária). Geração e visibilidade são invalidadas por **quem as muda** — `clearScreenDocuments` na troca de geração e
+  // `clearAllScreenDocuments` quando a regra de categoria muda.
+  //
+  // Por que assim (T089): validar aqui custava duas leituras do IndexedDB, e a TV mostrou que elas levam 0,9–4,0 s na
+  // abertura (`prepareMs`), enquanto ler o documento leva 1–17 ms (`docMs`). Era trocar uma leitura lenta por duas.
   if (document.day !== dayKey(expected.now)) return undefined
-  if (!Array.isArray(document.excluded) || !sameExcluded(document.excluded, expected.excluded)) return undefined
   if (!Array.isArray(document.recent) || !Array.isArray(document.rated) || !Array.isArray(document.categories)) return undefined
-  return document
+  // Vencido ainda serve (FR-008): a tela mostra isto agora e o refresh de 2º plano troca pelo novo, sem a pessoa pedir
+  // nada. O que NÃO serve está acima — geração, dia e visibilidade são recusas, não avisos.
+  return { ...document, stale: isScreenDocumentStale(sourceId, kind, document.builtAt) }
 }
 
 /** Guarda o documento (ver `screenDocumentStore.ts`). */
@@ -120,7 +122,9 @@ export async function refreshScreenDocument(
  */
 export async function refreshMissingScreenDocuments(sourceId: string, database: CatalogDb = db): Promise<boolean> {
   for (const kind of ['movie', 'series'] as const) {
-    if (loadRawScreenDocument(sourceId, kind) !== undefined) continue
+    const current = loadRawScreenDocument(sourceId, kind)
+    // Falta, ou está vencido porque candidatos novos chegaram: nos dois casos vale refazer aqui, fora da abertura.
+    if (current !== undefined && !isScreenDocumentStale(sourceId, kind, current.builtAt)) continue
     return await refreshScreenDocument(sourceId, kind, { database })
   }
   return false

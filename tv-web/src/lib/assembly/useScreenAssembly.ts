@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { recordAssembly, recordDeferred, type AssemblyReport } from '../perf/assemblyTiming'
+import { recordAllSlotsSettled, recordAssembly, recordDeferred, type AssemblyReport } from '../perf/assemblyTiming'
 import { noteFirstReveal } from './firstReveal'
 import {
   ASSEMBLY_CAP_MS,
@@ -177,6 +177,16 @@ export function useScreenAssembly<K extends string>({
     // Só na revelação; o resto é registrado pelo efeito das adiadas.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [revealed])
+  // Feature 086 (T087): quando a última leitura resolve, reporta os tempos de todas — inclusive as que ficaram
+  // pendentes na revelação, que na TV eram exatamente as que faltavam no diagnóstico.
+  const allSettled = slots.length > 0 && slots.every((slot) => slot.status !== 'pending')
+  const settledReported = useRef(false)
+  useEffect(() => {
+    if (!allSettled || settledReported.current || mountedAt.current === 0) return
+    settledReported.current = true
+    recordAllSlotsSettled(screen, { ...slotMs.current }, performance.now() - mountedAt.current)
+  }, [allSettled, screen])
+
   const deferredKey = current.deferred.join(',')
   useEffect(() => {
     recordDeferred(report.current, deferredKey === '' ? [] : deferredKey.split(','))

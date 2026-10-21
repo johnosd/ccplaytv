@@ -6,11 +6,10 @@
  * não depender de `catalogApi` (seria um ciclo).
  */
 
-import { db } from '../../lib/catalog/db'
 import type { CatalogReadItem } from '../../lib/catalog/readProjectionTypes'
-import { getCategoryAccess } from '../../lib/catalog/categoryAccess'
 import { buildShowcaseRowsFromCandidates } from '../../lib/catalog/showcaseRows'
 import { readScreenDocument } from '../../lib/catalog/screenDocument'
+import { emitMetric } from '../../lib/perf/metricsChannel'
 
 export interface ShowcaseSelections<T> {
   recent: T[]
@@ -38,26 +37,26 @@ export async function loadShowcaseSelections<T>(
   now: number,
   toOut: (item: CatalogReadItem) => T,
 ): Promise<ShowcaseSelections<T>> {
-  const [source, access] = await Promise.all([db.sources.get(sourceId), getCategoryAccess(sourceId)])
-  const generation = source?.activeGeneration
-  const excluded = [...access.excluded].sort((a, b) => a - b)
-
-  if (generation !== undefined) {
-    const document = readScreenDocument(sourceId, kind, { generation, now, excluded })
-    if (document) {
-      return {
-        recent: document.recent.map(toOut),
-        rated: document.rated.map(toOut),
-        coveredCategories: document.coveredCategories,
-        totalCategories: document.totalCategories,
-      }
+  const startedAt = performance.now()
+  // O documento primeiro, e **sem tocar o banco** (T089): a TV mostrou que as duas leituras que eu usava para validá-lo
+  // custavam 0,9–4,0 s na abertura, contra 1–17 ms para ler o documento. Quem invalida é quem escreve — a troca de
+  // geração e a mudança de visibilidade de categoria apagam o documento no mesmo instante em que acontecem.
+  const document = readScreenDocument(sourceId, kind, { now })
+  if (document) {
+    emitMetric({ source: 'showcase', kind, outcome: 'done', docMs: Math.round(performance.now() - startedAt),
+      stale: document.stale === true ? 1 : 0 })
+    return {
+      recent: document.recent.map(toOut),
+      rated: document.rated.map(toOut),
+      coveredCategories: document.coveredCategories,
+      totalCategories: document.totalCategories,
     }
   }
 
-  // Sem documento válido, o caminho dos candidatos responde agora. **Refazer o documento não acontece aqui**: ficaria
-  // trabalho solto depois de a tela desenhar (e, nos testes, depois do próprio ciclo de vida do componente). Quem o
-  // refaz é a carga por seção ou a fila de segundo plano do prefetch, que já é cancelável.
+  // Sem documento, o caminho dos candidatos responde agora. **Refazer o documento não acontece aqui**: ficaria trabalho
+  // solto depois de a tela desenhar. Quem o refaz é a carga por seção ou a fila de segundo plano do prefetch.
   const rows = await buildShowcaseRowsFromCandidates(sourceId, kind, { now })
+  emitMetric({ source: 'showcase', kind, outcome: 'failed', candidatesMs: Math.round(performance.now() - startedAt) })
   return {
     recent: rows.recent.map(toOut),
     rated: rows.rated.map(toOut),

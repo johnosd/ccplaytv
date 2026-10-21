@@ -17,6 +17,7 @@ import {
   buildScreenDocument,
   clearScreenDocuments,
   readScreenDocument,
+  refreshMissingScreenDocuments,
   refreshScreenDocument,
   writeScreenDocument,
 } from './screenDocument'
@@ -71,7 +72,7 @@ describe('documento de tela (086)', () => {
 
     // A leitura é síncrona e não abre transação: qualquer acesso ao banco aqui é falha de desenho.
     const aberto = vi.spyOn(database, 'transaction')
-    const documento = readScreenDocument(SOURCE, 'movie', { generation: 1, now: NOW, excluded: [] })
+    const documento = readScreenDocument(SOURCE, 'movie', { now: NOW })
 
     expect(aberto).not.toHaveBeenCalled()
     expect(documento?.recent.length).toBeGreaterThan(0)
@@ -82,42 +83,42 @@ describe('documento de tela (086)', () => {
     expect(documento?.images).toEqual(['capa-1', 'capa-2'])
   })
 
-  it('não é usado depois de a pessoa esconder uma categoria, e o documento refeito deixa os itens dela de fora', async () => {
-    const ids = await seed()
+  it('esconder uma categoria apaga o documento, e o refeito deixa os itens dela de fora', async () => {
+    await seed()
     await refreshScreenDocument(SOURCE, 'movie', { database, now: NOW })
-    const antes = readScreenDocument(SOURCE, 'movie', { generation: 1, now: NOW, excluded: [] })
+    const antes = readScreenDocument(SOURCE, 'movie', { now: NOW })
     expect(antes?.recent.some((item) => item.name.startsWith('Cat0'))).toBe(true)
 
     // A pessoa esconde a primeira categoria. O documento guardado não sabe disso...
     await setCategoryPreference({ sourceId: SOURCE, kind: 'movie', providerCategoryId: '100', name: 'Cat 0' }, { hidden: true }, database)
 
-    // ...e por isso a leitura com o conjunto novo de excluídas o recusa, em vez de mostrar conteúdo escondido.
-    expect(readScreenDocument(SOURCE, 'movie', { generation: 1, now: NOW, excluded: [ids[0]] })).toBeUndefined()
+    // ...e por isso quem muda a visibilidade o apaga na hora, em vez de deixar a tela mostrar conteúdo escondido.
+    expect(readScreenDocument(SOURCE, 'movie', { now: NOW })).toBeUndefined()
 
     // Refeito, ele exclui a categoria escondida — e a cobertura continua honesta.
     await refreshScreenDocument(SOURCE, 'movie', { database, now: NOW })
-    const depois = readScreenDocument(SOURCE, 'movie', { generation: 1, now: NOW, excluded: [ids[0]] })
+    const depois = readScreenDocument(SOURCE, 'movie', { now: NOW })
     expect(depois?.recent.some((item) => item.name.startsWith('Cat0'))).toBe(false)
     expect(depois?.recent.some((item) => item.name.startsWith('Cat1'))).toBe(true)
     expect(depois?.categories.map((category) => category.name)).toEqual(['Cat 1'])
     expect(depois?.totalCategories).toBe(1)
   })
 
-  it('também recusa o documento de categoria travada por PIN', async () => {
-    const ids = await seed()
+  it('travar uma categoria por PIN também apaga o documento', async () => {
+    await seed()
     await changePin(SOURCE, '4321', database)
     await setCategoryPreference({ sourceId: SOURCE, kind: 'movie', providerCategoryId: '100', name: 'Cat 0' }, { locked: true }, database)
     await refreshScreenDocument(SOURCE, 'movie', { database, now: NOW })
 
-    const documento = readScreenDocument(SOURCE, 'movie', { generation: 1, now: NOW, excluded: [ids[0]] })
+    const documento = readScreenDocument(SOURCE, 'movie', { now: NOW })
     expect(documento?.recent.some((item) => item.name.startsWith('Cat0'))).toBe(false)
     expect(documento?.categories.map((category) => category.name)).toEqual(['Cat 1'])
   })
 
-  it('gravar candidatos novos invalida o documento, para a fileira acompanhar a pré-carga', async () => {
+  it('gravar candidatos novos marca o documento como vencido — ele segue usável até o refresh trocá-lo', async () => {
     await seed()
     await refreshScreenDocument(SOURCE, 'movie', { database, now: NOW })
-    const pedido = { generation: 1, now: NOW, excluded: [] as number[] }
+    const pedido = { now: NOW }
     expect(readScreenDocument(SOURCE, 'movie', pedido)).toBeDefined()
 
     // A pré-carga traz uma categoria nova e grava os candidatos dela. O documento guardado não a conhece — e por isso
@@ -138,28 +139,55 @@ describe('documento de tela (086)', () => {
     await writeCandidates(pickCandidates({ sourceId: SOURCE, generation: 1, kind: 'movie', categoryId: nova,
       groupOrder: 2, order: 2 }, items, NOW), database)
 
-    expect(readScreenDocument(SOURCE, 'movie', pedido)).toBeUndefined()
+    // O documento NÃO desaparece: a fileira continua na tela com o conteúdo de um instante atrás, agora marcada como
+    // vencida. Apagar fazia a pré-carga derrubá-lo a cada categoria, e a abertura voltava a custar ~1,8 s na TV.
+    const vencido = readScreenDocument(SOURCE, 'movie', pedido)
+    expect(vencido).toBeDefined()
+    expect(vencido?.stale).toBe(true)
+    expect(vencido?.recent.some((item) => item.name.startsWith('Cat2'))).toBe(false)
 
-    // Refeito, a categoria nova está nas fileiras e na trilha.
-    await refreshScreenDocument(SOURCE, 'movie', { database, now: NOW })
+    // A fila de 2º plano refaz justamente os vencidos (FR-008: atualiza na própria sessão).
+    expect(await refreshMissingScreenDocuments(SOURCE, database)).toBe(true)
     const depois = readScreenDocument(SOURCE, 'movie', pedido)
+    expect(depois?.stale).toBe(false)
     expect(depois?.recent.some((item) => item.name.startsWith('Cat2'))).toBe(true)
     expect(depois?.categories.map((category) => category.name)).toEqual(['Cat 0', 'Cat 1', 'Cat 2'])
   })
 
-  it('recusa documento de outra geração, de outro dia e de outra versão', async () => {
+  it('recusa documento de outro dia e de outra versão — as duas validações que não precisam do banco', async () => {
     await seed()
     await refreshScreenDocument(SOURCE, 'movie', { database, now: NOW })
-    const pedido = { generation: 1, now: NOW, excluded: [] as number[] }
+    const pedido = { now: NOW }
 
     expect(readScreenDocument(SOURCE, 'movie', pedido)).toBeDefined()
-    expect(readScreenDocument(SOURCE, 'movie', { ...pedido, generation: 2 })).toBeUndefined()
     // A semente de "Bem avaliados" é diária: o documento de ontem não serve hoje.
-    expect(readScreenDocument(SOURCE, 'movie', { ...pedido, now: OUTRO_DIA })).toBeUndefined()
+    expect(readScreenDocument(SOURCE, 'movie', { now: OUTRO_DIA })).toBeUndefined()
 
     const guardado = JSON.parse(localStorage.getItem(`ccplay.showcase.${SOURCE}.movie`) as string)
     localStorage.setItem(`ccplay.showcase.${SOURCE}.movie`, JSON.stringify({ ...guardado, v: 999 }))
     expect(readScreenDocument(SOURCE, 'movie', pedido)).toBeUndefined()
+  })
+
+  it('a leitura NÃO consulta o banco — é isso que a torna imune à carga em curso', async () => {
+    await seed()
+    await refreshScreenDocument(SOURCE, 'movie', { database, now: NOW })
+
+    // Na TV, as duas leituras que eu usava para validar o documento custavam 0,9–4,0 s na abertura (`prepareMs`),
+    // contra 1–17 ms para ler o documento (`docMs`). Qualquer consulta reintroduzida aqui desfaz o ganho.
+    const abriuTransacao = vi.spyOn(database, 'transaction')
+    const leuFonte = vi.spyOn(database.sources, 'get')
+    expect(readScreenDocument(SOURCE, 'movie', { now: NOW })).toBeDefined()
+    expect(abriuTransacao).not.toHaveBeenCalled()
+    expect(leuFonte).not.toHaveBeenCalled()
+  })
+
+  it('a troca de geração apaga o documento, porque a leitura não a verificaria', async () => {
+    await seed()
+    await refreshScreenDocument(SOURCE, 'movie', { database, now: NOW })
+    expect(readScreenDocument(SOURCE, 'movie', { now: NOW })).toBeDefined()
+
+    clearScreenDocuments(SOURCE)
+    expect(readScreenDocument(SOURCE, 'movie', { now: NOW })).toBeUndefined()
   })
 
   it('não lança quando o localStorage falha, nem guarda documento acima do teto', async () => {
@@ -168,7 +196,7 @@ describe('documento de tela (086)', () => {
     expect(documento).toBeDefined()
 
     vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => { throw new Error('bloqueado') })
-    expect(readScreenDocument(SOURCE, 'movie', { generation: 1, now: NOW, excluded: [] })).toBeUndefined()
+    expect(readScreenDocument(SOURCE, 'movie', { now: NOW })).toBeUndefined()
     vi.restoreAllMocks()
 
     vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => { throw new Error('cota') })

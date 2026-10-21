@@ -16,6 +16,7 @@
 import type { EpgWorkerResponse } from './epgWorker'
 import { emitMetric } from '../perf/metricsChannel'
 import { syncEpg, type EpgPhase, type SyncEpgResult } from './epgSync'
+import { waitForFirstReveal } from '../assembly/firstReveal'
 
 type FinishedListener = (sourceId: string, result: SyncEpgResult) => void
 
@@ -80,16 +81,34 @@ function notifySyncing(): void {
   for (const listener of [...syncingListeners]) listener()
 }
 
+export interface RequestEpgSyncOptions {
+  /**
+   * Feature 086 (T081): sincronização **automática** (abertura, fim de importação) espera a primeira tela da sessão
+   * aparecer, com o teto de `FIRST_REVEAL_WAIT_MS`.
+   *
+   * Por que: na TV, a sincronização de 11 668 programas levou 5,8 s e caiu em cima da abertura do Início, que revelou
+   * pelo teto com **todas** as leituras pendentes. Ela roda num Worker, mas ainda disputa o IndexedDB e chama o
+   * orçamento (`room` 1 836 ms na medição). Adiar o início é o que tira essa disputa do primeiro desenho.
+   *
+   * **Nunca** para o que a pessoa pediu ("Sincronizar agora", salvar o endereço XMLTV, ativar o guia): ali a espera
+   * seria a resposta à ação dela.
+   */
+  defer?: boolean
+}
+
 /**
  * Pede uma sincronização. Nunca rejeita: falha é um resultado
  * (`outcome: 'failed'`), já registrado no estado da fonte.
  */
-export function requestEpgSync(sourceId: string): Promise<SyncEpgResult> {
+export function requestEpgSync(sourceId: string, options: RequestEpgSyncOptions = {}): Promise<SyncEpgResult> {
   const existing = inFlight.get(sourceId)
   if (existing) return existing
 
   const startedAt = performance.now()
-  const promise = runInWorker(sourceId).then((result) => {
+  // `inFlight` é registrado já agora (abaixo), então a UI mostra "sincronizando" durante a espera — o pedido existe,
+  // só não começou.
+  const started = options.defer === true ? waitForFirstReveal().then(() => runInWorker(sourceId)) : runInWorker(sourceId)
+  const promise = started.then((result) => {
     // Feature 085/082 (SC-007): tempo total da sincronização (rede + leitura + gravação), só números e rótulos fixos.
     emitMetric({ source: 'epg', outcome: result.outcome, errorKind: result.errorKind, programs: result.programCount, totalMs: Math.round(performance.now() - startedAt) })
     inFlight.delete(sourceId)

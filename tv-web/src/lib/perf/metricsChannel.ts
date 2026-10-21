@@ -12,7 +12,7 @@
 export const METRICS_SCHEMA = 'ccplay-app-metrics/1'
 
 /** Quem emitiu a linha. Rótulo fixo, definido no código. */
-export type MetricSource = 'section-load' | 'entry' | 'frames' | 'assembly' | 'epg' | 'budget'
+export type MetricSource = 'section-load' | 'entry' | 'frames' | 'assembly' | 'epg' | 'budget' | 'showcase'
 
 /** Uma linha já saneada: `source` + campos numéricos finitos + rótulos da lista fixa. */
 export type MetricLine = { source: MetricSource } & Record<string, number | string>
@@ -26,7 +26,7 @@ export interface MetricsChannel {
   pending(): number
 }
 
-const SOURCES: ReadonlySet<string> = new Set<MetricSource>(['section-load', 'entry', 'frames', 'assembly', 'epg', 'budget'])
+const SOURCES: ReadonlySet<string> = new Set<MetricSource>(['section-load', 'entry', 'frames', 'assembly', 'epg', 'budget', 'showcase'])
 
 /**
  * Únicas strings que podem sair, todas literais do código. Nunca entra aqui um valor que poderia ter vindo da lista
