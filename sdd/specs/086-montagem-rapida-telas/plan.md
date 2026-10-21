@@ -129,6 +129,8 @@ Trava (na raiz): `.\.planning\scripts\powershell\check-contract-tests.ps1 -Slug 
 | R-005 | A vitrine é invalidada a cada lote da pré-carga (até 1/s) e hoje revarre tudo (`prefetchApi.ts`, achado do `logic` §5) | Com a leitura barata deixa de doer, mas pode sobrar custo de remontagem | **Aberto**: a medição (T003) não teve tela aberta durante o pico da pré-carga, então não confirmou nem descartou. Reavaliar na Fase 4 (T034) com a leitura já barata |
 | R-006 | A Home desenha as 5 fileiras de uma vez, sem virtualização vertical (as vitrines têm) | Pode ser parte do custo de renderização | **Resolvido: descartado pela medição (T003, 2026-10-20).** Com dado em cache, a Home revela em 1 ms e `paintMs` é 1 ms — desenhar não é o gargalo. Não virtualizar a Home nesta feature |
 | R-007 | A TV é gate, com 2 passadas planejadas, e cada instalação pede autorização | A feature pode parar esperando a TV | Pedir autorização por instalação; fechar sem a TV só por decisão explícita do usuário, registrada aqui |
+| R-012 | **Emenda aprovada dos contratos C1 e C2 (2026-10-20, autorizada pelo usuário)**: o C1 montava os candidatos a partir de `block?.items ?? items`, mas os blocos são comprimidos desde a 082 (`block.items` não existe), então passava registros **sem id local** — e o sorteio de "Bem avaliados" usa o id, o que fazia os dois caminhos divergirem por construção. O C2 gravava a preferência por nome (`n:Cat 0`) enquanto a categoria casa por `p:100`, e travava sem PIN configurado (sem PIN nada bloqueia, feature 067) | Os contratos não podiam passar sem quebrar FR-004 ou a feature 066 | **Resolvido**: C1 passa a ler os itens gravados por `readBlockChunks`; C2 passa `providerCategoryId` e configura o PIN antes de travar. O que cada teste verifica não mudou — só o preparo do cenário. Trava regravada; 5/5 verdes |
+| R-013 | O `now` que a gravação passa é o **carimbo de obtenção**, não o relógio; a régua de ano de "Bem avaliados" compara com o ano corrente. Usar o carimbo fazia `eligibleCount` ficar 0 e a fileira vazia | Fileira "Bem avaliados" vazia em toda lista | **Resolvido (T022)**: os candidatos são escolhidos com `Date.now()`, documentado no `blockWrite.ts` e no logic §3 |
 | R-009 | **A lista de categorias custa ~1 s** (`categoriesMs` 1 074 ms em Séries, T003): é a leitura obrigatória da vitrine e sozinha define quando a tela aparece. Não é a varredura do tipo, e o plano não a previa | SC-003 (≤ 1 s) fica no limite só por causa dela | Medir e tratar na Fase 4 (ordem das leituras): se continuar em ~1 s depois da US1, abrir task própria. Não aumentar o escopo sem medir |
 | R-010 | **Memória não é mensurável nesta TV**: `performance.memory` devolveu 10 MB fixos nas 44 amostras | SC-010 (pico não maior que hoje) sem método de verificação | Tratar SC-010 como **não verificável na TV** e trocar a prova por uma indireta: o contrato C3 garante que a montagem não lê blocos do catálogo, que é a origem do consumo. Registrar na convergência |
 | R-011 | Tudo fica 2–5× mais lento sob concorrência: o orçamento levou 2 437 ms durante a abertura, contra ~400 ms com o app quieto (T003) | As metas de tempo valem no pior momento, que é o real | Medir a validação (T061) no mesmo roteiro da linha de base, com a pré-carga acontecendo — comparar igual com igual |
@@ -142,7 +144,8 @@ Trava (na raiz): `.\.planning\scripts\powershell\check-contract-tests.ps1 -Slug 
 | --- | --- |
 | Fase 1 — medição | Concluída: instrumentação por leitura + pico de heap; linha de base medida na TV (`evidencias/linha-de-base-tv-2026-10-20.md`) |
 | Fase 2 — base | Concluída: schema v17, seleção movida para `lib/` com reexport, varredura de referência pronta |
-| Fases 3–6 | Pendentes; contratos C1–C5 vermelhos por `not implemented` |
+| Fase 3 (US1) — fileiras guardadas | **Concluída**: 5/5 contratos verdes; a abertura não varre mais o tipo |
+| Fases 4–6 | Pendentes (serviço externo fora da montagem, renderização, primeira tela) |
 | TV | Pacote normal reinstalado; coletor parado |
 
 ## Execution Notes
@@ -153,8 +156,9 @@ Trava (na raiz): `.\.planning\scripts\powershell\check-contract-tests.ps1 -Slug 
 | --- | --- | --- | --- |
 | 2026-10-20 | Fase 1 (T001–T004) | Instrumentação por leitura e pico de heap; linha de base na TV: Início revela por `cap` em 2 039 ms com **6 de 6 leituras pendentes**; Séries espera 1 074 ms só por `categories`; reentrada em cache revela em 1 ms | R-006 descartado (renderização não é o gargalo); R-009 (categorias ~1 s) e R-010 (memória não mensurável) abertos |
 | 2026-10-20 | Fase 2 (T010–T013) | Schema v17 com as 2 tabelas; seleção movida para `lib/catalog/{showcaseSelection,ratedSelection}.ts` com reexport em `features/vod`; `selectShowcaseRowsByScan` pronta; limpeza da lista | Travas de 052/056/065 confirmadas íntegras; teto de linhas do `db.ts` ajustado no baseline |
+| 2026-10-20 | Fase 3 (US1, T020–T029) | Candidatos por categoria gravados junto do bloco; montagem lê dezenas de linhas em vez de varrer o tipo; 5/5 contratos verdes e 1060 testes passando | Emenda dos contratos C1/C2 (R-012); 2 testes de outras features atualizados por mudança deliberada |
 
-**PRÓXIMO**: Fase 3 (T020–T028) — implementar os candidatos e a montagem até os 5 contratos ficarem verdes. Antes: Fase 2 (T010–T013) — schema v17, mover a lógica de seleção para `lib/catalog/showcaseSelection.ts` com reexport em `features/vod` (R-004) e a varredura de referência.
+**PRÓXIMO**: Fase 4 (T030–T036) — Top 10/Dica/Porque você assistiu de dado guardado, e a montagem deixando de esperar serviço externo — schema v17, mover a lógica de seleção para `lib/catalog/showcaseSelection.ts` com reexport em `features/vod` (R-004) e a varredura de referência.
 
 ## Arquivos Principais
 

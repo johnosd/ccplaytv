@@ -87,7 +87,8 @@ describe('vitrine de Filmes — índice em cache (bug tela-principal-filmes-lent
     await act(async () => {
       await new Promise((resolve) => setTimeout(resolve, 50))
     })
-    expect(loadIndex).toHaveBeenCalledTimes(1) // o tipo foi percorrido uma vez só
+    // Feature 086: o tipo não é percorrido NENHUMA vez — as fileiras saem dos candidatos guardados por categoria.
+    expect(loadIndex).not.toHaveBeenCalled()
   })
 
   it('"Bem avaliados": a 2ª montagem reaproveita a seleção (mesma referência) sem reler o índice', async () => {
@@ -102,7 +103,7 @@ describe('vitrine de Filmes — índice em cache (bug tela-principal-filmes-lent
     expect(second.result.current.data).toBe(firstList)
     expect(second.result.current.coveredCategories).toBe(1)
     expect(second.result.current.totalCategories).toBe(2)
-    expect(loadIndex).toHaveBeenCalledTimes(1)
+    expect(loadIndex).not.toHaveBeenCalled()
   })
 
   it('render repetido com o índice em cache não recalcula (o select deixou de rodar a cada render)', async () => {
@@ -152,6 +153,6 @@ describe('vitrine de Filmes — índice em cache (bug tela-principal-filmes-lent
     })
     await waitFor(() => expect(result.current.added.data![0].name).toBe('Chegou agora'))
     await waitFor(() => expect(result.current.rated.coveredCategories).toBe(2))
-    expect(loadIndex).toHaveBeenCalledTimes(1)
+    expect(loadIndex).not.toHaveBeenCalled()
   })
 })

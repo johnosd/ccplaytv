@@ -98,27 +98,28 @@ muda a fileira na montagem seguinte.
 
 ### Implementation
 
-- [ ] T020 [US1] Implementar `pickCandidates`, `writeCandidates`, `clearCandidates` e `readCandidates` em
+- [X] T020 [US1] Implementar `pickCandidates`, `writeCandidates`, `clearCandidates` e `readCandidates` em
   `tv-web/src/lib/catalog/showcaseCandidates.ts`, conforme `logic/selecoes-guardadas.md` §1 e §3. `pickCandidates` é pura e
   reaproveita `projectReadItem` (`readProjection.ts`) → contrato: C5
-- [ ] T021 [US1] Implementar `buildShowcaseRowsFromCandidates` em `tv-web/src/lib/catalog/showcaseRows.ts` conforme o §2 do
+- [X] T021 [US1] Implementar `buildShowcaseRowsFromCandidates` em `tv-web/src/lib/catalog/showcaseRows.ts` conforme o §2 do
   logic: filtra por `getCategoryAccess` na leitura, mescla na ordem da fonte com os acumuladores de `showcaseSelection.ts`,
   conta elegíveis distintos na mesclagem (R-002) → contrato: C1, C2, C3
-- [ ] T022 [US1] Em `tv-web/src/lib/catalog/repository/categoryItems.ts` (`renewCategoryItems`): gravar os candidatos da
+- [X] T022 [US1] Em `tv-web/src/lib/catalog/repository/categoryItems.ts` (`renewCategoryItems`): gravar os candidatos da
   categoria junto da gravação, com os itens já em mãos, respeitando `makeRoomFor` (082). Nenhuma leitura extra → contrato: C4
-- [ ] T023 [US1] Em `tv-web/src/lib/catalog/storageRelease.ts`: liberar uma categoria apaga os candidatos dela (FR-011).
-- [ ] T024 [US1] Em `tv-web/src/features/catalog/catalogApi.ts`: `useRecentlyAdded` e `useTopRated` passam a ler
+- [X] T023 [US1] Em `tv-web/src/lib/catalog/storageRelease.ts`: liberar uma categoria apaga os candidatos dela (FR-011).
+- [X] T024 [US1] Em `tv-web/src/features/catalog/catalogApi.ts`: `useRecentlyAdded` e `useTopRated` passam a ler
   `buildShowcaseRowsFromCandidates`; `loadShowcaseSelections` sai do caminho da tela (D-007). Manter a chave de consulta e a
   invalidação atuais, para o frescor continuar funcionando (FR-008, FR-012).
-- [ ] T025 [US1] Conferir que o aviso de cobertura parcial continua correto com a cobertura guardada (FR-006).
+- [X] T025 [US1] Conferir que o aviso de cobertura parcial continua correto com a cobertura guardada (FR-006).
+- [X] T029 [US1] **Ad-hoc, descoberta na T022**: `fillNextCandidates` em `tv-web/src/lib/catalog/showcaseCandidates.ts`, chamada pela fila da pré-carga (`lib/catalog/prefetch/index.ts`) — preenche os candidatos de uma categoria já gravada por vez. Sem isto, uma lista que já estava no aparelho nunca ganharia as fileiras, porque o catálogo não é regravado.
 
 ### Testes da Fase
 
-- [ ] T026 [P] [US1] `showcaseCandidates.test.ts`: categoria sem item elegível; item sem data/nota/ano; limite exato
+- [X] T026 [P] [US1] `showcaseCandidates.test.ts`: categoria sem item elegível; item sem data/nota/ano; limite exato
   (`RECENT_CANDIDATES` itens) e um a mais.
-- [ ] T027 [P] [US1] `showcaseRows.test.ts`: lista sem candidato nenhum devolve fileiras vazias e cobertura 0; candidatos de
+- [X] T027 [P] [US1] `showcaseRows.test.ts`: lista sem candidato nenhum devolve fileiras vazias e cobertura 0; candidatos de
   geração anterior são ignorados (FR-009); item de categoria apagada é descartado (FR-010).
-- [ ] T028 [US1] Rodar `npx vitest run src/lib/catalog src/features/catalog src/features/vod` e as travas de 052/056/065/082.
+- [X] T028 [US1] Rodar `npx vitest run src/lib/catalog src/features/catalog src/features/vod` e as travas de 052/056/065/082.
 
 **Critério de Conclusão**: os 5 contratos verdes
 (`npx vitest run src/lib/catalog/showcaseRows.montagem-rapida.contract.test.ts src/lib/catalog/showcaseCandidates.montagem-rapida.contract.test.ts` → 5/5),
@@ -129,11 +130,11 @@ muda a fileira na montagem seguinte.
 
 **Registro da Fase**:
 
-- Status:
-- Feito:
-- Contrato:
-- Testes executados:
-- Pendências:
+- Status: concluída.
+- Feito: T020/T021 — `pickCandidates`, `writeCandidates`, `clearCandidates`, `readCandidates` e `buildShowcaseRowsFromCandidates`, usando os MESMOS acumuladores da varredura. T022 — `writeCompressedBlock` passou a expor `blockItems`/`categoryOrder` e grava os candidatos com os itens já em mãos (nenhuma leitura extra). T023 — `deleteCategoryItems` apaga os candidatos da categoria. T024 — `loadShowcaseSelections` monta `recent`/`rated` pelos candidatos; a varredura só sobrou para o índice de nomes do Top 10/Dica, que a Fase 4 tira daí. T025 — cobertura conferida. T029 (ad-hoc) — preenchimento em segundo plano das categorias já gravadas.
+- Contrato: `npx vitest run src/lib/catalog/showcaseRows.montagem-rapida.contract.test.ts src/lib/catalog/showcaseCandidates.montagem-rapida.contract.test.ts` → **5/5 verdes**; trava íntegra. Travas de 052, 056, 065, 066, 079, 082 e 085 também íntegras.
+- Testes executados: `npx vitest run src/lib/catalog src/features/catalog src/features/vod src/features/home` → **1060 passaram**; `npx tsc -b` limpo; `npm run lint` ok.
+- Pendências: **emenda aprovada dos contratos C1/C2** (R-012) — o C1 montava os candidatos a partir de `block?.items`, que não existe desde a 082, e o C2 não configurava PIN nem casava a preferência por `providerCategoryId`. Dois testes de outras features foram atualizados por mudança deliberada de comportamento: `catalogApi.home.test.tsx` (grava pelo caminho normal, não com linhas soltas em `channels`) e `catalogApi.vitrine-cache.test.tsx` (o tipo agora não é percorrido **nenhuma** vez, antes era 1). **Descoberta na T022**: o `now` da gravação é carimbo de obtenção, não relógio — a régua de ano de "Bem avaliados" precisa de `Date.now()`, senão nada fica elegível.
 
 ---
 

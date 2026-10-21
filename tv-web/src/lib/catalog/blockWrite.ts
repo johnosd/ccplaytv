@@ -13,6 +13,7 @@ import type { BlockItem, CatalogDb, CatalogRecord, CategoryBlockRecord, Category
 import { blockItemId, identityKey, itemsSignature, legacyRowsOf, type BlockTarget } from './categoryBlocks'
 import { encodeBlockChunks, encodeIdentityIndex, sharedOf } from './blockCodec'
 import { categoryChunks, IDENTITY_CHUNK, type CategoryChunkRecord } from './chunkTables'
+import { pickCandidates, writeCandidates } from './showcaseCandidates'
 import { forgetCachedChunks, readHeaderChunks, readIdentityIndex } from './blockChunks'
 import { noteMovedIds } from './blockMemo'
 import { invalidateCategoryReadModel } from './readProjection'
@@ -30,6 +31,10 @@ export interface PreparedBlock {
   moves: Array<[number, number]>
   signature: string
   storedBytes: number
+  /** Feature 086: os itens já com id local, para quem grava a categoria escolher os candidatos das fileiras sem reler. */
+  blockItems: BlockItem[]
+  /** Ordem da categoria na fonte — desempate da mesclagem das fileiras (feature 086). */
+  categoryOrder: number
 }
 
 export interface BlockWriteOptions {
@@ -137,7 +142,8 @@ export async function prepareBlockWrite(target: BlockTarget, items: readonly Cat
   const header: CategoryBlockRecord = { ...target, format: 2, shared, count: blockItems.length, chunkCount: encoded.length,
     storedBytes, revision }
   return { target, expected: headerState(old), header, rows, legacyIds: legacy.map((row) => row.id as number), moves,
-    signature, storedBytes }
+    signature, storedBytes,
+    blockItems, categoryOrder: category.order }
 }
 
 /** Fase 2: roda **dentro** de uma transação `rw` com `blockWriteTables`. Só banco — nada de compressão aqui. */
@@ -184,6 +190,16 @@ export async function writeCompressedBlock(target: BlockTarget, items: readonly 
     try {
       const written = await database.transaction('rw', blockWriteTables(database), () => commitBlockWrite(prepared, now, database, options))
       forgetCachedChunks(database, target.categoryId)
+      // Feature 086 (FR-003): os candidatos das fileiras saem dos itens que já estão em mãos — nenhuma leitura extra, e
+      // a abertura da tela deixa de varrer o tipo. Falha aqui nunca derruba a gravação do catálogo.
+      if (written && (target.kind === 'movie' || target.kind === 'series')) {
+        // `now` aqui é o carimbo de obtenção da categoria, não o relógio: a régua de ano de "Bem avaliados" compara com o
+        // ano CORRENTE, então os candidatos são escolhidos com `Date.now()` (`logic/selecoes-guardadas.md` §3).
+        await writeCandidates(
+          pickCandidates({ ...target, kind: target.kind, order: prepared.categoryOrder }, prepared.blockItems, Date.now()),
+          database,
+        ).catch(() => undefined)
+      }
       return { written }
     } catch (error) {
       if (error instanceof BlockRevisionConflict && attempt < 2) continue

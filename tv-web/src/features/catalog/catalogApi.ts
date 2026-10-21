@@ -34,7 +34,8 @@ import {
 import { readKindCursorPage, type KindCursor } from '../../lib/catalog/kindCursor'
 import { listVisibleCategories } from '../../lib/catalog/categoryAccess'
 import { READ_WINDOW_MIN_ITEMS, readCategoryWindow } from '../../lib/catalog/categoryWindow'
-import { READ_PROJECTION_CHUNK_SIZE } from '../../lib/catalog/readProjection'
+import { READ_PROJECTION_CHUNK_SIZE, readItemToRecord } from '../../lib/catalog/readProjection'
+import { buildShowcaseRowsFromCandidates } from '../../lib/catalog/showcaseRows'
 import { ensureCategory, type CategoryFetchOutcome } from '../../lib/catalog/categoryLoader'
 import { markEntry, reportBackgroundRead } from '../../lib/perf/entryTiming'
 import { useEntryFirstPaint } from '../../lib/perf/useEntryFirstPaint'
@@ -64,10 +65,9 @@ import { type SeriesWatchedSummary } from '../../lib/catalog/seriesWatchedSummar
 import { loadSeriesWatchedSummaries } from './seriesSummaryApi'
 import { buildSearchIndex, compactSearchRecord, isCovered, loadSearchIndex, type SearchableKind } from '../../lib/catalog/catalogSearch'
 import { NO_AGGREGATED_ITEMS, loadAggregatedItems } from './aggregatedIndex'
-import { createRecentlyAddedAccumulator } from '../vod/vodShowcase'
 import { primaryProgress, type PrimaryProgress } from '../vod/detailProgress'
 import { pickBecauseSeed, type BecauseSeedKind } from '../../lib/catalog/becauseSeed'
-import { createRatedSelectionAccumulator, dayKey } from '../vod/ratedSelection'
+import { dayKey } from '../vod/ratedSelection'
 import { loadHistory, type HistoryKind } from './historyApi'
 import {
   clearHistory,
@@ -1649,39 +1649,31 @@ interface ShowcaseSelections {
  * regras e desempates: a ordem da passada é a de `listAllOfKind` (categoria na ordem da fonte, itens na ordem do bloco).
  */
 async function loadShowcaseSelections(sourceId: string, kind: FavoritableKind & StoredKind, now: number, signal: AbortSignal, withEntries: boolean): Promise<ShowcaseSelections> {
-  const categories = await listVisibleCategories(sourceId, kind)
-  const recent = createRecentlyAddedAccumulator((record: CatalogRecord) => record.addedAt)
-  const rated = createRatedSelectionAccumulator<CatalogRecord>(
-    { id: (record) => String(record.id), name: (record) => record.name, rating: (record) => record.providerRating, year: (record) => record.year, addedAt: (record) => record.addedAt },
-    { now, seed: `${dayKey(now)}|${kind}|${sourceId}` },
-  )
-  const compact: CatalogRecord[] | undefined = withEntries ? [] : undefined
-  let sinceYield = 0
-  for await (const records of iterateKindRecordBatches(sourceId, kind, { signal, pageSize: SHOWCASE_SLICE })) {
-    for (const record of records) {
-      recent.add(record)
-      rated.add(record)
-      compact?.push(compactSearchRecord(record))
+  // Feature 086 (FR-001/FR-002): as fileiras saem dos candidatos guardados por categoria — a abertura não varre o tipo.
+  const rows = await buildShowcaseRowsFromCandidates(sourceId, kind as 'movie' | 'series', { now })
+  const toOut = (item: Parameters<typeof readItemToRecord>[0]): CatalogItemOut => toItemOut(readItemToRecord(item), kind)
+  // O índice de nomes só existe para o Top 10/Dica cruzarem títulos do serviço externo; a feature 086 o tira da abertura
+  // na Fase 4 (US2). Enquanto isso, ele só é montado quando há chave configurada.
+  let entries: DiscoveryEntries | undefined
+  if (withEntries) {
+    const compact: CatalogRecord[] = []
+    let sinceYield = 0
+    for await (const records of iterateKindRecordBatches(sourceId, kind, { signal, pageSize: SHOWCASE_SLICE })) {
+      for (const record of records) compact.push(compactSearchRecord(record))
+      sinceYield += records.length
+      if (sinceYield >= SHOWCASE_SLICE) {
+        sinceYield = 0
+        await yieldToMain()
+      }
     }
-    sinceYield += records.length
-    if (sinceYield >= SHOWCASE_SLICE) {
-      sinceYield = 0
-      await yieldToMain()
-    }
-  }
-  const steps = rated.finishSteps(SHOWCASE_SLICE)
-  let step = steps.next()
-  while (!step.done) {
-    if (signal.aborted) throw new DOMException('Seleção cancelada.', 'AbortError')
-    await yieldToMain()
-    step = steps.next()
+    entries = buildSearchIndex(compact, { coveredCategories: 0, totalCategories: 0 }).entries
   }
   return {
-    recent: recent.finish().map((record) => toItemOut(record, kind)),
-    rated: step.value.picked.map((record) => toItemOut(record, kind)),
-    coveredCategories: categories.filter(isCovered).length,
-    totalCategories: categories.length,
-    entries: compact && buildSearchIndex(compact, { coveredCategories: 0, totalCategories: 0 }).entries,
+    recent: rows.recent.map(toOut),
+    rated: rows.rated.map(toOut),
+    coveredCategories: rows.coveredCategories,
+    totalCategories: rows.totalCategories,
+    entries,
   }
 }
 

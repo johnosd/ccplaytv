@@ -3,6 +3,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { CatalogDb, type CatalogRecord } from './db'
 import { storeCategories, storeCategoryItems } from './catalogRepository'
 import { setCategoryPreference } from './categoryAccess'
+import { readBlockChunks } from './blockChunks'
+import { changePin } from '../parental/listPin'
 import { pickCandidates, writeCandidates } from './showcaseCandidates'
 import { buildShowcaseRowsFromCandidates, readExternalRow } from './showcaseRows'
 import { selectShowcaseRowsByScan } from './showcaseSelection'
@@ -48,10 +50,11 @@ async function seed(categories: number, perCategory: number): Promise<number[]> 
     })
     await storeCategoryItems({ sourceId: SOURCE, generation: 1, kind: 'movie', groupOrder: index, categoryId: ids[index] },
       items, NOW, database)
-    const block = await database.categoryBlocks.get(ids[index])
+    // Os itens GRAVADOS (com id local): os blocos são comprimidos desde a 082, e o id entra na escolha de "Bem avaliados".
+    const gravados = await readBlockChunks(database, ids[index])
     await writeCandidates(
       pickCandidates({ sourceId: SOURCE, generation: 1, kind: 'movie', categoryId: ids[index], groupOrder: index, order: index },
-        block?.items ?? items, NOW),
+        gravados, NOW),
       database,
     )
   }
@@ -80,8 +83,10 @@ describe('fileiras calculadas a partir dos candidatos guardados (086)', () => {
     const antes = await buildShowcaseRowsFromCandidates(SOURCE, 'movie', { database, now: NOW })
     const visiveisAntes = antes.totalCategories
 
-    await setCategoryPreference({ sourceId: SOURCE, kind: 'movie', name: 'Cat 0' }, { hidden: true }, database)
-    await setCategoryPreference({ sourceId: SOURCE, kind: 'movie', name: 'Cat 1' }, { locked: true }, database)
+    await setCategoryPreference({ sourceId: SOURCE, kind: 'movie', providerCategoryId: '100', name: 'Cat 0' }, { hidden: true }, database)
+    // Travar só tem efeito com PIN configurado na lista (feature 067): sem PIN, nada fica bloqueado.
+    await changePin(SOURCE, '4321', database)
+    await setCategoryPreference({ sourceId: SOURCE, kind: 'movie', providerCategoryId: '101', name: 'Cat 1' }, { locked: true }, database)
     // Nenhum recálculo de candidatos entre as duas montagens: o filtro acontece na leitura.
     const depois = await buildShowcaseRowsFromCandidates(SOURCE, 'movie', { database, now: NOW })
 
@@ -124,10 +129,10 @@ describe('fileiras calculadas a partir dos candidatos guardados (086)', () => {
     }]
     await storeCategoryItems({ sourceId: SOURCE, generation: 1, kind: 'movie', groupOrder: 0, categoryId: ids[0] },
       novos, NOW, database)
-    const block = await database.categoryBlocks.get(ids[0])
+    const gravados = await readBlockChunks(database, ids[0])
     await writeCandidates(
       pickCandidates({ sourceId: SOURCE, generation: 1, kind: 'movie', categoryId: ids[0], groupOrder: 0, order: 0 },
-        block?.items ?? novos, NOW),
+        gravados, NOW),
       database,
     )
 

@@ -16,6 +16,7 @@ import { createPrefetchScheduler, IDLE_AFTER_KEY_MS, type PrefetchRunOutcome } f
 import { runSectionLoad } from '../sectionRunner'
 import { listVisibleCategories } from '../categoryAccess'
 import { hasStorageHeadroom } from '../storageRelief'
+import { fillNextCandidates } from '../showcaseCandidates'
 
 export const prefetchGate = createActivityGate()
 
@@ -66,6 +67,9 @@ async function housekeeping(sourceId: string): Promise<boolean> {
   if (await prepareMissingReadModels(sourceId)) return true
   // Feature 082 (FR-006): bloco antigo → formato comprimido, uma categoria por vez (ids iguais; a tela relê).
   if (await convertNextBlock(sourceId, { onConverted: (owner, categoryId) => onCategoryDone?.(owner, categoryId) })) return true
+  // Feature 086 (T029): candidatos das fileiras de uma categoria já gravada antes desta feature — uma por vez, aqui, para
+  // a abertura da tela nunca pagar essa conta. Sem isto, uma lista que já estava no aparelho ficaria sem as fileiras.
+  if (await fillNextCandidates(sourceId)) return true
   // Feature 082: categorias liberadas com o banco cheio (carimbadas sem itens) — depois de converter, que é o que
   // libera espaço; o reparo precisa gravar.
   const repair = await repairOrphanCategories()
