@@ -220,6 +220,45 @@ Pendências: **T043/T044 na TV** (gate de SC-007 e SC-008), que pedem autorizaç
 - `quickstart.md` §2 (checagens automatizadas) e **§3 inteiro** (os 6 itens) estão cobertos em navegador real pelo `top10-dica.mjs`, depois da T046. O §4 é a TV, e tem linha própria no Checklist de Release — por isso a linha do quickstart segue desmarcada: ela inclui o §4.
 - **Flake novo observado** (não é desta feature): `orcamento-armazenamento-migracao` falhou **1 em 3** execuções completas em paralelo hoje, na última. Passou em série em **29,2 s** contra **131,4 s** sob carga paralela — 4,5x mais lento, causa explicável (roteiro de IO de armazenamento disputando com 5 outros Chromium). O total da suíte subiu de 205 s para 228 s com o `top10-dica` mais longo, o que aumenta um pouco a disputa. Fica registrado como problema aberto, não como verde.
 
+## Phase 6: Convergence
+
+**Objetivo**: fechar os achados da convergência de 2026-10-21. Anexada pelo `sdd-converge`; nada acima foi tocado.
+
+### Implementation
+
+- [ ] T047 **[CV-001, HIGH]** Barrar o produtor enquanto a carga da lista estiver em curso e antes da primeira
+      revelação da sessão: `refreshStaleExternalRows` devolve `false` se `isSectionLoadActive()` ou se
+      `!isFirstRevealDone()` — o mesmo formato que `fillNextCandidates` já usa em `showcaseCandidates.ts:175`
+      (devolve `false` e deixa a fila seguir, em vez de bloquear o agendador).
+      **Origem**: `plan`: Decisões Invariantes 5 e 6; **FR-014**.
+      **Por que importa**: `activityGate.blockReason` cobre player, app oculto, rede e tecla, e **nada mais**; o
+      `housekeeping` é chamado depois de **cada categoria** da carga (`prefetchScheduler.ts:312`). Com a cobertura
+      na validade (T036), cada categoria que chega invalida o registro e o índice do tipo inteiro é remontado de
+      novo — o trabalho que a feature 086 tirou desse caminho (carga de séries: 26,6 s -> 3,5 s).
+- [ ] T048 **[CV-002, MEDIUM]** Afirmar que a fileira entra **sem mover o foco nem a rolagem**: capturar o elemento
+      focado e a posição antes de a fila produzir e conferir que seguem iguais depois que a fileira aparece.
+      Em `catalogApi.externalRows.test.tsx` (foco) e/ou no `e2e/top10-dica.mjs`, onde a rolagem é real.
+      **Origem**: **FR-006**; Constitution "Foco Visível e Sem Becos Sem Saída".
+- [ ] T049 **[CV-004, LOW]** Remover os tres pontos mortos de `['tmdb-discovery']` (`catalogApi.ts:916` e `:961`,
+      `categoryAccessApi.ts:30`) e corrigir o comentário de `invalidateTmdb`, que ainda fala em Top 10/Dica: nada
+      registra consulta sob essa chave desde que `useDiscoveryRow` saiu.
+      **Origem**: sobra da feature 057 revelada por esta.
+
+### Critério de Conclusão
+
+1. T047 com teste que prove as duas barreiras, e `npm run test` completo verde.
+2. Os 5 contratos da 087 verdes e `check-contract-tests.ps1` íntegro (087, 057, 086).
+3. **Só depois do T047**: T043 e T044 na TV (CV-003 — SC-007 e SC-008), com autorização do usuário. Medir antes
+   disso seria medir um defeito conhecido.
+
+### Registro da Fase
+
+Status:
+Feito:
+Contrato:
+Testes executados:
+Pendências:
+
 ## Dependencies & Execution Order
 
 ### Phase Dependencies
