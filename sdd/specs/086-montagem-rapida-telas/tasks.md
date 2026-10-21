@@ -290,3 +290,64 @@ falhando, a revelação não muda.
 - O conteúdo das fileiras **não pode mudar** (FR-004): o C1 é quem prova.
 
 <!-- sdd-converge anexa "## Phase N: Convergence" abaixo desta linha -->
+
+## Phase 8: Convergence
+
+**Objetivo**: fechar as lacunas que a auditoria de convergência achou — duas delas de conteúdo falso na tela, que
+nenhuma medição revelaria — e levar a abertura ao padrão de documento de página desenhado em
+`logic/documento-de-tela.md`.
+
+Ordem obrigatória: os dois CRITICAL e a regressão (T064–T068) **antes** de qualquer medição nova de abertura. Com a
+carga regredida, nenhum número de abertura vale — foi o que invalidou a rodada de 2026-10-20.
+
+### Implementação
+
+- [ ] T064 [US1] Descartar na montagem o item que não está mais no aparelho, em `lib/catalog/showcaseRows.ts` →
+      origem: **FR-010** (CV-001, CRITICAL). Hoje `buildShowcaseRowsFromCandidates` só filtra categoria visível; um
+      item liberado pelo orçamento continua aparecendo como card. O descarte é na leitura, sem ler bloco do catálogo
+      (o contrato C3 proíbe) — use o que o próprio candidato guarda mais a existência da categoria/bloco.
+- [ ] T065 [US1] Chamar `clearCandidates` quando o orçamento liberar uma categoria, em `lib/catalog/storageRelease.ts`
+      → origem: **FR-011** (CV-002, CRITICAL). A função existe e não tem chamador.
+- [ ] T066 Recalcular os candidatos **uma vez ao fim da carga por seção**, acumulando em memória durante a
+      codificação que já acontece, em `lib/catalog/sectionLoader.ts` e `lib/catalog/blockWrite.ts` → origem:
+      **FR-003** (CV-003, HIGH). Hoje são 34 transações próprias, uma por categoria.
+- [ ] T067 `PreparedBlock` deixa de reter `blockItems`; nada é retido para `channel` → origem: CV-004 (HIGH),
+      `plan: logic/documento-de-tela.md` P0.1.
+- [ ] T068 `fillNextCandidates` ganha orçamento de tempo por rodada e não roda enquanto a carga está ativa, em
+      `lib/catalog/prefetch/index.ts` → origem: CV-010 (MEDIUM).
+- [ ] T069 TV (**pedir autorização**): confirmar que a carga por seção voltou à linha de base (séries ≤ ~3,5 s,
+      filmes ≤ ~8 s) → gate de P0. Sem isto, não medir abertura.
+- [ ] T070 TV (**pedir autorização**): sonda `montagem086`, 2 rodadas, para decidir onde o documento de tela mora →
+      origem: **R-015**. Critério fixado antes de medir: p95 ≤ 50 ms sob carga real nas duas rodadas.
+- [ ] T071 Documento de tela por tela (`home`, `movies`, `series`) com fileiras, **trilha de categorias** e capas da
+      primeira tela; a montagem passa a fazer **uma** leitura → origem: **SC-003**, **CV-007**, R-009, P1 do logic.
+- [ ] T072 O documento mora fora do banco do catálogo, na forma que T070 escolher → origem: **R-015**, P2 do logic.
+- [ ] T073 A carga e a pré-carga cedem a vez à primeira revelação da sessão, em fatias curtas → origem: **FR-017**,
+      **SC-001** (CV-005, CV-006), P3 do logic.
+- [ ] T074 Troca atômica do documento com a tela aberta, sem mover foco nem rolagem → origem: **FR-008**, **FR-018**,
+      **SC-005**, P4 do logic.
+- [ ] T075 [US2] Casamento com o serviço externo em segundo plano, gravando em `showcaseExternalRows` → origem:
+      **FR-014** (CV-008). Fecha o parcial de T031; as funções de leitura e gravação já existem e estão testadas.
+
+### Testes da fase
+
+- [ ] T076 Teste: candidato de categoria liberada pelo orçamento não vira card (T064 + T065), sem ler bloco.
+- [ ] T077 Teste: a carga por seção grava os candidatos **uma vez**, não uma por categoria (T066).
+- [ ] T078 Teste: a montagem das três telas faz uma leitura do documento (mais o access), e nenhuma do catálogo (T071).
+
+### Critério de Conclusão
+
+1. Os 5 contratos travados seguem verdes e `check-contract-tests.ps1` íntegro.
+2. `npm run test`, `npx tsc -b`, `npm run lint`, `npm run build` e `npm run test:e2e` verdes.
+3. T069 confirma na TV que a carga voltou à linha de base.
+4. SC-001 a SC-012 medidos na TV e **atingidos**, pelo roteiro do `quickstart.md` §5; SC-010 pela prova indireta
+   (R-010: memória não é mensurável nesta TV).
+5. Pacote **normal** reinstalado na TV ao final (hoje está o de medição) e o usuário avisado.
+
+### Registro da Fase
+
+Status:
+Feito:
+Contrato:
+Testes executados:
+Pendências:
