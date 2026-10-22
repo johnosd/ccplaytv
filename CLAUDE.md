@@ -498,6 +498,12 @@ prefetch) e gravados em `showcaseExternalRows`. A tela **só lê** (`readExterna
 o índice de nomes do tipo. As **regras** de seleção continuam em `lib/metadata/discoveryRules.ts` (feature 057, contrato
 travado) — a 087 mudou **onde** e **quando** rodam, nada do que escolhem.
 
+O produtor **carrega as suas próprias barreiras**: devolve `false` enquanto `isSectionLoadActive()` ou
+`!isFirstRevealDone()`. O portão do agendador (`prefetch/activityGate.ts`) só sabe de tecla, player, app
+oculto e rede, e o `housekeeping` é chamado depois de **cada categoria** da carga — sem as barreiras, o
+índice do tipo inteiro seria remontado a cada categoria que chega. **Toda tarefa adiável cara nova precisa
+fazer o mesmo.**
+
 A validade do registro é o **período** (semana no Top 10, dia na Dica) **mais a cobertura gravada** (`coveredCategories`/
 `totalCategories`): uma categoria que chega depois não muda o período, e sem a cobertura na conta a fileira ficaria parada
 até a semana virar. Abaixo do mínimo de cruzados **grava vazio** — é o que impede a fila de remontar o índice do tipo a

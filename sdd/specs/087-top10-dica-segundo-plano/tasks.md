@@ -193,6 +193,12 @@ Pendências: a garantia 4 só é refeita quando a **cobertura** muda (categoria 
       estavam cobertos só por teste unitário, não em navegador. A asserção do idioma é por seletor neutro
       (`section.vod-row:has(.content-card-rank)` e o título do provedor, que nunca é traduzido), porque o rótulo da
       fileira muda de idioma na troca.
+- [X] T052 **[incidente da T051]** A primeira sonda tocou uma série na TV: as 14 teclas saíram no mesmo tick, o
+      foco (estado do React, ADR-009) andou **um** passo, e o `Enter` caiu num card de "Continue assistindo".
+      Corrigido com navegação em **laço fechado** (uma tecla, confere o foco, repete) e **`Enter` só com o foco no
+      item da topbar**, reconhecido pelo rótulo — se não chegar, desiste e conta em `falhas`.
+      `src/lib/perf/autopilot.test.ts` (3 testes) fixa a trava; ensaio no navegador contra o app real passou nas duas
+      condições. **Lição de método**: eu pulei o ensaio no PC que a skill `tizen-sonda` manda fazer.
 - [ ] T043 TV (**pedir autorização**): roteiro do `quickstart.md` §4 — **duração fixa**, pela lição do SC-009 da 086.
       Medir SC-007 (quadros longos ao navegar) e SC-008 (abertura segue em 313–380 ms).
 - [ ] T044 Reinstalar o **pacote normal** na TV e avisar o usuário.
@@ -226,7 +232,7 @@ Pendências: **T043/T044 na TV** (gate de SC-007 e SC-008), que pedem autorizaç
 
 ### Implementation
 
-- [ ] T047 **[CV-001, HIGH]** Barrar o produtor enquanto a carga da lista estiver em curso e antes da primeira
+- [X] T047 **[CV-001, HIGH]** Barrar o produtor enquanto a carga da lista estiver em curso e antes da primeira
       revelação da sessão: `refreshStaleExternalRows` devolve `false` se `isSectionLoadActive()` ou se
       `!isFirstRevealDone()` — o mesmo formato que `fillNextCandidates` já usa em `showcaseCandidates.ts:175`
       (devolve `false` e deixa a fila seguir, em vez de bloquear o agendador).
@@ -235,29 +241,46 @@ Pendências: **T043/T044 na TV** (gate de SC-007 e SC-008), que pedem autorizaç
       `housekeeping` é chamado depois de **cada categoria** da carga (`prefetchScheduler.ts:312`). Com a cobertura
       na validade (T036), cada categoria que chega invalida o registro e o índice do tipo inteiro é remontado de
       novo — o trabalho que a feature 086 tirou desse caminho (carga de séries: 26,6 s -> 3,5 s).
-- [ ] T048 **[CV-002, MEDIUM]** Afirmar que a fileira entra **sem mover o foco nem a rolagem**: capturar o elemento
+- [X] T048 **[CV-002, MEDIUM]** Afirmar que a fileira entra **sem mover o foco nem a rolagem**: capturar o elemento
       focado e a posição antes de a fila produzir e conferir que seguem iguais depois que a fileira aparece.
       Em `catalogApi.externalRows.test.tsx` (foco) e/ou no `e2e/top10-dica.mjs`, onde a rolagem é real.
       **Origem**: **FR-006**; Constitution "Foco Visível e Sem Becos Sem Saída".
-- [ ] T049 **[CV-004, LOW]** Remover os tres pontos mortos de `['tmdb-discovery']` (`catalogApi.ts:916` e `:961`,
+- [X] T049 **[CV-004, LOW]** Remover os tres pontos mortos de `['tmdb-discovery']` (`catalogApi.ts:916` e `:961`,
       `categoryAccessApi.ts:30`) e corrigir o comentário de `invalidateTmdb`, que ainda fala em Top 10/Dica: nada
       registra consulta sob essa chave desde que `useDiscoveryRow` saiu.
       **Origem**: sobra da feature 057 revelada por esta.
 
+- [X] T050 **[CV-001 reaberto pela TV]** O produtor passa a rodar **só com a fila vazia**, e monta o índice **uma
+      vez por tipo** em vez de uma por fileira. O T047 barrava só a carga por seção; o agendador chama o
+      `housekeeping` depois de **cada categoria** da pré-carga, e a cobertura na validade (T036) fazia remontar tudo.
+      **Medido**: 10 categorias chegando = **10 montagens** do índice do tipo inteiro (43 549 filmes na TV). Na TV:
+      quadro de **1750 ms**, fps mediano 32 com janelas de 1–4 fps, e entrada em categoria de **3763 ms** (linha de
+      base da 086: ~200 ms). Depois: **0** durante a carga e **1** por rodada com a fila vazia.
+      `prefetchScheduler` passa `{ idle }` ao `housekeeping`; teste novo afirma `idle: false` entre categorias.
+- [X] T051 **[pedido do usuário]** Sonda **automatica** de medição na TV (`lib/perf/autopilot.ts`), atrás de
+      `VITE_CCPLAY_AUTOPILOT=1`: entra na lista, vai a Filmes e Séries pela topbar e navega por **janelas de 60 s de
+      duração fixa**, com cadência e número de teclas fixos, medindo fps/pior quadro/quadros>50 ms por rodada.
+      Emite no `source: 'frames'` que já existe, com `autopilot: 1` — **sem** tocar no canal de métricas nem no
+      contrato travado da 085. Import estático com portão em tempo de execução (o padrão da sonda da 069): o build
+      normal não leva o módulo nem emite chunk novo — verificado nos dois builds.
+      **Por quê**: o roteiro manual exigia cronómetro e duas passadas, e não era comparável entre rodadas — foi o
+      que deixou o SC-009 da 086 sem veredito.
 ### Critério de Conclusão
 
-1. T047 com teste que prove as duas barreiras, e `npm run test` completo verde.
+1. T047 e T050 com teste que prove as barreiras, e `npm run test` completo verde.
 2. Os 5 contratos da 087 verdes e `check-contract-tests.ps1` íntegro (087, 057, 086).
 3. **Só depois do T047**: T043 e T044 na TV (CV-003 — SC-007 e SC-008), com autorização do usuário. Medir antes
    disso seria medir um defeito conhecido.
 
 ### Registro da Fase
 
-Status:
-Feito:
-Contrato:
-Testes executados:
-Pendências:
+Status: **Reaberta e em andamento** (2026-10-21). A TV reprovou o SC-007 e a causa estava no próprio T047, que cobria só metade — ver T050. **CV-003 segue aberto por decisão do usuário** — é o único achado da convergência sem fechar, e agora pode ser medido sem medir um defeito conhecido.
+Feito: **T047** — `refreshStaleExternalRows` devolve `false` enquanto `isSectionLoadActive()` ou `!isFirstRevealDone()`, no mesmo formato de `fillNextCandidates` (devolve, não espera: esperar prenderia o agendador). O comentário do próprio `loadActivity.ts` da 086 já dizia o que eu havia escrito errado no `logic` §5: *"o portão de atividade do agendador só sabe de teclas"*. **T048** — asserção de FR-006 no `top10-dica.mjs`, com o foco fundo na Dica e a vitrine rolada: a fila refaz a fileira **acima** da focada e nem o foco nem a rolagem se movem. **T049** — os três pontos mortos de `['tmdb-discovery']` removidos (nada registrava consulta sob essa chave desde que `useDiscoveryRow` saiu) e o comentário de `invalidateTmdb` corrigido.
+Contrato: `npx vitest run src/lib/catalog/externalRows.top10-dica-segundo-plano.contract.test.ts src/features/catalog/catalogApi.top10-dica-segundo-plano.contract.test.tsx` → **5/5 verdes**; `check-contract-tests.ps1` → PASS para **087**, **057** e **086**.
+Testes executados: `npx vitest run src/lib/catalog/externalRows.test.ts src/lib/catalog/externalRows.top10-dica-segundo-plano.contract.test.ts` → 17/17 (os 2 testes novos das barreiras). `npm run test` → **3710/3710**, 683 arquivos. `npx tsc -b` → verde. `npm run lint` → sem erro, ratchet ok com a poda final (`catalogApi.ts` 2056 → **2052**). `npm run build` → verde. `npm run test:e2e` → **54/54 em 211 s**; o `top10-dica.mjs` rodado direto mostra as asserções do FR-006 passando (foco `poster-box tv-focus|pôsterFilme Um` idêntico antes e depois, rolagem igual, 0 consultas).
+Pendências (atualizado depois da TV): **SC-007 está REPROVADO** com os números de `evidencias/medicao-tv-2026-10-21.md` — mediana 32 fps (base 38), pior quadro **1750 ms**, entrada em categoria **3763 ms** (base ~200 ms). O SC-008 passou (348–374 ms). A causa foi medida sem a TV (10 montagens do índice para 10 categorias) e corrigida no **T050**, mas a correção **ainda não foi medida na TV** — a rodada ficou para depois, por decisão do usuário. Até lá, o veredito do SC-007 continua reprovado.
+
+O flake de `orcamento-armazenamento-migracao` passou naquela rodada: taxa observada agora **1 em 4** execuções completas em paralelo, verde em série — segue como problema aberto, alheio a esta feature. Observação registrada, sem task: esconder uma categoria reseta a leitura (`resetQueries` em `categoryAccessApi`), mas o registro guardado só é refeito na rodada seguinte da fila, então a cobertura exibida fica uma rodada atrás. O conteúdo em si não muda de correção (o cruzamento é do tipo inteiro, **igual a antes da 087** — R-002).
 
 ## Dependencies & Execution Order
 

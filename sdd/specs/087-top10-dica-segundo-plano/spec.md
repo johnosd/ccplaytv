@@ -1,6 +1,6 @@
 # Feature: Top 10 e Dica produzidos em segundo plano
 
-**Status**: Em Execução
+**Status**: Convergência Pendente
 **Criada**: 2026-10-21
 **Origem**: feature 086 (T082 / CV-013), decisão do usuário de 2026-10-21 de tratar como feature própria. A mudança
 chegou a ser escrita e foi revertida porque o custo real é reescrever os testes de comportamento da feature 057 — então

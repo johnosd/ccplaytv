@@ -240,7 +240,7 @@
     "components/player/usePlayerKeyboard.ts": 406,
     "components/player/usePlayerPanels.ts": 367,
     "components/player/usePlayerSession.ts": 592,
-    "features/catalog/catalogApi.ts": 2056,
+    "features/catalog/catalogApi.ts": 2052,
     "features/home/HomeContent.tsx": 628,
     "features/import/AddSourceScreen.tsx": 387,
     "features/import/ImportProgressScreen.tsx": 313,

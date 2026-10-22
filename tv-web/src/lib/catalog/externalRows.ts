@@ -15,6 +15,8 @@ import { compactSearchRecord, isCovered } from './catalogSearch'
 import { listVisibleCategories } from './categoryAccess'
 import { readExternalRow, writeExternalRow } from './showcaseRows'
 import { toShowcaseItem } from './showcaseSelection'
+import { isSectionLoadActive } from './loadActivity'
+import { isFirstRevealDone } from '../assembly/firstReveal'
 import {
   matchDiscoveryTitlesAsync,
   selectTip,
@@ -31,6 +33,11 @@ export interface RefreshExternalRowOptions {
   signal?: AbortSignal
   /** Idioma das consultas ao TMDB, como a tela passava. */
   language?: AppLanguage
+  /**
+   * Índice do tipo já montado nesta rodada (T050). Montá-lo é a parte cara: as duas fileiras do mesmo tipo o
+   * compartilham, em vez de uma remontagem por fileira.
+   */
+  index?: () => Promise<CatalogRecord[]>
 }
 
 type ExternalKind = 'movie' | 'series'
@@ -154,7 +161,7 @@ export async function refreshExternalRow(
   if (result.stale) return false
 
   // 4. O índice do tipo. Catálogo vazio: não há com o que casar.
-  const records = await buildKindIndex(sourceId, kind, database, signal)
+  const records = await (options.index?.() ?? buildKindIndex(sourceId, kind, database, signal))
   if (records.length === 0) return false
 
   // 5. Casar e selecionar — as funções da 057, sem nenhuma regra nova.
@@ -226,21 +233,38 @@ export async function markExternalRowsForRefresh(database: CatalogDb = db): Prom
 }
 
 /** A ordem da varredura: um tipo por vez, as duas fileiras dele juntas. */
-const ROWS: ReadonlyArray<readonly [ExternalKind, ExternalRow]> = [
-  ['movie', 'top10'],
-  ['movie', 'tip'],
-  ['series', 'top10'],
-  ['series', 'tip'],
-]
+const KINDS: readonly ExternalKind[] = ['movie', 'series']
+const ROWS: readonly ExternalRow[] = ['top10', 'tip']
 
-/** Refaz a primeira fileira que estiver fora do período — uma por rodada da fila de segundo plano. */
+/**
+ * Refaz a primeira fileira que estiver fora do período — uma por rodada da fila de segundo plano.
+ *
+ * As duas barreiras abaixo existem porque o portão do agendador **não** cobre o que esta tarefa precisa (T047): o
+ * `activityGate` sabe de tecla, player, app oculto e rede, e nada mais — e o `housekeeping` é chamado depois de **cada
+ * categoria** da carga. Montar o índice do tipo inteiro é a tarefa mais cara da fila (43 549 filmes na TV de
+ * referência) e, com a cobertura na validade, ela se repetiria a cada categoria que chega: exatamente o trabalho que a
+ * feature 086 tirou desse caminho (carga de séries de 26,6 s para 3,5 s).
+ *
+ * Devolve `false` em vez de esperar, para a fila seguir para as outras tarefas — o mesmo formato de
+ * `fillNextCandidates`. Esperar aqui prenderia o agendador.
+ */
 export async function refreshStaleExternalRows(
   sourceId: string,
   options: RefreshExternalRowOptions = {},
 ): Promise<boolean> {
-  for (const [kind, row] of ROWS) {
-    // Uma por rodada, de propósito: montar o índice do tipo é a parte cara, e a fila precisa poder parar entre as duas.
-    if (await refreshExternalRow(sourceId, kind, row, options)) return true
+  if (isSectionLoadActive() || !isFirstRevealDone()) return false
+  const database = options.database ?? db
+  for (const kind of KINDS) {
+    // Um índice por TIPO, montado no máximo uma vez e reusado pelas duas fileiras (T050). Antes era um por fileira: o
+    // dobro do trabalho caro, e a fila voltava na rodada seguinte para remontá-lo.
+    let montado: CatalogRecord[] | undefined
+    const index = async (): Promise<CatalogRecord[]> => (montado ??= await buildKindIndex(sourceId, kind, database, options.signal))
+    let fez = false
+    for (const row of ROWS) {
+      if (await refreshExternalRow(sourceId, kind, row, { ...options, index })) fez = true
+    }
+    // Uma rodada por tipo: a parte cara já foi paga aqui, e a fila pode parar antes do tipo seguinte.
+    if (fez) return true
   }
   return false
 }

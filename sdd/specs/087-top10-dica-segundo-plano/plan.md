@@ -154,16 +154,16 @@ de Conclusão de cada fase as cobra.
 
 | Área | Estado |
 | --- | --- |
-| Contratos travados (087) | **5/5 verdes** dentro da suíte completa. Trava íntegra (regravada pela emenda do R-006) |
+| Contratos travados (087) | **5/5 verdes**. Trava íntegra |
 | Travas de outras features (057, 086) | Íntegras |
-| Código | Produtor, fila, leitura, as três ações da pessoa e o canal de aviso — **completos** |
-| As 14 garantias | **Todas no lugar novo**; os dois arquivos de teste antigos removidos |
-| `npm run test` | **3708/3708**, 683 arquivos |
-| `tsc` / `lint` / `build` | Verdes; ratchet podado (`catalogApi.ts` 2160 -> 2056) |
-| `npm run test:e2e` | **54/54** na rodada de referência; `top10-dica.mjs` adaptado (T045) e com o `quickstart` §3 completo (T046). Flake aberto em `orcamento-armazenamento-migracao`, alheio a esta feature: 1 em 3 rodadas paralelas, verde em série |
-| `CLAUDE.md` | Regra da 087 registrada; a da 086 deixou de listar Top 10/Dica |
-| `quickstart.md` | §2 e §3 em navegador real; §4 (TV) pendente |
-| **TV (T043/T044)** | **Pendente — espera autorização do usuário.** É o gate de SC-007 e SC-008 |
+| Código | Completo. O produtor só roda **com a fila vazia** e monta o índice **uma vez por tipo** (T050) |
+| `npm run test` | **3714/3714**, 684 arquivos |
+| `tsc` / `lint` / ratchet | Verdes |
+| `npm run test:e2e` | 54/54 na última rodada completa (antes do T050/T051, que não tocam o E2E) |
+| **SC-007 (fluidez na TV)** | **REPROVADO** — mediana 32 fps, pior quadro 1750 ms, entrada 3763 ms (`evidencias/medicao-tv-2026-10-21.md`). Causa corrigida no T050; **correção ainda não medida na TV** |
+| **SC-008 (abertura na TV)** | **Aprovado** — 348–374 ms, dentro da faixa de 313–380 ms |
+| Sonda automática (T051/T052) | Pronta, com trava testada e **ensaio no PC aprovado**. Tocou uma série na 1ª versão — incidente registrado na evidência |
+| TV | Pacote **normal** reinstalado; nada de medição ficou no aparelho |
 
 ## Riscos e Decisões
 
@@ -177,6 +177,9 @@ de Conclusão de cada fase as cobra.
 | R-006 | **Emenda aprovada ao contrato 1** (2026-10-21, Fase 3): a referência do teste lia `database.channels`, vazia desde a feature 082 (itens em bloco comprimido). Como escrito, ele exigia fileira vazia com 3 títulos cruzando — e contradizia o contrato 2, que exige `>= TOP10_MIN` com a mesma semeadura | Nenhum produtor satisfazia os dois contratos ao mesmo tempo | **Resolvido**: a referência passou a ler os itens por `iterateKindRecordBatches`, onde eles estão (7 linhas no próprio teste, intenção intacta — as mesmas funções da 057 sobre os mesmos dados). Trava regravada com `-Write`. Nada no código de produção mudou por causa disto; a comparação virou real (3 itens, ranks 1/3/4) em vez de vazia contra vazia |
 | R-007 | **A invalidação que o plano supunha não alcançava a fileira** (descoberto na T027): o `logic` §7 dizia que a chave sob `catalog-search-index` bastaria, porque "a pré-carga e a sincronização já invalidam esse prefixo". Mas a pré-carga só invalida quando **uma categoria chega**, e o produtor roda no `housekeeping` — justamente quando não há mais nenhuma a chegar; e a invalidação que a 086 instalou é estreita (`…, kind, 'showcase'`) | O FR-006 não se cumpriria: a fileira só apareceria na próxima visita à tela | **Resolvido** pela T028, espelhando o canal da feature 086 (`onScreenDocumentRefreshed`): o produtor avisa ao gravar e `usePrefetchForSource` invalida **só** `['catalog-search-index', sourceId, kind, 'external']` — o foco e a rolagem ficam onde estão. Coberto por teste nos dois lados (produtor avisa / a tela relê sem remontar) |
 | R-008 | **A validade pelo período sozinha perdia a garantia 4** (descoberto na T033): uma categoria que chega depois **não** muda o período, então o produtor recusava refazer e a fileira ficava parada no catálogo de quando foi produzida até a semana virar -- o teste de hoje (categoria que chega depois atualiza a fileira) não teria equivalente | Fileira desatualizada por até uma semana durante a pré-carga, que é justamente quando o catálogo cresce | **Resolvido** pela T036: a **cobertura gravada** (`coveredCategories`/`totalCategories`, que o registro já guardava) entra na validade junto com o período. Refazer não consulta nada -- o ranking do período já está em cache. Limite registrado: uma categoria **renovada** com a mesma contagem só entra quando o período virar |
+| R-009 | **O produtor passou a carregar as suas próprias barreiras** (T047, achado CV-001 da convergência): o `activityGate` do agendador cobre tecla, player, app oculto e rede — e **nada mais** —, e o `housekeeping` é chamado depois de **cada categoria** da carga. A frase que eu escrevi no `logic` §5 e repeti no handoff (*"a fila já traz de graça os três portões"*) era falsa: traz um | Com a cobertura na validade (R-008), o índice do tipo inteiro seria remontado a cada categoria que chega — o trabalho que a 086 tirou desse caminho (carga de séries 26,6 s → 3,5 s) | **Resolvido**: `refreshStaleExternalRows` devolve `false` se `isSectionLoadActive()` ou `!isFirstRevealDone()`. Devolver e não esperar é de propósito (esperar prenderia o agendador), igual a `fillNextCandidates`. Dois testes provam as duas barreiras, e o `isFirstRevealDone` tem teto de 2,5 s, então nada fica preso se nenhuma tela montar |
+| R-010 | **O T047 cobria só metade do FR-014** (achado na TV): ele barra a carga **por seção**, mas o agendador chama o `housekeeping` depois de **cada categoria** da pré-carga, e a cobertura na validade (R-008) mandava refazer | Medido: **10 montagens** do índice do tipo inteiro para 10 categorias chegando. Na TV: pior quadro **1750 ms**, mediana 32 fps (base 38) e entrada em categoria **3763 ms** (base ~200 ms) — SC-007 reprovado | **Resolvido pelo T050**: o `housekeeping` recebe `idle` e o produtor só roda com a fila vazia; o índice é montado **uma vez por tipo** e reusado pelas duas fileiras. Depois: 0 durante a carga, 1 por rodada. **Falta medir na TV** |
+| R-011 | **A sonda automática tocou uma série** (T051): as teclas saíram no mesmo tick, o foco (estado do React, ADR-009) andou um passo e o `Enter` caiu num card de "Continue assistindo" | Reprodução acidental no aparelho do usuário, e rodada sem medida nenhuma | **Resolvido pelo T052**: laço fechado (uma tecla, confere o foco) e `Enter` **só** com o foco no item da topbar, pelo rótulo — 3 testes fixam isso e o ensaio no PC passou. Causa de método: eu pulei o ensaio no PC que a skill manda fazer **antes** de instalar |
 
 ## Execution Notes
 
@@ -190,8 +193,10 @@ de Conclusão de cada fase as cobra.
 | 2026-10-21 | Fase 4 (US2/US3) | T030–T036: salvar acorda a fila; remover apaga os registros na transação da chave; trocar o idioma mantém e marca para refazer. **As 14 garantias movidas** e os 2 arquivos antigos removidos — área com 1009 passed, 0 falhas. **R-008**: a validade só por período perdia a garantia 4 -> a cobertura gravada entra na conta | O ratchet de `catalogApi.ts` quebrou por 12 linhas e foi corrigido enxugando comentários (R-005) |
 | 2026-10-21 | Fase 5 (Polish) | T040–T042 e T045: gates verdes (`test` 3708/3708, `tsc`, `lint`+ratchet podado, `build`), **E2E 54/54** e `CLAUDE.md` com a regra da 087. O roteiro `top10-dica.mjs` codificava o comportamento antigo em três pontos e foi adaptado (T045) | T043/T044 na TV, esperando autorização |
 | 2026-10-21 | Fase 5 (T046) | Os itens 5 e 6 do `quickstart.md` §3 (chave salva de novo; troca de idioma) saíram do teste unitário para o navegador real, no `top10-dica.mjs` — §3 completo | Flake em `orcamento-armazenamento-migracao` (1 em 3 paralelas, verde em série), alheio a esta feature |
+| 2026-10-21 | Fase 6 (Convergence) | T047–T049: o produtor passou a se calar durante a carga e antes da primeira revelação (CV-001, o achado que ordenava o resto); FR-006 afirmado com foco e rolagem reais (CV-002); `['tmdb-discovery']` removida de três pontos (CV-004). Gates: test 3710/3710, E2E 54/54 | CV-003: SC-007/SC-008 na TV, esperando autorização |
+| 2026-10-21 | Fase 6 (TV) | A TV **reprovou o SC-007** (pior quadro 1750 ms, entrada em categoria 3763 ms) e o usuário percebeu antes do número. Causa medida sem TV: 10 montagens do índice para 10 categorias → **T050** (produtor só com a fila vazia; um índice por tipo). **T051/T052**: sonda automática de medição, que na 1ª versão tocou uma série — trava testada e ensaio no PC aprovado | Medir o T050 na TV |
 
-PRÓXIMO: **T043 e T044 na TV** — roteiro de duração fixa do `quickstart.md` §4 (SC-007 e SC-008), com build de medição, e depois reinstalar o pacote normal. **Pedem autorização do usuário a cada instalação.** Todo o resto está fechado.
+PRÓXIMO: **medir o T050 na TV** — a sonda automática está pronta e ensaiada; instalar o build de medição com `VITE_CCPLAY_AUTOPILOT=1`, deixar as 4 janelas de 60 s rodarem e comparar com `evidencias/medicao-tv-2026-10-21.md` (mediana 32 fps, pior quadro 1750 ms, entrada 3763 ms). Depois reinstalar o pacote normal. **Pede autorização do usuário.** Enquanto não for medido, o SC-007 segue reprovado.
 
 ## Arquivos Principais
 
@@ -209,5 +214,8 @@ PRÓXIMO: **T043 e T044 na TV** — roteiro de duração fixa do `quickstart.md`
 - **`queryClient.removeQueries` não faz uma consulta com observador ativo reler**: a tela fica com o dado anterior até sair e voltar. Para a fileira sumir na hora, é `invalidateQueries`. Custou uma rodada de depuração no contrato do FR-011.
 - **`page.waitForFunction` não espera uma Promise devolvida pelo predicado** (trata o objeto como verdadeiro e segue): a espera da produção no E2E foi para o lado do Node, com `page.evaluate` em laço. O roteiro passava e falhava na asserção seguinte.
 - **Trocar o idioma muda o rótulo da fileira**: no E2E, asserção depois da troca precisa de seletor neutro (`section.vod-row:has(.content-card-rank)`) e do título do provedor, que nunca é traduzido.
+- **O portão do agendador (`activityGate`) não cobre carga nem primeira revelação.** Toda tarefa adiável nova que seja **cara** precisa checar `isSectionLoadActive()` e `isFirstRevealDone()` por conta própria — o `housekeeping` é chamado depois de cada categoria da carga. Foi o achado CV-001.
+- **Teclas sintéticas: uma por tick, nunca em rajada.** O foco deste app é estado do React (ADR-009), então despachar várias no mesmo tick faz o React agrupar e o foco andar **um** passo. Quem automatiza navegação anda uma tecla, confere o foco, repete — e nunca aciona `Enter` sem conferir **onde** o foco está.
+- **`housekeeping` é chamado depois de CADA categoria da pré-carga**, não só quando a fila esvazia. Tarefa cara precisa do `idle` (feature 087, T050) — `isSectionLoadActive()` cobre apenas a carga por seção.
 - **Heredoc de shell com backtick quebra o parsing** neste ambiente: scripts de edição maiores vão para arquivo `.py` no scratchpad e são executados por caminho.
 

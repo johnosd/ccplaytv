@@ -28,6 +28,7 @@ import { PerfOverlay } from './components/PerfOverlay.tsx'
 import { ImeProbeOverlay } from './components/ImeProbeOverlay.tsx'
 import { prepareLocalStartup } from './lib/startupReadiness.ts'
 import { warmCatalogDb } from './lib/catalog/dbWarmup.ts'
+import { startAutopilot } from './lib/perf/autopilot.ts'
 import { I18nProvider } from './lib/i18n/I18nProvider.tsx'
 
 const queryClient = new QueryClient()
@@ -44,6 +45,12 @@ void warmCatalogDb()
 // Sonda opt-in de desenvolvimento da 069, eliminada do build normal.
 if (import.meta.env.VITE_CCPLAY_PLATFORM_PROBE === '1') {
   void startPlatformProbe().catch(() => {})
+}
+
+// Feature 087: roteiro automático de medição na TV, importado só no build de medição (o ramo morto tira o módulo do
+// pacote normal). Despacha as teclas e mede janelas de duração fixa, para duas rodadas serem comparáveis.
+if (import.meta.env.VITE_CCPLAY_AUTOPILOT === '1') {
+  void startAutopilot().catch(() => {})
 }
 
 createRoot(document.getElementById('root')!).render(

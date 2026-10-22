@@ -912,8 +912,6 @@ export function useTmdbStatus() {
 function invalidateTmdb(queryClient: QueryClient): void {
   void queryClient.invalidateQueries({ queryKey: ['tmdb-status'] })
   void queryClient.invalidateQueries({ queryKey: ['title-metadata'] })
-  // Feature 057: a chave nova (ou testada) muda o que as fileiras Top 10/Dica podem mostrar — sem isto o "sem chave" ficaria em memória.
-  void queryClient.invalidateQueries({ queryKey: ['tmdb-discovery'] })
 }
 
 /** Testa a chave contra o TMDB e só grava se aceita (FR-012). */
@@ -957,8 +955,6 @@ export function useRemoveTmdbKey() {
       // Filmografias também vieram do TMDB: só invalidar mostraria o dado velho por um instante (FR-021).
       queryClient.removeQueries({ queryKey: ['person-credits'] })
       queryClient.removeQueries({ queryKey: ['person-titles'] })
-      // Top 10 e Dica também vieram do TMDB (feature 057): descartar, para não mostrar a fileira velha por um instante.
-      queryClient.removeQueries({ queryKey: ['tmdb-discovery'] })
       // Feature 087 (FR-011): o registro já saiu do banco junto com a chave; aqui a tela relê e a fileira some. É
       // `invalidate` e não `remove`: `remove` não faz uma consulta com observador ativo reler, e a fileira velha
       // ficaria na tela até a pessoa sair e voltar.

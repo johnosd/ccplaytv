@@ -11,6 +11,8 @@ import { CatalogDb, type CatalogRecord } from './db'
 import { renewCategoryItems, storeCategories } from './catalogRepository'
 import { readExternalRow } from './showcaseRows'
 import { onExternalRowRefreshed, refreshExternalRow, refreshStaleExternalRows } from './externalRows'
+import { beginSectionLoad } from './loadActivity'
+import { noteFirstReveal, resetFirstRevealForTests } from '../assembly/firstReveal'
 import { RATE_LIMIT_PAUSE_MS } from '../metadata/tmdbKeyRepository'
 import { weekKey, type DiscoveryTitle } from '../metadata/tmdbDiscovery'
 
@@ -40,6 +42,9 @@ let database: CatalogDb
 
 beforeEach(async () => {
   espiao.leiturasDoIndice = 0
+  // A fila só chega ao produtor depois da primeira tela da sessão (T047); o estado normal de quem o chama é "revelada".
+  resetFirstRevealForTests()
+  noteFirstReveal()
   database = new CatalogDb(`test-087p-${Math.random().toString(36).slice(2)}`)
   await database.open()
   await database.sources.add({ id: SOURCE, type: 'provider_credentials', displayName: 'S', connectionState: 'synced',
@@ -313,24 +318,67 @@ describe('o produtor das fileiras externas (087)', () => {
     }
   })
 
-  // `logic/...md` §4: a varredura entrega UMA fileira por rodada — montar o índice do tipo é a parte cara, e a fila
-  // precisa poder parar entre as duas.
-  it('refaz uma fileira por rodada, e devolve `false` quando tudo está no período', async () => {
+  // T050: a varredura entrega **um tipo** por rodada, com o índice montado UMA vez e reusado pelas duas fileiras. Antes
+  // era uma fileira por rodada, e cada uma remontava o índice do tipo inteiro: o dobro da parte cara. Medido na TV
+  // antes da correção: quadro de 1750 ms e entrada em categoria de 3,7 s.
+  it('monta o índice do tipo uma vez por rodada e grava as duas fileiras do tipo', async () => {
     await putKey()
     await seed(['Alfa', 'Beta', 'Gama', 'Quatro', 'Cinco', 'Seis'])
     const titulos = ['Alfa', 'Beta', 'Gama', 'Quatro', 'Cinco', 'Seis'].map((name, index) => title(name, index + 1))
     await putCache('trending', 'movie', titulos)
     await putCache('pool', 'movie', titulos)
 
+    espiao.leiturasDoIndice = 0
     expect(await refreshStaleExternalRows(SOURCE, { database, now: NOW })).toBe(true)
     expect(await readExternalRow(SOURCE, 'movie', 'top10', database)).toBeDefined()
-    expect(await readExternalRow(SOURCE, 'movie', 'tip', database)).toBeUndefined()
-
-    expect(await refreshStaleExternalRows(SOURCE, { database, now: NOW })).toBe(true)
     expect(await readExternalRow(SOURCE, 'movie', 'tip', database)).toBeDefined()
+    // **Uma** montagem para as duas fileiras: é o número que a TV sente.
+    expect(espiao.leiturasDoIndice).toBe(1)
 
     // Nada mais a fazer: a fila segue para as outras tarefas em vez de repetir o índice do tipo.
+    espiao.leiturasDoIndice = 0
     expect(await refreshStaleExternalRows(SOURCE, { database, now: NOW })).toBe(false)
+    expect(espiao.leiturasDoIndice).toBe(0)
+  })
+
+  // T047 (FR-014 / Decisões Invariantes 5 e 6): a fila chama o `housekeeping` depois de CADA categoria da carga, e o
+  // portão do agendador não sabe disso. Sem estas duas barreiras, o índice do tipo inteiro seria remontado a cada
+  // categoria que chega — o trabalho que a feature 086 tirou do caminho da carga.
+  it('não produz enquanto a carga da lista está em curso', async () => {
+    await putKey()
+    await seed(['Alfa', 'Beta', 'Gama'])
+    await putCache('trending', 'movie', [title('Alfa', 1), title('Beta', 2), title('Gama', 3)])
+
+    const fimDaCarga = beginSectionLoad()
+    try {
+      expect(await refreshStaleExternalRows(SOURCE, { database, now: NOW })).toBe(false)
+      // A parte cara nem começa: é ela que degradava a carga.
+      expect(espiao.leiturasDoIndice).toBe(0)
+      expect(await readExternalRow(SOURCE, 'movie', 'top10', database)).toBeUndefined()
+    } finally {
+      fimDaCarga()
+    }
+
+    // Terminada a carga, a mesma rodada produz.
+    expect(await refreshStaleExternalRows(SOURCE, { database, now: NOW })).toBe(true)
+    expect(await readExternalRow(SOURCE, 'movie', 'top10', database)).toBeDefined()
+  })
+
+  it('não produz antes da primeira tela da sessão aparecer', async () => {
+    await putKey()
+    await seed(['Alfa', 'Beta', 'Gama'])
+    await putCache('trending', 'movie', [title('Alfa', 1), title('Beta', 2), title('Gama', 3)])
+
+    // Sinal rearmado e nenhuma tela revelada ainda: é o instante em que a pessoa acabou de entrar na lista.
+    resetFirstRevealForTests()
+    expect(await refreshStaleExternalRows(SOURCE, { database, now: NOW })).toBe(false)
+    expect(espiao.leiturasDoIndice).toBe(0)
+    expect(await readExternalRow(SOURCE, 'movie', 'top10', database)).toBeUndefined()
+
+    // A tela apareceu: a fila pode trabalhar.
+    noteFirstReveal()
+    expect(await refreshStaleExternalRows(SOURCE, { database, now: NOW })).toBe(true)
+    expect(await readExternalRow(SOURCE, 'movie', 'top10', database)).toBeDefined()
   })
 
   // FR-013: o registro pertence à geração ativa. Sem lista (ou sem geração) não se produz nada — não há onde ancorá-lo.

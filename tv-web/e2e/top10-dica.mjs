@@ -154,6 +154,21 @@ const SEEDS = {
     const { writeAppLanguage } = await import('/src/lib/i18n/appLanguage.ts')
     writeAppLanguage('en')
   },
+  // FR-006: marca o Top 10 para refazer e acorda a fila pelo caminho real. Zerar o período é o mesmo "refaça" que a
+  // troca de idioma usa: o registro e os itens ficam, então a fileira não sai da tela enquanto o novo não chega.
+  markTop10Stale: async () => {
+    const { db } = await import('/src/lib/catalog/db.ts')
+    const { wakePrefetch } = await import('/src/features/catalog/prefetchApi.ts')
+    await db.showcaseExternalRows.toCollection().modify((record) => {
+      if (record.row === 'top10') record.periodKey = ''
+    })
+    wakePrefetch()
+  },
+  top10PeriodKeys: async () => {
+    const { db } = await import('/src/lib/catalog/db.ts')
+    const todas = await db.showcaseExternalRows.toArray()
+    return todas.filter((record) => record.row === 'top10').map((record) => record.periodKey)
+  },
   producedRows: () =>
     new Promise((resolve, reject) => {
       const open = indexedDB.open('ccplaytv')
@@ -227,6 +242,24 @@ async function goHome(page) {
  * o ponto: a fileira entra com a tela aberta, sem a pessoa sair e voltar. Esperar as quatro também deixa as contagens
  * de consulta ao TMDB determinísticas no resto do roteiro, em vez de depender de quando a fila termina.
  */
+/**
+ * Retrato do que o FR-006 proíbe mexer: o elemento focado e toda rolagem diferente de zero na página.
+ *
+ * `getAttribute('class')` em vez de `className` porque em SVG `className` não é string.
+ */
+function focoERolagem(page) {
+  return page.evaluate(() => {
+    const foco = document.querySelector('.tv-focus')
+    const rolagens = [...document.querySelectorAll('*')]
+      .filter((el) => el.scrollTop > 0 || el.scrollLeft > 0)
+      .map((el) => `${el.getAttribute('class') ?? el.tagName}:${el.scrollTop},${el.scrollLeft}`)
+    return {
+      foco: foco === null ? null : `${foco.getAttribute('class') ?? foco.tagName}|${(foco.textContent ?? '').replace(/\s+/g, ' ').trim().slice(0, 40)}`,
+      rolagens,
+    }
+  })
+}
+
 async function esperarProducao(page, minimo = 4, timeoutMs = 120000) {
   const limite = Date.now() + timeoutMs
   for (;;) {
@@ -368,6 +401,32 @@ async function run() {
     assert(JSON.stringify(tipAgain) === JSON.stringify(tipFirst), 'mesma Dica, mesma ordem, no mesmo dia')
     assert(callsTo('/3/trending/movie/week') === 1 && callsTo('/3/trending/tv/week') === 1, `ranking: uma consulta por tipo (${callsTo('/3/trending/movie/week')}, ${callsTo('/3/trending/tv/week')})`)
     assert(callsTo('/3/discover/movie') === 8 && callsTo('/3/discover/tv') === 8, `Dica: 8 páginas por tipo, uma vez (${callsTo('/3/discover/movie')}, ${callsTo('/3/discover/tv')})`)
+
+    console.log((step = '=== A fileira que a fila refaz com a tela aberta não move o foco nem a rolagem (FR-006) ==='))
+    // O foco está fundo nas fileiras (na Dica) e a vitrine está rolada: é o cenário que o FR-006 descreve. A fila refaz
+    // a fileira ACIMA da focada, e nem o foco nem a rolagem podem se mexer por causa disso.
+    const antesDaRefeitura = await focoERolagem(page)
+    assert(antesDaRefeitura.foco !== null, 'há um elemento focado antes de a fila refazer')
+    assert(antesDaRefeitura.rolagens.length > 0, 'a vitrine está rolada antes de a fila refazer')
+    const chamadasAntesDaRefeitura = tmdbCalls.length
+    await page.evaluate(SEEDS.markTop10Stale)
+    let refez = false
+    const limiteRefeitura = Date.now() + 90000
+    while (Date.now() < limiteRefeitura) {
+      const periodos = await page.evaluate(SEEDS.top10PeriodKeys)
+      if (periodos.length > 0 && periodos.every((periodo) => periodo !== '')) {
+        refez = true
+        break
+      }
+      await page.waitForTimeout(500)
+    }
+    assert(refez, 'a fila refez o Top 10 com a tela aberta')
+    const depoisDaRefeitura = await focoERolagem(page)
+    assert(depoisDaRefeitura.foco === antesDaRefeitura.foco, `o foco não se moveu (${antesDaRefeitura.foco} -> ${depoisDaRefeitura.foco})`)
+    assert(JSON.stringify(depoisDaRefeitura.rolagens) === JSON.stringify(antesDaRefeitura.rolagens), 'a rolagem não se moveu')
+    // Refazer o cruzamento não é consultar: o ranking do período já estava guardado (FR-007).
+    assert(tmdbCalls.length === chamadasAntesDaRefeitura, `refazer não consultou o serviço (${tmdbCalls.length - chamadasAntesDaRefeitura})`)
+    await shot(page, '06-foco-estavel-ao-refazer')
 
     console.log((step = '=== Sem rede e com o cache de outra semana/dia: as fileiras vêm do último resultado ==='))
     await page.evaluate(SEEDS.staleCache)

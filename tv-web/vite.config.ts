@@ -8,6 +8,7 @@ const TESTES_TS_COM_DOM = [
   'src/navigation/lastSource.test.ts',
   'src/features/shell/clock.test.ts',
   'src/lib/imeProbe.test.ts',
+  'src/lib/perf/autopilot.test.ts',
   'src/lib/motionPreference.fundacao-visual.contract.test.ts',
   'src/lib/motionPreference.test.ts',
   'src/lib/onlineStatus.test.ts',

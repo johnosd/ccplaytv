@@ -58,7 +58,7 @@ const ORPHAN_RETRY_MS = 3 * 60_000
 const ORPHAN_RETRY_DELAY_MS = 5_000
 let orphanBlockedSince: number | undefined
 
-async function housekeeping(sourceId: string): Promise<boolean> {
+async function housekeeping(sourceId: string, options: { idle: boolean } = { idle: true }): Promise<boolean> {
   const moreToConvert = await convertLegacyCategories(sourceId, {
     maxCategories: 1,
     onConverted: (categoryId) => onCategoryDone?.(sourceId, categoryId),
@@ -75,10 +75,12 @@ async function housekeeping(sourceId: string): Promise<boolean> {
   // Feature 086 (T071): o documento de tela que falta é refeito aqui — nunca na abertura da tela. Com ele, a próxima
   // abertura lê um registro do `localStorage` (p95 0,8 ms sob carga na TV) em vez de mesclar os candidatos.
   if (await refreshMissingScreenDocuments(sourceId)) return true
-  // Feature 087 (T022): o Top 10 e a Dica saíram da tela e são produzidos aqui, uma fileira por rodada. Esta fila já
-  // espera o aparelho quieto, cede a vez à primeira tela da sessão e se cala durante a carga — os três portões que o
-  // FR-014 pede, sem acrescentar nenhum. **Nunca** chamar isto ao fim da carga por seção (Decisão Invariante 5).
-  if (await refreshStaleExternalRows(sourceId)) return true
+  // Feature 087: o Top 10 e a Dica saíram da tela e são produzidos aqui. **Só com a fila vazia** (T050): montar o
+  // índice do tipo inteiro é a tarefa mais cara daqui, e esta função é chamada depois de **cada categoria** da
+  // pré-carga — medido com 10 categorias chegando: 10 montagens do índice, uma por categoria. Na TV isso deu quadro
+  // de 1750 ms e entrada em categoria de 3,7 s. Com a fila vazia, a cobertura já é a final e basta uma montagem.
+  // **Nunca** chamar isto ao fim da carga por seção (Decisão Invariante 5).
+  if (options.idle && (await refreshStaleExternalRows(sourceId))) return true
   // Feature 082: categorias liberadas com o banco cheio (carimbadas sem itens) — depois de converter, que é o que
   // libera espaço; o reparo precisa gravar.
   const repair = await repairOrphanCategories()
