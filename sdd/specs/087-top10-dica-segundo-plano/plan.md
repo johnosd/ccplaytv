@@ -273,3 +273,21 @@ era desta feature — o índice do tipo inteiro remontado a cada categoria que c
 `npm run test` **3714/3714** (684 arquivos) · `npx tsc -b` · `npm run lint` (ratchet verde) · `npm run build` ·
 `npm run test:e2e` **54/54** · 5/5 contratos travados verdes · travas de **087, 057 e 086** íntegras · pacote
 **normal** reinstalado na TV.
+
+### Correção posterior (2026-10-22) — a hipótese sobre o que sobrou estava errada
+
+O item 1 de "O que fica aberto" acima afirma que a raiz provável é *"uma categoria gorda descomprimida e projetada
+numa tarefa única (`readHeaderChunks`)"*. **Isso é falso**, conferido no código durante o assessment
+`sdd/assessments/tarefa-longa-na-leitura-categoria-gorda/`:
+
+- `blockCodec.ts:17` → `BLOCK_CHUNK_ITEMS = 500`: o bloco é gravado em pedaços de 500 itens.
+- `blockChunks.ts:81-104` (`decodeRange`) → `await decodeBlockChunk(...)` **por pedaço**.
+- `blockCodec.ts:117` → a descompressão (`gunzipText`) é assíncrona de verdade.
+
+Ou seja: a leitura **já cede a vez** a cada 500 itens, e a "tarefa única" não existe. A causa do quadro de ~900 ms
+segue **desconhecida**; as suspeitas abertas (pausa de memória, descarte do cache de pedaços em
+`CHUNK_CACHE_MAX_ITEMS = 30 000` contra 43 549 itens) estão registradas como `ASSUMPTION` no `explora.md` daquele
+assessment, cujo veredito é **needs-clarification**: instrumentar para discriminar antes de construir qualquer coisa.
+
+Nada do que esta feature entregou muda por causa disto — a correção é só da **atribuição de causa** do que ficou
+fora dela.
