@@ -1,0 +1,17 @@
+{
+  "feature": "089-tarefas-longas-fora-navegacao",
+  "lockedAt": "2026-10-22 14:28",
+  "total": 5,
+  "files": [
+    {
+      "path": "tv-web/src/lib/perf/keyDelay.tarefas-longas-fora-navegacao.contract.test.ts",
+      "sha256": "f937e337c4ffd18f18ffed842478ff8655db5d2bfe536297936e0bfba84acff8",
+      "tests": 3
+    },
+    {
+      "path": "tv-web/src/lib/perf/autopilot.tarefas-longas-fora-navegacao.contract.test.ts",
+      "sha256": "3ff30c42abcd9621e001d2ceb768c81d9cd05c978a4993066a88a3c2aa975f12",
+      "tests": 2
+    }
+  ]
+}

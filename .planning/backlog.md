@@ -126,6 +126,8 @@ update-bug-status.ps1.
 | 085-gravacao-carga-secao-tv | Gravação da carga por seção mais rápida na TV | Convergida | 40/40 tasks | 2026-10-20 |
 | 086-montagem-rapida-telas | Montagem rápida das telas principais com seleções guardadas | Convergida | 68/73 tasks | 2026-10-21 |
 | 087-top10-dica-segundo-plano | 087-top10-dica-segundo-plano | Convergida | 41/41 tasks | 2026-10-21 |
+| 088-tarefas-longas-navegacao | 088-tarefas-longas-navegacao | Convergida | 35/44 tasks | 2026-10-22 |
+| 089-tarefas-longas-fora-navegacao | tarefas longas fora do caminho de navegação das vitrines | Em Execução | 0/41 tasks | 2026-10-22 |
 
 ## Bugs
 

@@ -14,6 +14,8 @@
  * Só existe no build de medição (`VITE_CCPLAY_PERF=1`). Só números — nunca nome de item.
  */
 
+import type { LongTaskWindow } from './longTaskAttribution'
+
 export interface LongTaskStats {
   /** Quantas tarefas acima de 50 ms (o limite que o próprio navegador usa para `longtask`). */
   longTasks: number
@@ -37,6 +39,11 @@ export function summarizeLongTasks(durations: readonly number[]): LongTaskStats 
 export interface LongTaskTracker {
   /** Resume o que chegou desde a chamada anterior e zera a janela. */
   snapshot(): LongTaskStats | null
+  /**
+   * As tarefas longas da janela com **início e duração**, e zera. O resumo acima diz *quanto* a thread ficou presa;
+   * só o início permite cruzar com os intervalos das etapas e descobrir *de quem* é o tempo (feature 088, T025).
+   */
+  takeWindows(): LongTaskWindow[]
   dispose(): void
 }
 
@@ -46,10 +53,14 @@ export interface LongTaskTracker {
  */
 export function createLongTaskTracker(): LongTaskTracker {
   let duracoes: number[] = []
+  let janelas: LongTaskWindow[] = []
   let observer: PerformanceObserver | undefined
   try {
     observer = new PerformanceObserver((lista) => {
-      for (const entrada of lista.getEntries()) duracoes.push(entrada.duration)
+      for (const entrada of lista.getEntries()) {
+        duracoes.push(entrada.duration)
+        janelas.push({ start: entrada.startTime, duration: entrada.duration })
+      }
     })
     observer.observe({ entryTypes: ['longtask'] })
   } catch {
@@ -62,9 +73,15 @@ export function createLongTaskTracker(): LongTaskTracker {
       duracoes = []
       return resumo
     },
+    takeWindows() {
+      const atual = janelas
+      janelas = []
+      return atual
+    },
     dispose() {
       observer?.disconnect()
       duracoes = []
+      janelas = []
     },
   }
 }

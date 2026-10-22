@@ -513,3 +513,27 @@ Quem grava **avisa** (`onExternalRowRefreshed`), e `usePrefetchForSource` invali
 'external']` — sem esse aviso a fileira só apareceria na próxima visita, porque a invalidação da pré-carga depende de uma
 categoria chegar. Remover a chave do TMDB apaga `showcaseExternalRows` na mesma transação (`removeTmdbKey`); trocar o
 idioma **mantém** o registro e só zera o `periodKey`.
+
+# Regra da feature 088 — o caminho de navegação está medido, e inocentado
+
+Antes de otimizar a navegação das vitrines "porque está travando", leia
+`sdd/specs/088-tarefas-longas-navegacao/evidencias/` (três rodadas na TV de referência, 2026-10-22). A thread fica presa
+**28%** do tempo numa janela de 5 s, com quadro de até 817 ms — e a atribuição por tarefa longa
+(`lib/perf/longTaskAttribution.ts`) mostra onde esse tempo **não** está:
+
+| Hipótese | Medida | Veredito |
+| --- | --- | --- |
+| O manipulador de tecla (`useRemoteNav`) | **0,1%** do tempo preso (0,6 ms por tecla) | eliminada |
+| O re-render entre a tecla e o primeiro quadro | **4,5%** | eliminada |
+| Decodificação/pintura de capa | **10 ms** por capa | eliminada |
+| Pré-carga, carga da lista, produtor do Top 10/Dica, montagem de tela | medianas **planas** com e sem | refutadas |
+| O próprio painel de medição | queda de **5%** sem ele; pior quadro idêntico | refutada |
+| **Fora de todas as etapas medidas** | **95,4%** | **é aqui, e não se sabe o quê** |
+
+Então: **memoizar a vitrine à mão, cortar `overscan` ou trocar a receita de foco não devolve fluidez** — são menos de
+5% do problema, com número do aparelho. O React Compiler **desiste** de memoizar `VodShowcaseScreen.tsx` (o
+`useVirtualizer` na linha 483 dispara `react(incompatible-library)`), e nem isso muda a conta.
+
+Duas armadilhas de medição que custaram caro aqui: **não compare tempo de parede com tempo de thread** (dividir
+`renderMs` por `longTaskMs` deu "o render é 23%" quando são 4,5%); e um intervalo que abre no pedido de uma imagem e
+fecha no `onLoad` mede **espera**, não trabalho (registrou 266 s numa janela de 5 s).

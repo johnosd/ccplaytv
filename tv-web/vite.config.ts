@@ -9,6 +9,9 @@ const TESTES_TS_COM_DOM = [
   'src/features/shell/clock.test.ts',
   'src/lib/imeProbe.test.ts',
   'src/lib/perf/autopilot.test.ts',
+  // Feature 089: contrato TRAVADO, e mexe no DOM (.tv-focus, .nav-item) — por ser travado nao pode levar
+  // o comentario `@vitest-environment`, que mudaria o SHA256 do arquivo.
+  'src/lib/perf/autopilot.tarefas-longas-fora-navegacao.contract.test.ts',
   'src/lib/motionPreference.fundacao-visual.contract.test.ts',
   'src/lib/motionPreference.test.ts',
   'src/lib/onlineStatus.test.ts',
