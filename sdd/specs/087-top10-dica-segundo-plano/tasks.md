@@ -199,9 +199,9 @@ Pendências: a garantia 4 só é refeita quando a **cobertura** muda (categoria 
       item da topbar**, reconhecido pelo rótulo — se não chegar, desiste e conta em `falhas`.
       `src/lib/perf/autopilot.test.ts` (3 testes) fixa a trava; ensaio no navegador contra o app real passou nas duas
       condições. **Lição de método**: eu pulei o ensaio no PC que a skill `tizen-sonda` manda fazer.
-- [ ] T043 TV (**pedir autorização**): roteiro do `quickstart.md` §4 — **duração fixa**, pela lição do SC-009 da 086.
+- [X] T043 TV (**pedir autorização**): roteiro do `quickstart.md` §4 — **duração fixa**, pela lição do SC-009 da 086.
       Medir SC-007 (quadros longos ao navegar) e SC-008 (abertura segue em 313–380 ms).
-- [ ] T044 Reinstalar o **pacote normal** na TV e avisar o usuário.
+- [X] T044 Reinstalar o **pacote normal** na TV e avisar o usuário.
 
 ### Checklist de Release
 
@@ -211,9 +211,9 @@ Pendências: a garantia 4 só é refeita quando a **cobertura** muda (categoria 
 - [X] Fase 4 (US2/US3 + as 14 garantias movidas)
 - [X] Todos os 5 contratos verdes e `check-contract-tests.ps1` íntegro (087, 057, 086)
 - [X] `npm run test` / `tsc` / `lint` / `build` / `test:e2e` verdes
-- [ ] SC-007 e SC-008 medidos na TV, com roteiro de duração fixa
-- [ ] Pacote normal reinstalado na TV
-- [ ] `quickstart.md` executado
+- [X] SC-007 e SC-008 medidos na TV, com roteiro de duração fixa
+- [X] Pacote normal reinstalado na TV
+- [X] `quickstart.md` executado
 
 ### Registro da Fase
 
