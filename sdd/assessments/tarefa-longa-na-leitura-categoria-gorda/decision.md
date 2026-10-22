@@ -68,3 +68,57 @@ feature: nada está quebrado, está claro que vale a pena (decisão do usuário 
 rodada da sonda automática e este `decision.md` é reaberto.
 
 **Este assessment não edita código** — a instrumentação é trabalho de outro skill.
+
+---
+
+# Reabertura (2026-10-22) — com a evidência que faltava
+
+O veredito acima era **needs-clarification** por falta de evidência da causa. A instrumentação foi entregue, a
+sonda rodou (`explora.md` → "Rodada de medição com o discriminador") e as perguntas bloqueantes têm resposta.
+
+## Perguntas bloqueantes, respondidas
+
+| Pergunta | Resposta |
+| --- | --- |
+| O quadro longo coincide com tarefa longa de JavaScript? | **Sim, 48 de 49.** É código nosso, não pausa de memória |
+| Aparece com a fila de segundo plano desligada? | **Sim** — o produtor é só **8,6%** do tempo em tarefa longa (7,5 s de 87,6 s); 91% é do caminho de navegação |
+| O cache de pedaços passa do teto? | **Evidência a favor**: filmes custam **164 µs/item** contra 34 µs/item de séries (4,8×), e `CHUNK_CACHE_MAX_ITEMS = 30 000` < 31 915 itens de filmes |
+| A mediana de entrada de 627 ms é piora real? | **Sem veredito ainda** — não era o alvo desta rodada, e segue como pergunta aberta para a feature |
+
+## Scorecard revisado
+
+| Critério | Antes | Agora | Notas |
+| --- | --- | --- | --- |
+| Validade do problema | strong | **strong** | 475 tarefas longas, thread presa 33% da janela (mediana) |
+| Força da evidência | **weak** | **adequate** | Classe de causa localizada com 48/49 de correlação, em medição repetível. O **código exato** dentro das tarefas longas ainda não está atribuído — é a 1ª fase da feature, não um palpite |
+| Valor vs. custo de inação | adequate | **adequate** | Inalterado: ninguém bloqueado, mas o número ronda toda estimativa |
+| Viabilidade / apetite | adequate | **adequate** | Instrumentação já existe e a medição é repetível sem ninguém com cronômetro |
+| Fit estratégico | strong | **strong** | Fluidez na TV é central |
+
+Nenhum critério em `weak` ou `unknown` → a barra do `go` foi atingida.
+
+## Veredito revisado: **go**
+
+**E para uma feature diferente da que qualquer um especificaria ontem.** O alvo não é a leitura do catálogo: é o
+**caminho de navegação** (tecla → foco → render → pintura), responsável por 91% do tempo em tarefa longa. As duas
+abordagens que a feature 087 havia registrado atacariam 8,6% do problema — e uma delas já era refutada pelo código.
+
+### Handoff para o `sdd-specify`
+
+- **Problema**: navegar entre cards e fileiras em Filmes/Séries na TV mantém a thread presa **33% do tempo**
+  (mediana, máximo 67%), em 475 tarefas longas de 50–736 ms, produzindo quadros congelados de até ~780 ms. 48 de 49
+  desses quadros coincidem com tarefa longa de JavaScript: é código nosso.
+- **Abordagem recomendada**: feature de desempenho do caminho de navegação, com a **1ª fase sendo atribuição** —
+  `performance.measure` em volta do manipulador de tecla e das etapas de render/virtualização, para saber **qual**
+  código está nas tarefas longas antes de otimizar qualquer coisa. Só depois, as mudanças.
+- **Escopo sugerido — entra**: o caminho de navegação das vitrines (foco, virtualização, re-render de fileira) e a
+  pista concreta do cache de pedaços (`CHUNK_CACHE_MAX_ITEMS = 30 000` contra 31 915 itens de filmes, 4,8× mais
+  lento por item).
+- **Escopo sugerido — não entra**: ceder a vez dentro da leitura do bloco e mover o índice para o Worker (8,6% do
+  problema, e a primeira é refutada pelo código); mudar o formato de gravação da feature 082; reabrir a 087.
+- **Métricas de sucesso**: medidas pela sonda automática, no mesmo roteiro de duração fixa, contra esta rodada
+  (`app-metricas-tv-2026-10-22.jsonl`): **fração da janela em tarefa longa abaixo de 15%** (hoje 33% de mediana),
+  **pior quadro abaixo de 300 ms** (hoje 717–783 ms) e **fps mediano ≥ 45** (hoje 33–41).
+- **Perguntas em aberto para o `sdd-specify`**: qual código está nas tarefas longas (a 1ª fase responde); se a
+  mediana de entrada em categoria de 627 ms tem a mesma causa; e qual o teto aceitável de tarefa longa numa TV com
+  ~310 MB livres.
