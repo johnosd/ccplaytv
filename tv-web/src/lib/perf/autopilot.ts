@@ -31,6 +31,30 @@ const PASSO_MS = 220
 const JANELA_MS = 60_000
 /** Quantos cards percorrer antes de descer de fileira. */
 const PASSOS_POR_FILEIRA = 8
+/**
+ * Piso de `ArrowUp` para voltar da vitrine ate a topbar (feature 089, FR-009).
+ *
+ * **Era 12, fixo — e por isso metade das janelas de cada rodada era abandonada.** A profundidade da vitrine escala com
+ * o número de CATEGORIAS da lista, medido no ensaio do T014: **6 categorias -> 9 subidas; 34 categorias -> 31**. A
+ * lista de referência da TV tem 34 categorias de filmes, logo ~31 subidas eram necessárias e 12 nunca voltavam:
+ * `irPara` devolvia `false` e a janela virava `falhas`. As três rodadas de 2026-10-22 fecharam com `falhas = 2` por
+ * isto. Ver `sdd/specs/089-.../logic/atraso-e-sonda.md` §2.
+ *
+ * O piso cobre o caso em que a lista lateral ainda não montou; `passosAteTopbar()` deriva do DOM para cobrir QUALQUER
+ * número de categorias — um literal voltaria a descolar numa lista maior.
+ */
+const PISO_ATE_TOPBAR = 69
+/** Fileiras calculadas acima das categorias (Continue assistindo, Favoritos, Adicionados...), com folga. */
+const MARGEM_FILEIRAS = 12
+
+/**
+ * Quantas subidas tentar. Não custa nada no caminho feliz: `andarAte` confere o destino **antes** de cada tecla e sai
+ * na primeira vez que ele vale.
+ */
+function passosAteTopbar(): number {
+  const categorias = document.querySelectorAll('.vod-showcase .side-category-nav-item').length
+  return Math.max(PISO_ATE_TOPBAR, categorias + MARGEM_FILEIRAS)
+}
 
 /** Rótulos da topbar nos três idiomas (`i18n/messages/shell.ts`) — é por eles que o foco é reconhecido. */
 const ROTULOS: Record<'home' | 'live' | 'movies' | 'series' | 'radio', readonly string[]> = {
@@ -118,7 +142,7 @@ export async function irPara(destino: 'movies' | 'series'): Promise<boolean> {
   const naTopbar = (): boolean => TODOS_OS_ROTULOS.includes(focoTexto())
   const noAlvo = (): boolean => alvo.includes(focoTexto())
 
-  if (!(await andarAte('ArrowUp', 12, naTopbar))) return false
+  if (!(await andarAte('ArrowUp', passosAteTopbar(), naTopbar))) return false
   if (!noAlvo()) await andarAte('ArrowRight', 8, noAlvo)
   if (!noAlvo()) await andarAte('ArrowLeft', 8, noAlvo)
   if (!noAlvo()) return false

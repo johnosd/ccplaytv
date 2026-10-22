@@ -24,9 +24,9 @@
 
 ### Implementation
 
-- [ ] T001 Rodar os 5 contratos travados e confirmar que estão **vermelhos pelos motivos** da tabela em `plan.md` →
+- [X] T001 Rodar os 5 contratos travados e confirmar que estão **vermelhos pelos motivos** da tabela em `plan.md` →
       `## Estratégia de Testes`. Nenhum pode falhar por import, sintaxe ou tipo.
-- [ ] T002 Conferir as **nove** travas (089 + 052, 053, 057, 082, 085, 086, 087, 088) → **SC-010**. Qualquer `FAIL`
+- [X] T002 Conferir as **nove** travas (089 + 052, 053, 057, 082, 085, 086, 087, 088) → **SC-010**. Qualquer `FAIL`
       aqui é mexida fora do fluxo: parar e reportar.
 
 ### Critério de Conclusão
@@ -35,11 +35,14 @@ Os 5 contratos vermelhos pelo motivo certo e as nove travas íntegras.
 
 ### Registro da Fase
 
-Status:
-Feito:
-Contrato:
-Testes executados:
-Pendências:
+Status: Concluída (2026-10-22)
+Feito: T001, T002.
+Contrato: `npx vitest run src/lib/perf/keyDelay.tarefas-longas-fora-navegacao.contract.test.ts src/lib/perf/autopilot.tarefas-longas-fora-navegacao.contract.test.ts`
+→ **5 failed (5)**, cada um pelo motivo da tabela de `plan.md`: 3 por `Error: not implemented` (`keyDelay.ts:30`), 1 por
+`AssertionError: expected false to be true` e 1 por `AssertionError: expected 12 to be greater than or equal to 50`.
+Nenhum por import, sintaxe ou tipo.
+Testes executados: as **nove** travas → PASS (089 com 5 testes; 052, 053, 057, 082, 085, 086, 087 com 5 cada; 088 com 3).
+Pendências: nenhuma.
 
 ## Phase 2: Foundational — a sonda consertada e o instrumento pronto
 
@@ -56,28 +59,28 @@ npx vitest run src/lib/perf/keyDelay.tarefas-longas-fora-navegacao.contract.test
 
 ### Implementation
 
-- [ ] T010 [US3] `tv-web/src/lib/perf/autopilot.ts`: substituir o literal `12` de `irPara` por um limite derivado do
+- [X] T010 [US3] `tv-web/src/lib/perf/autopilot.ts`: substituir o literal `12` de `irPara` por um limite derivado do
       pior caso (`JANELA_MS / CADENCIA_MS` descidas, com margem — ~60). Ler `logic/atraso-e-sonda.md` §2 **antes**:
       a trava do `Enter` não muda → contrato: *volta à topbar de 25 fileiras abaixo* e *não aciona nada quando o foco
       nunca alcança a topbar*.
-- [ ] T011 [US1] `tv-web/src/lib/perf/keyDelay.ts`: implementar `summarizeKeyDelays` a partir do stub, pelas faixas e
+- [X] T011 [US1] `tv-web/src/lib/perf/keyDelay.ts`: implementar `summarizeKeyDelays` a partir do stub, pelas faixas e
       chaves de `logic/atraso-e-sonda.md` §1. Arredondar **só na saída**; faixa vazia é **omitida** → **FR-002**,
       contrato: os 3 testes de `keyDelay`.
-- [ ] T012 [US1] `tv-web/src/lib/perf/keyDelay.ts`: implementar `createKeyDelayTracker` — guarda os instantes de
+- [X] T012 [US1] `tv-web/src/lib/perf/keyDelay.ts`: implementar `createKeyDelayTracker` — guarda os instantes de
       `keydown` (em `performance.now()`) e zera a cada `snapshot`, no mesmo formato de janela do `longTasks.ts`.
-- [ ] T013 [US1] `tv-web/src/components/PerfOverlay.tsx`: alimentar o rastreador no `onKey` que já existe e emitir as
+- [X] T013 [US1] `tv-web/src/components/PerfOverlay.tsx`: alimentar o rastreador no `onKey` que já existe e emitir as
       chaves de atraso no **mesmo lote de ~5 s** das demais (D-004). Atenção: `longTasks.takeWindows()` já é consumido
       por `attributeLongTasks` — passar a **mesma** lista para as duas contas, sem drenar duas vezes.
-- [ ] T014 [US3] Ensaiar o conserto da sonda **no PC**, com Playwright e um servidor falso, confirmando `falhas = 0`
+- [X] T014 [US3] Ensaiar o conserto da sonda **no PC**, com Playwright e um servidor falso, confirmando `falhas = 0`
       num roteiro curto. Script no scratchpad, nunca no repositório → **FR-009**.
-- [ ] T015 Confirmar que o pacote **normal** não leva nada disso: `npm run build` e procurar os marcadores
+- [X] T015 Confirmar que o pacote **normal** não leva nada disso: `npm run build` e procurar os marcadores
       (`atrasoAte50Ms`, `summarizeKeyDelays`, `createKeyDelayTracker`) em `dist/assets` → **FR-008**, **SC-011**.
 
 ### Testes da Fase
 
-- [ ] T016 Teste do rastreador (`keyDelay.test.ts`, **não** travado): `snapshot` zera as teclas, e duas janelas
+- [X] T016 Teste do rastreador (`keyDelay.test.ts`, **não** travado): `snapshot` zera as teclas, e duas janelas
       seguidas não reaproveitam a tecla da anterior.
-- [ ] T017 Teste de que o lote emitido só tem chaves numéricas do conjunto fechado, nos moldes de `metricsChannel.test.ts`.
+- [X] T017 Teste de que o lote emitido só tem chaves numéricas do conjunto fechado, nos moldes de `metricsChannel.test.ts`.
 
 ### Critério de Conclusão
 
@@ -87,11 +90,28 @@ mostrando `falhas = 0`.
 
 ### Registro da Fase
 
-Status:
-Feito:
-Contrato:
-Testes executados:
-Pendências:
+Status: Concluída (2026-10-22)
+Feito: T010–T017.
+Contrato: `npx vitest run src/lib/perf/keyDelay...contract.test.ts src/lib/perf/autopilot...contract.test.ts` →
+**5/5 verdes**; `check-contract-tests.ps1` → PASS nas **nove** travas.
+Testes executados: `npm run test` → **3737/3737** (691 arquivos), **sem flake** — inclusive o `progressRecorder.falhas.test.ts`, que vinha falhando 1 em 2, passou. `npx vitest run src/lib/perf` → **44/44**. `npx tsc -b` verde. `npm run lint` → **0 erros**,
+ratchet ok (533 arquivos). `npm run build` verde e **nenhum** marcador (`atrasoAte50Ms`, `atrasoSemTecla`,
+`summarizeKeyDelays`, `createKeyDelayTracker`, `passosAteTopbar`, `PISO_ATE_TOPBAR`) em `dist/assets` (T015).
+**O ensaio do T014 refutou o diagnóstico do `logic` §2 e obrigou a refazer o conserto** — ver Pendências/Desvios.
+Desvios: **(1)** O `logic/atraso-e-sonda.md` §2 afirmava que o `falhas = 2` vinha de a navegação descer ~22 fileiras
+(200 teclas ÷ 18 por ciclo × 2). **Falso**: o foco para na última fileira, então `ArrowDown` não acumula profundidade.
+O ensaio mediu no navegador real: **6 categorias → 9 subidas; 34 categorias → 31**. Como a lista da TV tem 34
+categorias de filmes, eram ~31 contra o limite de 12 — a conclusão prática era a mesma, a mecânica não. O §2 foi
+corrigido com a tabela medida. **(2)** Por causa disso, o primeiro conserto (um literal `PASSOS_ATE_TOPBAR = 69`
+derivado da duração da janela) estava **errado em espécie**: cobriria 34 categorias e voltaria a falhar com 80. O
+limite passou a ser `passosAteTopbar()`, derivado do DOM (`.side-category-nav-item` + margem), com piso de 69 para o
+caso de a lista lateral ainda não ter montado — e o piso é o que mantém o 2º contrato (≥ 50 tentativas) verde.
+**(3)** `createKeyDelayTracker` **mantém a última tecla como semente** ao fechar a janela, em vez de zerar tudo como o
+T016 previa: sem isso, uma tarefa longa no início da janela seguinte viraria `atrasoSemTecla` e inflaria de graça a
+faixa que aponta a causa para a abertura. O teste do T016 verifica o comportamento correto.
+Pendências: o ensaio de ponta a ponta no PC fechou com **`falhas: 0`** nas quatro janelas (Filmes, Séries, Filmes,
+Séries), mas **o PC não aprova desempenho** — ele deu 59–60 fps e só 1 tarefa longa em 55 janelas. O valor do SC-006
+na lista real continua **a verificar no T020**.
 
 ## Phase 3: User Story 1 — nomear o dono (P1) 🎯 decide todo o resto
 
@@ -188,8 +208,8 @@ Pendências:
 
 ### Checklist de Release
 
-- [ ] Fase 1 (setup e as nove travas conferidas)
-- [ ] Fase 2 (sonda consertada e instrumento pronto, com os 5 contratos verdes)
+- [X] Fase 1 (setup e as nove travas conferidas)
+- [X] Fase 2 (sonda consertada e instrumento pronto, com os 5 contratos verdes)
 - [ ] Fase 3 (o dono nomeado na TV, com a decisão do T025 explícita)
 - [ ] Fase 4 (redução medida em duas rodadas, ou o alvo declarado não cumprido)
 - [ ] Todos os 5 contratos verdes e `check-contract-tests.ps1` íntegro nas nove travas

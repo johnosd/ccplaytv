@@ -3,6 +3,7 @@ import { createActiveFrameTracker, type ActiveFrameStats } from '../lib/perf/act
 import { createLongTaskTracker } from '../lib/perf/longTasks'
 import { closeRenderSpan, installKeySpan, snapshotSharedSpans, takeSharedIntervals } from '../lib/perf/phaseSpans'
 import { attributeLongTasks } from '../lib/perf/longTaskAttribution'
+import { createKeyDelayTracker } from '../lib/perf/keyDelay'
 import { subscribeEntryReports, takeEntryReports, type EntryReport } from '../lib/perf/entryTiming'
 import { emitMetric } from '../lib/perf/metricsChannel'
 import { probeBudget } from '../lib/catalog/storageBudget'
@@ -49,8 +50,10 @@ export function PerfOverlay() {
     // Assessment `tarefa-longa-na-leitura-categoria-gorda`: distingue quadro longo POR código nosso de quadro longo
     // por pausa de memória. Agregado na mesma janela dos quadros, para não inundar o canal.
     const longTasks = createLongTaskTracker()
+    // Feature 089: o atraso de cada tarefa longa desde a última tecla, o discriminador que a 088 não tinha.
+    const atrasos = createKeyDelayTracker()
     const desinstalarTecla = installKeySpan()
-    const onKey = () => { lastKey = performance.now(); tracker.onKey(lastKey) }
+    const onKey = () => { lastKey = performance.now(); tracker.onKey(lastKey); atrasos.onKey(lastKey) }
     // No modo controle o painel não existe, então este `setState` de 500 ms não tem para quem renderizar — e é
     // justamente um dos suspeitos. A janela de tecla continua indo ao canal pelo lote de 5 s abaixo.
     const refresh = QUIETO ? 0 : window.setInterval(() => setKeyedFrames(tracker.snapshot(performance.now())), 500)
@@ -72,11 +75,17 @@ export function PerfOverlay() {
       const etapas = snapshotSharedSpans()
       // T025: parte o tempo preso ENTRE as etapas, para que "fora de todas" seja uma medida com número — e não o
       // resíduo de uma subtração, que a Fase 3 deixou em 76%.
-      const atribuicao = attributeLongTasks(longTasks.takeWindows(), takeSharedIntervals())
+      // `takeWindows()` DRENA a lista: chamar de novo devolveria vazio e as chaves de atraso sairiam sempre nulas
+      // — um bug silencioso que passa em todo teste unitário e só apareceria como "a medição não mediu nada" depois
+      // de gastar uma rodada de TV. Uma leitura, duas contas.
+      const janelasLongas = longTasks.takeWindows()
+      const atribuicao = attributeLongTasks(janelasLongas, takeSharedIntervals())
+      const porAtraso = atrasos.snapshot(janelasLongas)
       emitMetric({ source: 'frames', slow, idleSlow, ...(keyed ? { fps: keyed.fps, worstMs: keyed.worstMs, over50: keyed.over50 } : {}),
         ...(longas ?? {}),
         ...(etapas ?? {}),
         ...(atribuicao ?? {}),
+        ...(porAtraso ?? {}),
         ...(peakHeap > 0 ? { heapMB: Math.round(peakHeap / 1048576), heapNowMB: Math.round(heapNow() / 1048576) } : {}) })
     }, 5_000)
     // Feature 085/082: o orçamento medido sem gravar nada, 3× (20 s, 80 s e 140 s depois de abrir), para ter as etapas
@@ -106,7 +115,7 @@ export function PerfOverlay() {
       frame = requestAnimationFrame(tick)
     }
     frame = requestAnimationFrame(tick)
-    return () => { active = false; cancelAnimationFrame(frame); window.clearInterval(refresh); window.clearInterval(report); budgetTimers.forEach((timer) => window.clearTimeout(timer)); window.removeEventListener('keydown', onKey, true); longTasks.dispose(); desinstalarTecla() }
+    return () => { active = false; cancelAnimationFrame(frame); window.clearInterval(refresh); window.clearInterval(report); budgetTimers.forEach((timer) => window.clearTimeout(timer)); window.removeEventListener('keydown', onKey, true); longTasks.dispose(); atrasos.dispose(); desinstalarTecla() }
   }, [])
   // O painel inteiro sai no modo controle: nenhum nó, nenhuma classe, nada para o navegador recalcular.
   if (QUIETO) return null

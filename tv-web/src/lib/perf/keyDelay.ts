@@ -15,19 +15,73 @@
 import type { LongTaskWindow } from './longTaskAttribution'
 
 /**
+ * As faixas de atraso, em ordem crescente. Conjunto **FECHADO**: o canal de métricas só aceita chaves conhecidas, e
+ * nome de faixa livre é por onde texto do provedor vazaria para a evidência.
+ *
+ * Os limites são a cadência da sonda (300 ms por tecla, `autopilot.ts`): com eles, trabalho disparado pela tecla cai
+ * nas duas primeiras faixas e trabalho independente se espalha por todas.
+ */
+const FAIXAS: ReadonlyArray<{ readonly limite: number; readonly chave: string }> = [
+  { limite: 50, chave: 'atrasoAte50' },
+  { limite: 150, chave: 'atrasoAte150' },
+  { limite: 300, chave: 'atrasoAte300' },
+  { limite: Number.POSITIVE_INFINITY, chave: 'atrasoAcima300' },
+]
+
+/** Tarefa que começou antes de qualquer tecla da janela — a causa é da abertura, não da navegação. */
+const SEM_TECLA = 'atrasoSemTecla'
+
+/** A última tecla em `ordenadas` que não é posterior a `instante`. `undefined` se não houve nenhuma. */
+function ultimaTeclaAte(ordenadas: readonly number[], instante: number): number | undefined {
+  let baixo = 0
+  let alto = ordenadas.length - 1
+  let achado: number | undefined
+  while (baixo <= alto) {
+    const meio = (baixo + alto) >> 1
+    if (ordenadas[meio] <= instante) {
+      achado = ordenadas[meio]
+      baixo = meio + 1
+    } else {
+      alto = meio - 1
+    }
+  }
+  return achado
+}
+
+/**
  * Reparte o tempo das tarefas longas por faixa de atraso desde a última tecla.
  *
  * `keyTimes` são carimbos de `performance.now()` dos `keydown` da janela, na mesma origem de `task.start` — **nunca**
- * `Date.now()`. Não precisam vir ordenados.
+ * `Date.now()`. Não precisam vir ordenados: depender disso é a suposição que passa no teste e quebra em produção.
  *
  * Cada tarefa cai em **exatamente uma** faixa, a do atraso do seu início, então a soma dos `*Ms` fecha com a soma das
- * durações. `null` quando não houve tarefa longa na janela.
+ * durações. Uma tarefa de 700 ms que começa 10 ms depois da tecla pertence inteira à faixa 0–50: o que se quer saber é
+ * **o que a disparou**, não onde ela terminou. `null` quando não houve tarefa longa na janela.
  */
 export function summarizeKeyDelays(
-  _tasks: readonly LongTaskWindow[],
-  _keyTimes: readonly number[],
+  tasks: readonly LongTaskWindow[],
+  keyTimes: readonly number[],
 ): Record<string, number> | null {
-  throw new Error('not implemented')
+  if (tasks.length === 0) return null
+  const ordenadas = [...keyTimes].sort((a, b) => a - b)
+  const porFaixa = new Map<string, { ms: number; n: number }>()
+
+  for (const tarefa of tasks) {
+    const tecla = ultimaTeclaAte(ordenadas, tarefa.start)
+    const chave = tecla === undefined ? SEM_TECLA : (FAIXAS.find((f) => tarefa.start - tecla < f.limite)?.chave ?? SEM_TECLA)
+    const atual = porFaixa.get(chave) ?? { ms: 0, n: 0 }
+    atual.ms += tarefa.duration
+    atual.n += 1
+    porFaixa.set(chave, atual)
+  }
+
+  const saida: Record<string, number> = {}
+  for (const [chave, valor] of porFaixa) {
+    // Arredonda só na saída; faixa sem amostra nunca aparece aqui, então não vira zero.
+    saida[`${chave}Ms`] = Math.round(valor.ms)
+    saida[`${chave}N`] = valor.n
+  }
+  return saida
 }
 
 export interface KeyDelayTracker {
@@ -40,5 +94,21 @@ export interface KeyDelayTracker {
 
 /** Guarda os instantes das teclas da janela corrente. Mesmo formato de janela do `longTasks.ts`. */
 export function createKeyDelayTracker(): KeyDelayTracker {
-  throw new Error('not implemented')
+  let teclas: number[] = []
+  return {
+    onKey(at) {
+      teclas.push(at)
+    },
+    snapshot(tasks) {
+      const resumo = summarizeKeyDelays(tasks, teclas)
+      // Zera a janela, mas **mantém a última tecla como semente**: uma tarefa longa que começa logo no início da
+      // janela seguinte foi disparada pela última tecla desta, e sem a semente ela viraria `atrasoSemTecla` — uma
+      // faixa inflada de graça, que apontaria a causa para a abertura em vez da navegação.
+      teclas = teclas.length > 0 ? [teclas[teclas.length - 1]] : []
+      return resumo
+    },
+    dispose() {
+      teclas = []
+    },
+  }
 }

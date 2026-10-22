@@ -43,12 +43,16 @@ afterEach(() => {
 describe('a trava do roteiro automático (087)', () => {
   // O incidente: foco num card, e a navegação não consegue chegar à topbar (aqui o foco nunca muda, como quando o
   // React agrupa as teclas). Nada pode ser acionado.
+  // O timeout explícito é consequência da feature 089: `irPara` passou a tentar `PASSOS_ATE_TOPBAR` (69) subidas em
+  // vez de 12, porque com 12 ela não voltava de uma vitrine 22 fileiras abaixo e abandonava metade das janelas de
+  // cada rodada de TV. A 220 ms por passo, o caminho "nunca alcança" leva ~15 s. A asserção não mudou: o que importa
+  // é que nada seja acionado.
   it('com o foco fora da topbar, desiste sem nunca acionar — é o que impede a reprodução acidental', async () => {
     montarTela('card')
     await expect(irPara('movies')).resolves.toBe(false)
     expect(teclas).not.toContain('Enter')
     expect(teclas.length).toBeGreaterThan(0)
-  })
+  }, 30_000)
 
   // Mesmo chegando à topbar, se o foco parar no item ERRADO não se aciona: abrir "TV ao vivo" no lugar de "Filmes"
   // estragaria a medição em silêncio.

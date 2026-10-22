@@ -86,42 +86,63 @@ Sem tecla anterior → `atrasoSemTecla*`. Arredonde **só na saída**, nunca nas
 
 ## 2. Por que a sonda falha, e o conserto (FR-009)
 
-### A causa, encontrada por leitura de código
+### A causa, medida (e a correção de uma conta errada minha)
 
 `startAutopilot` percorre, em ordem: janela 1 Filmes, janela 1 Séries, janela 2 Filmes, janela 2 Séries. Entre uma
 janela e a próxima, `irPara(destino)` precisa levar o foco de volta à topbar:
 
 ```ts
-// lib/perf/autopilot.ts, hoje
+// lib/perf/autopilot.ts, antes da 089
 if (!(await andarAte('ArrowUp', 12, naTopbar))) return false
 ```
 
-**Doze passos.** Mas `navegar()` desce de fileira duas vezes por ciclo, e um ciclo gasta 18 teclas a 300 ms:
+**Doze passos — insuficientes.** `naTopbar` nunca ficava verdadeiro, `irPara` devolvia `false`, a janela era abandonada
+e `falhas` incrementava. É o que explica as três rodadas de 2026-10-22 fecharem com `falhas = 2`.
 
-```
-60 000 ms ÷ 300 ms  ≈ 200 teclas  ÷ 18 por ciclo ≈ 11 ciclos × 2 descidas ≈ 22 fileiras abaixo
-```
+**A primeira versão deste documento errou o motivo**, e o ensaio do T014 a refutou no mesmo dia. Eu havia escrito que
+`navegar()` desce ~22 fileiras numa janela de 60 s (200 teclas ÷ 18 por ciclo × 2 descidas) e que eram essas 22 que os
+12 passos não cobriam. **Falso**: o foco para na última fileira, então o número de `ArrowDown` não acumula
+profundidade. O que determina a profundidade é o **número de fileiras da vitrine**, que escala com o número de
+**categorias** da lista:
 
-Doze `ArrowUp` não cobrem **vinte e duas** fileiras. `naTopbar` nunca fica verdadeiro, `irPara` devolve `false`, a
-janela é abandonada e `falhas` incrementa. Isso explica exatamente o padrão observado nas três rodadas de 2026-10-22:
-`falhas = 2` com as medidas sobrando em telas quase sempre iguais — cada tentativa falha ainda sobe 12 fileiras, então
-a tentativa **seguinte** às vezes alcança a topbar e mede. É também por isso que a rodada de controle mediu Séries uma
-vez: a posição final variou.
+| Categorias no painel | Subidas medidas até a topbar |
+| --- | --- |
+| 6 | **9** |
+| 34 (como a lista de referência da TV) | **31** |
+
+Medido no navegador real, com o harness de painel fictício do E2E (`e2e/vitrine-filmes-series.mjs`), contando os
+`ArrowUp` até `.topbar-item.tv-focus` aparecer. Com 34 categorias de filmes na TV, eram ~31 subidas contra um limite de
+12 — a conclusão prática era a mesma, a mecânica não.
+
+Por que isso importa e não é detalhe: a conta errada levaria a um **limite fixo** derivado da duração da janela (e foi
+o que eu implementei primeiro: 69). Esse literal cobre 34 categorias, mas **voltaria a falhar** numa lista com 80 — o
+mesmo bug, adiado. A causa correta pede um limite que **escale com as categorias**.
 
 A sonda agiu **certo** ao desistir: a recusa de apertar `Enter` fora do rótulo é o que impede a reprodução acidental
-(o precedente da 087, em que ela começou a tocar uma série). O defeito é o **limite de passos**, não a trava.
+(o precedente da 087, em que ela começou a tocar uma série). O defeito era o **limite**, não a trava.
 
 ### O conserto
 
-Subir até a topbar com folga sobre a profundidade que a navegação pode alcançar, e parar assim que chegar:
+O limite sai do DOM, para escalar com a lista, e tem um piso para o caso de a lista lateral ainda não ter montado:
 
-- O limite passa a ser derivado, não um literal solto: `PASSOS_ATE_TOPBAR` dimensionado pelo pior caso de
-  `JANELA_MS / CADENCIA_MS` descidas, com margem. Hoje isso dá ~22; **60 é folga segura** e custa nada quando o foco
-  chega antes, porque `andarAte` sai no primeiro `pronto()` verdadeiro.
-- `andarAte` **já** confere `pronto()` antes de cada tecla, então aumentar o limite não acrescenta teclas no caminho
-  feliz. O custo só aparece no caminho que hoje falha — e lá ele é o conserto.
+```ts
+function passosAteTopbar(): number {
+  const categorias = document.querySelectorAll('.vod-showcase .side-category-nav-item').length
+  return Math.max(PISO_ATE_TOPBAR, categorias + MARGEM_FILEIRAS)   // piso 69, margem 12
+}
+```
+
+- **Escala**: 34 categorias → 46 passos permitidos contra 31 necessários; 200 categorias → 212. Um literal não faria
+  isso.
+- **Não custa nada no caminho feliz**: `andarAte` confere o destino **antes** de cada tecla e sai na primeira vez que
+  ele vale. O limite só é consumido no caminho que hoje falha.
+- **O piso de 69** mantém a sonda tentando de verdade antes de desistir, inclusive quando o foco está preso e o DOM da
+  vitrine não montou — é o que o segundo contrato travado exige (≥ 50 subidas antes de desistir).
 - A trava do `Enter` **não muda**: continua exigindo que o texto do elemento focado seja um dos rótulos do destino.
   Os três testes de `autopilot.test.ts` continuam valendo, e dois contratos travados desta feature fixam isso.
+
+**Verificado de ponta a ponta no PC** (T014), com a sonda rodando o fluxo inteiro contra um painel fictício: as
+**quatro** janelas mediram (Filmes, Séries, Filmes, Séries) e a linha final veio com **`falhas: 0`**.
 
 ### O que NÃO fazer
 

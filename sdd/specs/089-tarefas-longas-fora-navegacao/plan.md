@@ -173,7 +173,17 @@ Testes da redução são escritos pelo executor em arquivos não travados, depoi
 
 ## Estado Atual
 
-<!-- Preenchido pelo sdd-execute. -->
+| Área | Estado |
+| --- | --- |
+| Contratos travados (089) | **5/5 verdes**; trava íntegra |
+| As outras oito travas | **Íntegras** |
+| `lib/perf/keyDelay.ts` | **Pronto**: faixas de atraso, chaves do conjunto fechado, rastreador com semente |
+| `lib/perf/autopilot.ts` | **Consertado**: limite derivado do DOM (`passosAteTopbar()`), piso 69 |
+| `components/PerfOverlay.tsx` | Emite as chaves de atraso no mesmo lote de ~5 s, com **uma** leitura de `takeWindows()` |
+| Ensaio no PC (T014) | **`falhas: 0`** nas quatro janelas; e mediu 6 cat → 9 subidas, 34 cat → **31** |
+| Pacote normal | **Sem** instrumentação: nenhum dos 6 marcadores em `dist/assets` |
+| `npm run test` | **3737/3737** (691 arquivos), sem flake |
+| **Fase 3 (a TV)** | **Pendente — pede autorização do usuário** |
 
 ## Riscos e Decisões
 
@@ -186,19 +196,26 @@ Testes da redução são escritos pelo executor em arquivos não travados, depoi
 | R-005 | **A troca fluidez × card em branco** pode ser a única via de ganho | Tela que a pessoa não quis | FR-006: medida **e** mostrada na TV antes de permanecer. Precedente da 083 |
 | R-006 | **O conserto da sonda pode reintroduzir o incidente da 087** (apertar `Enter` fora do destino e tocar conteúdo) | A TV começa a reproduzir sozinha durante a medição | D-006 e os 2 contratos travados de `autopilot`. O conserto é ensaiado no PC antes de qualquer instalação (FR-009) |
 | R-007 | **O flake de `progressRecorder.falhas.test.ts`** (1 em 2, herdado, arquivo não tocado por esta feature) | Suíte vermelha confundida com regressão | Rodar a suspeita isolada e a suíte duas vezes antes de culpar uma mudança |
+| R-008 | **O diagnóstico do `falhas = 2` estava com a mecânica errada** (descoberto pelo ensaio do T014): eu atribuí a profundidade ao número de `ArrowDown` da navegação; ela vem do **número de categorias** da lista | O primeiro conserto foi um literal (69) derivado da duração da janela — cobriria a TV de hoje e voltaria a falhar numa lista com 80 categorias | **Resolvido**: `passosAteTopbar()` deriva do DOM e escala com as categorias; o piso de 69 cobre a lista não montada. `logic` §2 corrigido com a tabela medida (6 cat → 9, 34 cat → 31) |
+| R-009 | **`createKeyDelayTracker` guarda a última tecla como semente** entre janelas, contrariando o que o T016 previa | Sem a semente, uma tarefa longa no início da janela seguinte viraria `atrasoSemTecla` e inflaria a faixa que aponta a causa para a abertura em vez da navegação | **Decidido e testado**: a semente fica, e o teste do T016 verifica o comportamento correto |
 
 ## Execution Notes
 
 | Data | Fase/Story | Resumo | Pendência Principal |
 | --- | --- | --- | --- |
+| 2026-10-22 | Fase 1 (Setup) | T001/T002: 5 contratos vermelhos pelos motivos registrados e as nove travas íntegras | Nenhuma |
+| 2026-10-22 | Fase 2 (Foundational) | T010–T017: `keyDelay` pronto, sonda consertada, 5/5 contratos verdes. **O ensaio no PC refutou a mecânica do meu diagnóstico** (R-008) e o conserto foi refeito para escalar com as categorias. Ensaio de ponta a ponta: **`falhas: 0`** nas quatro janelas | O SC-006 na lista real só vale no T020 — o PC não aprova desempenho |
 
-PRÓXIMO: **Fase 1 (Setup)** — conferir as nove travas e os 5 contratos vermelhos pelo motivo registrado acima.
+PRÓXIMO: **Fase 3 — a atribuição na TV (T020–T025)**. Pede **autorização do usuário** para instalar (rodada **1 de 4** do orçamento), e o T025 é **parada obrigatória**: se o alvo exigir Worker ou outro formato de gravação, a feature encerra pelo FR-011, e a decisão é dele.
 
 ## Arquivos Principais
 
 <!-- Preenchido pelo sdd-execute. -->
 
 ## Cuidados para Retomada
+
+- **Ao ensaiar no PC, confirme a PORTA do dev.** O Vite cai para 5174 quando a 5173 está ocupada, e um ensaio rodado contra o dev antigo testa o app **sem** instrumentação — foi o que aconteceu na primeira tentativa do T014, e o coletor não recebeu nada. Mate as portas antes (`Get-NetTCPConnection -LocalPort 5173,5174,8770`).
+- **A profundidade da vitrine escala com o número de categorias da lista**, não com quantas vezes a navegação desceu: 6 categorias → 9 subidas até a topbar, 34 → 31 (medido). Qualquer limite fixo de passos volta a falhar numa lista maior.
 
 - **`lib/useRemoteNav.ts` (319) e `features/vod/VodShowcaseScreen.tsx` (733) estão EXATAMENTE no teto do ratchet.** Uma
   linha a mais reprova `npm run lint`. Foi o R-007 da 088.
