@@ -176,16 +176,15 @@ Testes da redução são escritos pelo executor em arquivos não travados, depoi
 | Área | Estado |
 | --- | --- |
 | Contratos travados (089) | **5/5 verdes**; as nove travas íntegras |
-| `npm run test` | **3748/3749** — a única falha é o flake herdado de `lib/player/` |
-| A redução | **Aplicada**: `useCategoryPreviews` sem a consulta "da janela" (+ `previewWindow.ts`) |
-| `catalogApi.ts` | **2052 linhas, no teto** — a lógica saiu para `previewWindow.ts` por isso |
-| Ganho na TV (rodada 3) | thread presa 30% → **26%**, fps 40 → **44**, pior quadro 383 → **350 ms** |
-| `queriesN` | **NÃO caiu** (274 → 280) — a atribuição da fonte estava errada (R-014) |
-| **A sonda media a coisa errada** | **53% das teclas caíam na lista lateral**; consertada para **6%** (R-015) |
-| Alvos SC-001/002/003 | **Reprovados**: 26% (< 15%), 350 ms (< 300), **44 fps (≥ 45, falta 1)** |
-| Orçamento de TV | **3 de 4 usadas**; a linha de base não é comparável com a sonda consertada |
-| Pacote normal | **Na TV**, sem marcador; nada desinstalado |
-| **Decisão pendente** | **Orçamento, do usuário** — ver `PRÓXIMO: **decisão de orçamento, do usuário.** Resta **1** rodada de 4, e a sonda consertada mede outro roteiro — então confirmar o ganho pelo FR-005 (duas rodadas no mesmo roteiro) e medir os alvos no roteiro correto **não cabem** na mesma rodada. As saídas honestas estão no relato: gastar a última com a sonda correta (os SC-001/002/003 são **absolutos**, então ela diz se o alvo foi atingido), ou pedir orçamento extra para refazer linha de base e verificação.
+| `npm run test` | **3749/3749** (694 arquivos), sem nenhum flake |
+| `tsc` · `lint` · ratchet · `build` | Verdes, 0 erros, 535 arquivos |
+| Pacote normal | **Na TV**, sem nenhum marcador de medição |
+| **Ganho entregue** (medido 1×) | thread presa 30% → **26%**, fps 40 → **44**, pior quadro 383 → **350 ms** |
+| Alvos SC-001/002/003 | **NÃO cumpridos**: 26% (< 15%), 350 ms (< 300), 44 fps (≥ 45) |
+| SC-005 (ganho em duas rodadas) | **NÃO cumprido** — T033 não aconteceu |
+| **SC-006 (a sonda)** | **Cumprido e melhorado**: `falhas = 0`, e o roteiro passou de 53% para **0%** de lista lateral |
+| O dono dos 93% | **Parcialmente nomeado**: um contribuinte reduzido, a fonte dos ~280 eventos segue desconhecida |
+| Rodadas de TV usadas | **4** (a 4ª abortada sem medida) |
 
 ## Riscos e Decisões
 
@@ -245,3 +244,57 @@ PRÓXIMO: **Fase 4 (T030–T041) — reduzir, com alvo nomeado.** Fazer a janela
   parede. Só as leituras a partir da rodada de controle valem.
 - **Nunca compare tempo de parede com tempo de thread.** Dividir `renderMs` por `longTaskMs` deu "o render é 23%"
   quando a partição correta mostrou 4,5% (R-012 da 088).
+
+## Resultado Final
+
+**Convergida em 2026-10-22, encerrando pelo FR-010 por decisão do usuário** ("fechar a feature com o que conseguimos
+evoluir"). **Os alvos de fluidez NÃO foram cumpridos**, e o ganho entregue foi medido **uma** vez, não duas.
+
+### O que foi entregue, e funciona
+
+| Entrega | Evidência |
+| --- | --- |
+| **Ganho real de desempenho** | thread presa 30% → **26%**, fps 40 → **44**, pior quadro 383 → **350 ms** (rodada 3) |
+| `useCategoryPreviews` sem a consulta "da janela" | 3 eventos de cache por deslize e **uma** leitura por categoria que entra, travado em teste |
+| **A sonda passou a medir cards** | de **53%** de teclas na lista lateral para **0%**, verificado no PC |
+| `falhas = 0` nas rodadas | o limite de subidas agora escala com as categorias (6 cat → 9 subidas, 34 → 31) |
+| Instrumentação de atribuição | atraso desde a tecla (5 faixas) e contadores de acionamento, com o invariante da soma validado no aparelho |
+| Séries medida | 38–41 fps contra 34–38 de Filmes: as duas telas se comportam igual |
+
+### O que foi eliminado como causa, com número do aparelho
+
+Esta é a entrega mais durável, porque poupa as próximas features: **o virtualizador/`scrollToIndex`** (`scrollsN` 6 por
+janela, zero correlação), **a pré-carga** (`IDLE_AFTER_KEY_MS = 2000`, o portão nunca abre a 357 ms por tecla), **a
+decodificação de capa** (o tempo acima de 300 ms é o mesmo sem nenhuma capa pintando) e, pela 088, **o manipulador de
+tecla** (0,1%), **o re-render até o primeiro quadro** (4,5%) e **o próprio painel de medição** (−5%).
+
+### O que NÃO foi entregue
+
+1. **Os três alvos**: 26% contra < 15%, 350 ms contra < 300 ms, 44 fps contra ≥ 45 — este último a **um** ponto.
+2. **A confirmação em duas rodadas** (FR-005/SC-005): o ganho apareceu numa só. O T033 fica desmarcado.
+3. **O dono da maior parte dos 93%**: `queriesN` levou ao alvo certo, mas **não caiu** com a mudança (R-014), então a
+   fonte daqueles ~280 eventos por janela continua desconhecida.
+
+### Erros meus, registrados em vez de apagados
+
+- **R-014**: previ que `queriesN` cairia com a mudança. Não caiu. O ganho veio de outro lado da mesma mudança —
+  orquestração, que é trabalho e não aparece na contagem de eventos. **Contagem não é tempo.**
+- **R-015 (achado do usuário)**: a sonda media 53% de navegação de categoria. Pior: meu primeiro conserto a deixou
+  **presa** na lista, e só o usuário olhando a TV pegou isso — o ensaio no PC não pegou porque partia de uma fileira.
+  Foram três tentativas até 0%.
+- **Na feature 088**, dividi tempo de parede por tempo de thread e reportei "o render é 23%" quando são 4,5% (R-012 de
+  lá). Mesmo erro de categoria que a etapa `capa` cometeu.
+
+Nos três casos foi a disciplina de **medir antes e depois** que pegou o erro — não a revisão do raciocínio.
+
+### Consequência para o histórico do projeto
+
+As medições das features **087, 088 e das rodadas 1–3 desta** carregam o viés de 53%: metade das teclas era navegação
+de categoria. Elas comparam **entre si** (mesmo roteiro), mas **não** medem navegação de cards. Está no `CLAUDE.md`
+como regra permanente, para ninguém tratar aqueles números como linha de base de fluidez de cards.
+
+### Se alguém retomar
+
+A próxima medição começa de uma linha de base **nova**, com o roteiro de `→`/`↓`, e a pergunta aberta é de onde vêm os
+~280 eventos de cache por janela. O caminho que **não** vale a pena tentar está eliminado com número (lista acima), e
+`useQueries` com um observador por categoria já estourou "Maximum update depth" (R-013).

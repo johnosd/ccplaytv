@@ -157,13 +157,21 @@ function naFileira(): boolean {
 }
 
 /**
- * Navega entre cards e fileiras pela duração pedida, **só com setas**, em malha fechada. Devolve quantas teclas foram.
+ * Navega entre cards e fileiras pela duração pedida, **só com `→` e `↓`**. Devolve quantas teclas foram.
  *
- * Por que em malha fechada (feature 089): o roteiro antigo dava `PASSOS_POR_FILEIRA` teclas horizontais **cegas**. Ao
- * chegar no primeiro cartão, o `←` seguinte devolve o foco à lista lateral de categorias — comportamento correto do app
- * (features 052/053) — e dali os `→` **paginam a lista** em vez de andar nos cards. Medido no PC com 34 categorias:
- * **53% das teclas caíam na lista lateral**, então a sonda media metade navegação de categoria quando dizia medir
- * navegação de cards. Agora, se o foco sai das fileiras, uma tecla o devolve e o ciclo segue.
+ * Por que sem `←` (feature 089, três tentativas até acertar):
+ *
+ * 1. O roteiro original dava o mesmo número de teclas para cada lado. Ao alcançar o primeiro cartão, o `←` seguinte
+ *    devolve o foco à **lista lateral de categorias** — comportamento correto do app (features 052/053) — e dali os
+ *    `→` **paginam as categorias**. Medido no PC com 34 categorias: **53% das teclas** iam para a lista, então a sonda
+ *    media navegação de categoria dizendo medir cards.
+ * 2. Detectar a saída e dar uma tecla contrária **piorou**: na lista lateral `←` e `→` paginam, então o foco ficava
+ *    **preso lá** (observado na TV pelo usuário).
+ * 3. Derivar para a direita com menos passos à esquerda levou a 24%, mas sobrou alternância: na borda, cada `←` cai e
+ *    a recuperação devolve, repetidamente.
+ *
+ * `→` e `↓` **não têm** esse problema: `→` no último cartão não sai da fileira e `↓` troca de fileira. O roteiro mede
+ * "andar na fileira e descer", que é o movimento da queixa original. `recuperar()` fica como rede, não como regra.
  */
 async function navegar(duracaoMs: number): Promise<number> {
   const fim = Date.now() + duracaoMs
@@ -173,20 +181,14 @@ async function navegar(duracaoMs: number): Promise<number> {
     teclas += 1
     await esperar(CADENCIA_MS)
   }
-  /** Anda na horizontal enquanto o foco continuar numa fileira; saiu, devolve com uma tecla contrária e para. */
-  const andarNaFileira = async (key: string, volta: string): Promise<void> => {
-    for (let passo = 0; passo < PASSOS_POR_FILEIRA && Date.now() < fim; passo += 1) {
-      await andar(key)
-      if (!naFileira()) {
-        await andar(volta)
-        return
-      }
-    }
+  const recuperar = async (): Promise<void> => {
+    for (let passo = 0; passo < 40 && !naFileira() && Date.now() < fim; passo += 1) await andar('ArrowRight')
   }
   while (Date.now() < fim) {
-    await andarNaFileira('ArrowRight', 'ArrowLeft')
-    if (Date.now() < fim) await andar('ArrowDown')
-    await andarNaFileira('ArrowLeft', 'ArrowRight')
+    for (let passo = 0; passo < PASSOS_POR_FILEIRA && Date.now() < fim; passo += 1) {
+      if (!naFileira()) await recuperar()
+      await andar('ArrowRight')
+    }
     if (Date.now() < fim) await andar('ArrowDown')
   }
   return teclas

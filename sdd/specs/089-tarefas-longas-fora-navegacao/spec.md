@@ -4,7 +4,7 @@
 
 **Created**: 2026-10-22
 
-**Status**: Em Execução
+**Status**: Convergida
 
 **Input**: continuação direta da feature 088, convergida no mesmo dia pelo FR-008. A 088 mediu três rodadas na TV de
 referência e **inocentou o caminho de navegação**: `tecla` 0,1%, `render` 4,5%, pintura de capa 10 ms. Sobraram

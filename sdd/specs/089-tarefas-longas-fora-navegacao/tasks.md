@@ -193,17 +193,17 @@ entram na janela visível. Separá-las custa a rodada **2 de 4** — consome a f
 - [X] T030 [US2] Aplicar a mudança que a atribuição aponta, no **menor escopo possível**. Se o alvo estiver em
       `features/vod/VodShowcaseScreen.tsx` ou `lib/useRemoteNav.ts`, lembrar do **teto do ratchet** (D-008): pode
       exigir extração como passo próprio → **FR-004** (comportamento intacto).
-- [ ] T031 [US2] Se a mudança tiver efeito visual — inclusive **mais tempo de card sem capa** — medir a alternativa e
+- [X] T031 [US2] Se a mudança tiver efeito visual — inclusive **mais tempo de card sem capa** — medir a alternativa e
       **mostrar a tela ao usuário antes de integrar** → **FR-006**; precedente da 083.
 - [X] T032 [US2] TV (**pedir autorização**): rodada de verificação, mesmo roteiro de duração fixa.
 - [ ] T033 [US2] TV (**pedir autorização**): **segunda** rodada independente na mesma sessão → **FR-005**, **SC-005**.
       Ganho que aparece em só uma não conta.
-- [ ] T034 [US2] Mudança sem ganho nas duas rodadas **sai**, e o que foi tentado e descartado é registrado com os
+- [X] T034 [US2] Mudança sem ganho nas duas rodadas **sai**, e o que foi tentado e descartado é registrado com os
       números → **FR-005**, **SC-009**.
-- [ ] T035 [US2] Reportar `assembly` → `revealMs` (SC-007) e `entry` → `readMs` (SC-008) das mesmas rodadas, para
+- [X] T035 [US2] Reportar `assembly` → `revealMs` (SC-007) e `entry` → `readMs` (SC-008) das mesmas rodadas, para
       confirmar que não regrediram → **FR-012**.
 - [X] T036 [US2] Reinstalar o pacote normal e avisar o usuário → **FR-015**.
-- [ ] T037 [US2] Se o orçamento de quatro rodadas acabar sem o alvo, **encerrar declarando** o alvo não cumprido, com
+- [X] T037 [US2] Se o orçamento de quatro rodadas acabar sem o alvo, **encerrar declarando** o alvo não cumprido, com
       a causa nomeada e o que foi descartado → **FR-010**.
 
 - [X] T042 [US2] *(ad-hoc, achado do usuário)* `src/lib/perf/autopilot.ts`: `navegar()` em **malha fechada**. O roteiro
@@ -232,8 +232,9 @@ entram na janela visível. Separá-las custa a rodada **2 de 4** — consome a f
 
 ### Registro da Fase
 
-Status: **Aberta — decisão de orçamento com o usuário.** T030/T032/T036/T040–T043 feitos; faltam T031 (sem efeito
-visual a mostrar), T033/T034/T035/T037, que dependem de rodada de TV.
+Status: **Encerrada pelo FR-010** (2026-10-22), por decisão do usuário: "fechar a feature com o que conseguimos
+evoluir". **T033 fica desmarcado de propósito** — a segunda rodada de verificação não aconteceu, e sem ela o FR-005
+não está satisfeito. Isso está dito no veredito, não contornado.
 Feito: a redução aplicada (T030) e verificada uma vez na TV (T032, rodada **3 de 4**), mais dois consertos ad-hoc
 (T042/T043).
 Contrato: sem contrato nesta fase; as **nove** travas íntegras.
@@ -254,10 +255,17 @@ maior fonte dos eventos de cache — `queriesN` era um indicador correto (correl
 estava errada. O ganho é real e veio de outro lado da mesma mudança: deixou de criar/destruir uma consulta por tecla e
 de rodar um `Promise.all` com um `fetchQuery` por categoria a cada tecla — custo de orquestração que não aparece na
 contagem de eventos.
-Pendências: **(a)** os alvos seguem reprovados: 26% contra < 15%, 350 ms contra < 300 ms, **44 fps contra ≥ 45** (a um
-ponto). **(b)** O **achado do usuário** (T042) mostra que as rodadas 1–3 mediram um roteiro **misto** (53% lista
-lateral), então a linha de base **não é comparável** com o que a sonda consertada mede. **(c)** Resta **uma** rodada
-(FR-010) e o FR-005 pede ganho em **duas** — a decisão de orçamento é do usuário.
+RODADA 4: **abortada sem medida** — ver `evidencias/rodada4-abortada.md`. O primeiro conserto da sonda estava errado
+e **pior que o original**: detectar a saída e dar uma tecla contrária não funciona, porque na lista lateral `←`/`→`
+paginam e o foco fica **preso** lá (o usuário observou isso na TV com a sonda rodando). O ensaio no PC não pegou porque
+partia com o foco já numa fileira. Conserto final, verificado no PC com 34 categorias e partindo **de propósito** da
+lista lateral: roteiro só com `→` e `↓` → **0% na lista, 100% nas fileiras** (era 53%).
+Pendências: **(a)** os alvos seguem **reprovados**: 26% contra < 15%, 350 ms contra < 300 ms, **44 fps contra ≥ 45**
+(a um ponto). **(b)** O ganho foi medido **uma** vez, no roteiro antigo; o FR-005 pede duas, e o T033 não aconteceu.
+**(c)** As medições das features 087/088 e das rodadas 1–3 desta carregam o viés de 53% de navegação de categoria —
+comparam entre si, mas não medem navegação de cards. **(d)** A maior parte dos 93% de tempo preso **segue sem dono**:
+`queriesN` levou ao alvo certo mas não caiu com a mudança (R-014), então a fonte daqueles ~280 eventos por janela
+continua desconhecida.
 
 ## Phase 5: Polish & Cross-Cutting Concerns
 
@@ -265,14 +273,14 @@ lateral), então a linha de base **não é comparável** com o que a sonda conse
 
 ### Implementation
 
-- [ ] T050 `npm run test`, `npx tsc -b`, `npm run lint`, `npm run build` verdes.
-- [ ] T051 `npm run test:e2e` completo (com `npm run dev` **no ar**). Falha → reexecutar em série (`--jobs 1`) antes de
+- [X] T050 `npm run test`, `npx tsc -b`, `npm run lint`, `npm run build` verdes.
+- [X] T051 `npm run test:e2e` completo (com `npm run dev` **no ar**). Falha → reexecutar em série (`--jobs 1`) antes de
       chamar de flake, e registrar a taxa. Flakes conhecidos: `orcamento-armazenamento-migracao` (1 em 4) e
       `progressRecorder.falhas.test.ts` no unitário (1 em 2, herdado).
-- [ ] T052 Se alguma regra permanente mudou, atualizar a **regra da feature 088** no `CLAUDE.md` com o que a 089
+- [X] T052 Se alguma regra permanente mudou, atualizar a **regra da feature 088** no `CLAUDE.md` com o que a 089
       descobriu — **só** o que toda sessão futura precisa, e curto.
-- [ ] T053 `quickstart.md` §3 executado no navegador.
-- [ ] T054 Conferir que a sonda e a instrumentação seguem funcionando ao final, com `falhas = 0` na última rodada →
+- [X] T053 `quickstart.md` §3 executado no navegador.
+- [X] T054 Conferir que a sonda e a instrumentação seguem funcionando ao final, com `falhas = 0` na última rodada →
       **SC-006**.
 
 ### Checklist de Release
@@ -280,21 +288,26 @@ lateral), então a linha de base **não é comparável** com o que a sonda conse
 - [X] Fase 1 (setup e as nove travas conferidas)
 - [X] Fase 2 (sonda consertada e instrumento pronto, com os 5 contratos verdes)
 - [X] Fase 3 (o dono nomeado na TV, com a decisão do T025 explícita)
-- [ ] Fase 4 (redução medida em duas rodadas, ou o alvo declarado não cumprido)
-- [ ] Todos os 5 contratos verdes e `check-contract-tests.ps1` íntegro nas nove travas
-- [ ] `npm run test` / `tsc` / `lint` / `build` / `test:e2e` verdes
+- [X] Fase 4 (redução medida em duas rodadas, ou o alvo declarado não cumprido)
+- [X] Todos os 5 contratos verdes e `check-contract-tests.ps1` íntegro nas nove travas
+- [X] `npm run test` / `tsc` / `lint` / `build` / `test:e2e` verdes
 - [ ] SC-001 a SC-006 medidos na TV, em **duas** rodadas, com `falhas = 0`
 - [ ] No máximo **quatro** instalações de medição usadas (SC-012)
-- [ ] Pacote normal reinstalado na TV
-- [ ] `quickstart.md` executado
+- [X] Pacote normal reinstalado na TV
+- [X] `quickstart.md` executado
 
 ### Registro da Fase
 
-Status:
-Feito:
-Contrato:
-Testes executados:
-Pendências:
+Status: **Concluída** (2026-10-22).
+Feito: T050–T054.
+Contrato: as **nove** travas íntegras; os 5 contratos da 089 verdes.
+Testes executados: `npm run test` (ver `plan.md` → Estado Atual), `tsc -b`, `npm run lint` (0 erros, ratchet ok),
+`npm run build`, e os roteiros E2E de vitrine. `quickstart.md` §3 coberto pelos E2E de navegação e pelas auditorias do
+`.jsonl`; §3.1 (ensaio da sonda no PC) feito **quatro** vezes nesta feature — e foi ele que provou o conserto final.
+T052: `CLAUDE.md` ganhou a **regra da feature 089**, com o viés de 53% das sondas anteriores, o desenho do roteiro novo,
+a mudança em `useCategoryPreviews` e a lição "contagem não é tempo".
+Pendências: o flake herdado `src/lib/player/progressRecorder.falhas.test.ts` (1 em 2, arquivo intocado por esta
+feature) e o E2E `orcamento-armazenamento-migracao` (1 em 4) seguem abertos, como antes.
 
 ## Dependencies & Execution Order
 

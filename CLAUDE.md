@@ -537,3 +537,22 @@ Então: **memoizar a vitrine à mão, cortar `overscan` ou trocar a receita de f
 Duas armadilhas de medição que custaram caro aqui: **não compare tempo de parede com tempo de thread** (dividir
 `renderMs` por `longTaskMs` deu "o render é 23%" quando são 4,5%); e um intervalo que abre no pedido de uma imagem e
 fecha no `onLoad` mede **espera**, não trabalho (registrou 266 s numa janela de 5 s).
+
+# Regra da feature 089 — a sonda só mede cards se o roteiro não usar `←`
+
+**Até 2026-10-22 a sonda automática media 53% de navegação na LISTA LATERAL de categorias, não nos cards.** O roteiro
+de `lib/perf/autopilot.ts` dava teclas horizontais para os dois lados; ao alcançar o primeiro cartão, o `←` seguinte
+devolve o foco à lista lateral (comportamento **correto** do app, features 052/053) e dali os `→` **paginam as
+categorias**. Isso vale para os números das features **087, 088 e das três primeiras rodadas da 089**: eles comparam
+entre si, mas não medem navegação de cards. O roteiro agora usa **só `→` e `↓`** (verificado: 0% na lista) — e detectar
+a saída para dar "uma tecla contrária" **não funciona**, porque na lista lateral `←`/`→` paginam e o foco fica preso.
+
+Da redução que a 089 aplicou: `useCategoryPreviews` (`features/catalog/catalogApi.ts`) **não** mantém mais uma consulta
+"da janela" com os ids visíveis na chave — cada tecla recriava a consulta e disparava um `fetchQuery` por categoria. A
+decisão de o que buscar está em `features/catalog/previewWindow.ts`, e **stale e invalidado contam como faltando**,
+senão a prévia para de acompanhar a pré-carga da 038. Ganho medido na TV: thread presa 30% → 26%, 40 → 44 fps.
+`catalogApi.ts` está **no teto de linhas** do ratchet (2052): lógica nova vai num arquivo ao lado.
+
+E uma lição de atribuição: **contagem não é tempo**. O `queriesN` (eventos do cache de consultas) correlacionava com o
+tempo preso e levou ao alvo certo, mas a previsão de que ele **cairia** com a mudança estava errada — ele não caiu, e o
+ganho veio de outro lado da mesma mudança. Mede-se antes e depois; não se declara a causa pela contagem.
