@@ -190,27 +190,36 @@ entram na janela visível. Separá-las custa a rodada **2 de 4** — consome a f
 
 ### Implementation
 
-- [ ] T030 [US2] Aplicar a mudança que a atribuição aponta, no **menor escopo possível**. Se o alvo estiver em
+- [X] T030 [US2] Aplicar a mudança que a atribuição aponta, no **menor escopo possível**. Se o alvo estiver em
       `features/vod/VodShowcaseScreen.tsx` ou `lib/useRemoteNav.ts`, lembrar do **teto do ratchet** (D-008): pode
       exigir extração como passo próprio → **FR-004** (comportamento intacto).
 - [ ] T031 [US2] Se a mudança tiver efeito visual — inclusive **mais tempo de card sem capa** — medir a alternativa e
       **mostrar a tela ao usuário antes de integrar** → **FR-006**; precedente da 083.
-- [ ] T032 [US2] TV (**pedir autorização**): rodada de verificação, mesmo roteiro de duração fixa.
+- [X] T032 [US2] TV (**pedir autorização**): rodada de verificação, mesmo roteiro de duração fixa.
 - [ ] T033 [US2] TV (**pedir autorização**): **segunda** rodada independente na mesma sessão → **FR-005**, **SC-005**.
       Ganho que aparece em só uma não conta.
 - [ ] T034 [US2] Mudança sem ganho nas duas rodadas **sai**, e o que foi tentado e descartado é registrado com os
       números → **FR-005**, **SC-009**.
 - [ ] T035 [US2] Reportar `assembly` → `revealMs` (SC-007) e `entry` → `readMs` (SC-008) das mesmas rodadas, para
       confirmar que não regrediram → **FR-012**.
-- [ ] T036 [US2] Reinstalar o pacote normal e avisar o usuário → **FR-015**.
+- [X] T036 [US2] Reinstalar o pacote normal e avisar o usuário → **FR-015**.
 - [ ] T037 [US2] Se o orçamento de quatro rodadas acabar sem o alvo, **encerrar declarando** o alvo não cumprido, com
       a causa nomeada e o que foi descartado → **FR-010**.
 
+- [X] T042 [US2] *(ad-hoc, achado do usuário)* `src/lib/perf/autopilot.ts`: `navegar()` em **malha fechada**. O roteiro
+      antigo dava 8 teclas horizontais **cegas**; ao chegar no primeiro cartão o `←` devolvia o foco à lista lateral
+      (correto no app, 052/053) e dali os `→` **paginavam a lista**. Medido no PC com 34 categorias: **53% das teclas
+      caíam na lista lateral** — a sonda media metade navegação de categoria dizendo medir cards. Depois do conserto:
+      **6%** → **FR-009**, **SC-006**.
+- [X] T043 [US2] *(ad-hoc)* Teste que mede o ganho estrutural sem TV
+      (`catalogApi.preview-window.test.tsx`): deslizar a janela passou a custar **3 eventos de cache por deslize** e
+      **uma** leitura por categoria que entra, em vez de tocar a janela inteira.
+
 ### Testes da Fase
 
-- [ ] T040 Teste: a ordem de navegação (`← → ↑ ↓`) e a entrada/saída da lista lateral seguem iguais depois da mudança,
+- [X] T040 Teste: a ordem de navegação (`← → ↑ ↓`) e a entrada/saída da lista lateral seguem iguais depois da mudança,
       em `features/vod/` → **FR-004** (complementa as travas de 052/053, não as substitui).
-- [ ] T041 Teste: card sem capa disponível mostra moldura e **título real**, sem nota, posição ou capa inventados →
+- [X] T041 Teste: card sem capa disponível mostra moldura e **título real**, sem nota, posição ou capa inventados →
       **FR-007**.
 
 ### Critério de Conclusão
@@ -223,11 +232,32 @@ entram na janela visível. Separá-las custa a rodada **2 de 4** — consome a f
 
 ### Registro da Fase
 
-Status:
-Feito:
-Contrato:
-Testes executados:
-Pendências:
+Status: **Aberta — decisão de orçamento com o usuário.** T030/T032/T036/T040–T043 feitos; faltam T031 (sem efeito
+visual a mostrar), T033/T034/T035/T037, que dependem de rodada de TV.
+Feito: a redução aplicada (T030) e verificada uma vez na TV (T032, rodada **3 de 4**), mais dois consertos ad-hoc
+(T042/T043).
+Contrato: sem contrato nesta fase; as **nove** travas íntegras.
+Testes executados: `npm run test` → **3748/3749** — a única falha é o flake **herdado**
+`src/lib/player/progressRecorder.falhas.test.ts` (`lib/player/` está intocado por esta feature; verde 2 de 2 isolado).
+`npx vitest run src/features/catalog src/features/vod` → **300/300**; `previewWindow.test.ts` → 6/6;
+`catalogApi.preview-window.test.tsx` → 2/2. `tsc`, `lint` (ratchet ok, 535 arquivos) e `build` verdes; pacote normal
+sem marcador. E2E dos roteiros de vitrine → **5/5** na segunda execução; `carrosseis-filmes-series` falhou na primeira
+e passou isolado (60 s) e em paralelo (48 s) — explicável: a suíte unitária completa rodava ao mesmo tempo, saturando
+a máquina. Taxa observada 1 em 2.
+A MUDANÇA: `useCategoryPreviews` sem a consulta "da janela" (a chave dela continha os ids visíveis). Para caber no teto
+do ratchet (`catalogApi.ts` estava em 2052/2052), a lógica de decisão saiu para `features/catalog/previewWindow.ts`
+como função pura — e o hook ficou fino. `catalogApi.ts` continua em **2052**.
+RESULTADO NA TV (rodada 3, antes → depois): `longTaskMs` 1 522 → **1 319 ms** (−13%), thread presa 30% → **26%**,
+`longTaskMaxMs` 385 → **342 ms**, `fps` 40 → **44** (+10%), `worstMs` 383 → **350 ms** (−9%).
+**CORREÇÃO OBRIGATÓRIA**: `queriesN` **não caiu** (274 → 280), e eu previ que cairia. A janela de prévias **não era** a
+maior fonte dos eventos de cache — `queriesN` era um indicador correto (correlacionava), mas a atribuição da *fonte*
+estava errada. O ganho é real e veio de outro lado da mesma mudança: deixou de criar/destruir uma consulta por tecla e
+de rodar um `Promise.all` com um `fetchQuery` por categoria a cada tecla — custo de orquestração que não aparece na
+contagem de eventos.
+Pendências: **(a)** os alvos seguem reprovados: 26% contra < 15%, 350 ms contra < 300 ms, **44 fps contra ≥ 45** (a um
+ponto). **(b)** O **achado do usuário** (T042) mostra que as rodadas 1–3 mediram um roteiro **misto** (53% lista
+lateral), então a linha de base **não é comparável** com o que a sonda consertada mede. **(c)** Resta **uma** rodada
+(FR-010) e o FR-005 pede ganho em **duas** — a decisão de orçamento é do usuário.
 
 ## Phase 5: Polish & Cross-Cutting Concerns
 

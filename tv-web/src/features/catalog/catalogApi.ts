@@ -34,6 +34,7 @@ import {
 import { readKindCursorPage, type KindCursor } from '../../lib/catalog/kindCursor'
 import { listVisibleCategories } from '../../lib/catalog/categoryAccess'
 import { loadShowcaseSelections } from './showcaseSelections'
+import { montarPreviews, previewsFaltando } from './previewWindow'
 import { READ_WINDOW_MIN_ITEMS, readCategoryWindow } from '../../lib/catalog/categoryWindow'
 import { READ_PROJECTION_CHUNK_SIZE, readItemToRecord } from '../../lib/catalog/readProjection'
 import { ensureCategory, type CategoryFetchOutcome } from '../../lib/catalog/categoryLoader'
@@ -1775,40 +1776,39 @@ export function useCategoryPreviews(
   sourceId: string | null,
   categories: readonly CatalogCategory[],
 ): ReadonlyMap<number, CategoryPreview> {
-  // Um único `useQuery` para a janela inteira (a tela renderiza a cada tecla e a janela desliza: `useQueries` com um
-  // conjunto de observadores que muda a cada tecla chegou a estourar "Maximum update depth" numa descida longa). O cache
-  // por categoria fica dentro (`fetchQuery`, chave `['category-preview', sourceId, id]`), então deslizar a janela não
-  // relê o disco de quem já foi lido há pouco; a pré-carga invalida as duas camadas (`createPrefetchInvalidator`).
+  // Feature 089 (R-012): **sem consulta "da janela"**. A chave dela continha a lista de ids visíveis, então cada tecla
+  // que deslizava a janela criava consulta nova, disparava um `fetchQuery` por categoria e deixava a anterior órfã —
+  // 19,6 eventos de cache por tecla na TV, e 33 fps contra 41. Agora só o que falta/stale/invalidado é buscado, e o
+  // resto sai do cache sem tocar em consulta. `useQueries` segue fora: estourou "Maximum update depth" descendo.
   const queryClient = useQueryClient()
+  const [previews, setPreviews] = useState<ReadonlyMap<number, CategoryPreview>>(EMPTY_PREVIEWS)
   const idsKey = categories.map((category) => category.id).join(',')
-  const query = useQuery({
-    queryKey: categoryPreviewWindowKey(sourceId, idsKey),
-    queryFn: async (): Promise<Map<number, CategoryPreview>> => {
-      const loaded = await Promise.all(
-        categories.map(async (category) => {
-          const preview = await queryClient.fetchQuery({
-            queryKey: categoryPreviewKey(sourceId, category.id),
-            queryFn: () => loadCategoryPreview(sourceId as string, category),
-            staleTime: PREVIEW_STALE_MS,
-            gcTime: 30_000,
-          })
-          return [category.id, preview] as const
-        }),
-      )
-      return new Map(loaded)
-    },
-    enabled: sourceId !== null && categories.length > 0,
-    placeholderData: keepPreviousData,
-  })
-  return query.data ?? EMPTY_PREVIEWS
+  useEffect(() => {
+    if (sourceId === null || categories.length === 0) return undefined
+    const ids = categories.map((category) => category.id)
+    const chave = (id: number) => categoryPreviewKey(sourceId, id)
+    const montar = () => montarPreviews(ids, (id) => queryClient.getQueryData<CategoryPreview>(chave(id)))
+    const faltando = previewsFaltando(ids, (id) => queryClient.getQueryState<CategoryPreview>(chave(id)), Date.now(), PREVIEW_STALE_MS)
+    setPreviews(montar())
+    if (faltando.length === 0) return undefined
+    let vivo = true
+    const porId = new Map(categories.map((category) => [category.id, category]))
+    void Promise.all(faltando.map((id) => queryClient.fetchQuery({
+      queryKey: chave(id),
+      queryFn: () => loadCategoryPreview(sourceId, porId.get(id) as CatalogCategory),
+      staleTime: PREVIEW_STALE_MS, gcTime: 30_000,
+    }))).then(() => { if (vivo) setPreviews(montar()) }, () => {})
+    return () => { vivo = false }
+    // `categories` fora das dependências de propósito: é array novo a cada render, e o que importa são os ids —
+    // com `idsKey` diferente o efeito roda com as categorias daquele render, que são exatamente as de `idsKey`.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sourceId, idsKey, queryClient])
+  return previews
 }
 const EMPTY_PREVIEWS: ReadonlyMap<number, CategoryPreview> = new Map()
 /** Dentro desta janela a prévia de uma categoria já lida não é relida ao deslizar. */
 const PREVIEW_STALE_MS = 10_000
 
-export function categoryPreviewWindowKey(sourceId: string | null, idsKey: string) {
-  return ['category-preview', sourceId, 'window', idsKey] as const
-}
 /** Backdrop já guardado por id de item (feature 053, D-006) — só local; ver `useStoredBackdrops`. */
 export function useCachedBackdrops(items: readonly CatalogItemOut[]): ReadonlyMap<string, string> {
   const pairs: BackdropPair[] = []

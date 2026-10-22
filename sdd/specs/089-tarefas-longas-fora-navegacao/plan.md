@@ -175,17 +175,17 @@ Testes da redução são escritos pelo executor em arquivos não travados, depoi
 
 | Área | Estado |
 | --- | --- |
-| Contratos travados (089) | **5/5 verdes**; trava íntegra |
-| As outras oito travas | **Íntegras** |
-| `npm run test` | 3737/3737 antes do T026; a rodar de novo no Polish |
-| **SC-006 (a sonda)** | **CUMPRIDO** em **duas** rodadas independentes (`falhas = 0`) |
-| **O ALVO** | **NOMEADO**: `useCategoryPreviews` recria a consulta da janela a cada tecla (`catalogApi.ts:1774`) |
-| Evidência | `queriesN` **274**/janela (19,6 por tecla) contra `scrollsN` 6 e `idbTxN` 9; 41 → 33 fps quando sobe |
-| Virtualizador / `scrollToIndex` | **ELIMINADO** — `scrollsN` não correlaciona (40 → 40 fps) |
-| Pré-carga, capa, painel de medição | Eliminados (rodada 1 e feature 088) |
-| Orçamento de TV | **2 de 4 usadas**; as duas restantes são as de verificação do FR-005 |
+| Contratos travados (089) | **5/5 verdes**; as nove travas íntegras |
+| `npm run test` | **3748/3749** — a única falha é o flake herdado de `lib/player/` |
+| A redução | **Aplicada**: `useCategoryPreviews` sem a consulta "da janela" (+ `previewWindow.ts`) |
+| `catalogApi.ts` | **2052 linhas, no teto** — a lógica saiu para `previewWindow.ts` por isso |
+| Ganho na TV (rodada 3) | thread presa 30% → **26%**, fps 40 → **44**, pior quadro 383 → **350 ms** |
+| `queriesN` | **NÃO caiu** (274 → 280) — a atribuição da fonte estava errada (R-014) |
+| **A sonda media a coisa errada** | **53% das teclas caíam na lista lateral**; consertada para **6%** (R-015) |
+| Alvos SC-001/002/003 | **Reprovados**: 26% (< 15%), 350 ms (< 300), **44 fps (≥ 45, falta 1)** |
+| Orçamento de TV | **3 de 4 usadas**; a linha de base não é comparável com a sonda consertada |
 | Pacote normal | **Na TV**, sem marcador; nada desinstalado |
-| **Fase 4 (reduzir)** | **Pronta para começar**, com alvo e mecanismo |
+| **Decisão pendente** | **Orçamento, do usuário** — ver `PRÓXIMO: **decisão de orçamento, do usuário.** Resta **1** rodada de 4, e a sonda consertada mede outro roteiro — então confirmar o ganho pelo FR-005 (duas rodadas no mesmo roteiro) e medir os alvos no roteiro correto **não cabem** na mesma rodada. As saídas honestas estão no relato: gastar a última com a sonda correta (os SC-001/002/003 são **absolutos**, então ela diz se o alvo foi atingido), ou pedir orçamento extra para refazer linha de base e verificação.
 
 ## Riscos e Decisões
 
@@ -204,11 +204,14 @@ Testes da redução são escritos pelo executor em arquivos não travados, depoi
 | R-011 | **A folga do orçamento de quatro rodadas foi consumida**, exatamente como o A-01 do handoff previu: 1 (atribuição) + 1 (medida nova) + 2 (verificação) = 4, sem sobra | Se a medida nova não bastar, não há rodada para uma terceira tentativa dentro do FR-010 | **Avisado ao usuário no momento certo**, como o A-01 mandava. Pedir uma 5ª rodada é decisão dele |
 | R-012 | **O alvo é a recriação da consulta da janela de previews a cada tecla** (`useCategoryPreviews`, `catalogApi.ts:1774`): a `queryKey` contém a lista de ids das categorias visíveis, então deslizar a janela cria consulta nova, dispara um `fetchQuery` por categoria e deixa a anterior órfã | 19,6 eventos de cache por tecla, e 8 fps de diferença entre as janelas com mais e menos eventos | **Nomeado, não resolvido**: é o alvo da Fase 4. A prova será o ganho em duas rodadas (FR-005); contagem não é cronometragem |
 | R-013 | **`useQueries` com observadores variáveis já foi tentado e falhou** — o comentário em `useCategoryPreviews` registra "Maximum update depth" numa descida longa | A solução óbvia (um observador por categoria) é justamente a que quebrou antes | **Registrado antes de começar a Fase 4**: a saída precisa ser uma chave **estável** ou agregação fora do React Query, não voltar ao `useQueries` |
+| R-014 | **`queriesN` não caiu com a mudança** (274 → 280), embora os três números tenham melhorado | A janela de prévias não era a maior fonte dos eventos de cache: `queriesN` era indicador válido, mas a atribuição da *fonte* estava errada | **Corrigido na evidência da rodada 3, não escondido.** O ganho veio de outro lado da mesma mudança (deixar de criar/destruir consulta por tecla e de rodar um `Promise.all` por categoria), que é trabalho e não aparece na contagem de eventos |
+| R-015 | **A sonda media metade navegação de categoria** (achado do usuário, 2026-10-22): `navegar()` dava 8 teclas horizontais cegas, o `←` no primeiro cartão devolvia o foco à lista lateral e dali os `→` paginavam a lista. Medido no PC com 34 categorias: **53%** das teclas na lista | As rodadas 1–3 mediram um roteiro **misto**, então a linha de base **não é comparável** com o que a sonda consertada mede. A comparação antes/depois da rodada 3 continua válida (mesmo roteiro nas duas) | **Consertado (T042)**: `navegar()` em malha fechada — se o foco sai da fileira, uma tecla o devolve. Verificado no PC: **6%**. Mas isso **invalida a linha de base** para rodadas futuras |
 
 ## Execution Notes
 
 | Data | Fase/Story | Resumo | Pendência Principal |
 | --- | --- | --- | --- |
+| 2026-10-22 | Fase 4 (US2, rodada 3) | Redução aplicada e verificada uma vez: thread presa **30% → 26%**, fps **40 → 44**, pior quadro **383 → 350 ms**. Mas `queriesN` não caiu (R-014), e o usuário percebeu que a sonda media **53%** de navegação de categoria (R-015, consertado para 6%) | Alvos ainda reprovados (44 fps contra 45); resta **1** rodada e a linha de base ficou incomparável. **Decisão de orçamento do usuário** |
 | 2026-10-22 | Fase 3 (US1, rodada 2) | **O alvo foi nomeado**: `queriesN` 274/janela (19,6 por tecla) contra 6 e 9 dos outros contadores, com 41 → 33 fps. Mecanismo no código: a `queryKey` de `useCategoryPreviews` muda a cada tecla. **Virtualizador eliminado** | A prova é o ganho em duas rodadas (FR-005); restam exatamente duas (R-011) |
 | 2026-10-22 | Fase 3 (US1, TV) | Rodada 1 de 4. **SC-006 cumprido** (`falhas = 0`, Séries medida) e o invariante da soma validado no aparelho. Atribuição **bimodal** (1,62× acima de 300 ms); pré-carga e capa **eliminadas** | **O dono dos 93% segue sem nome** (R-010); a folga do orçamento foi consumida (R-011). T022/T025 são decisão do usuário |
 | 2026-10-22 | Fase 1 (Setup) | T001/T002: 5 contratos vermelhos pelos motivos registrados e as nove travas íntegras | Nenhuma |
@@ -221,6 +224,9 @@ PRÓXIMO: **Fase 4 (T030–T041) — reduzir, com alvo nomeado.** Fazer a janela
 <!-- Preenchido pelo sdd-execute. -->
 
 ## Cuidados para Retomada
+
+- **A sonda das features 087/088 e das rodadas 1–3 da 089 media 53% de navegação na LISTA LATERAL**, não nos cards (R-015). Qualquer número daquelas rodadas é de um roteiro misto. A partir do T042 o roteiro é malha fechada e fica em ~6%.
+- **`catalogApi.ts` está em 2052 linhas, que é o seu teto no ratchet.** Lógica nova vai para um arquivo ao lado (foi o que `previewWindow.ts` resolveu), nunca por dentro.
 
 - **`features/catalog/catalogApi.ts` é grande e tem teto no ratchet** — confira antes de acrescentar linhas lá para a Fase 4; pode exigir extração.
 - **O `PerfOverlay` está FORA do `QueryClientProvider`** (`main.tsx:67` contra `:61`): instrumentação que precisa do cache de consultas é instalada no `main.tsx`, não no painel.

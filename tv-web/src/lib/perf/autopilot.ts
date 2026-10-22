@@ -151,7 +151,20 @@ export async function irPara(destino: 'movies' | 'series'): Promise<boolean> {
   return esperarSeletor('.vod-showcase')
 }
 
-/** Navega entre cards e fileiras pela duração pedida, **só com setas**. Devolve quantas teclas foram. */
+/** O foco está numa fileira de cards (e não na lista lateral de categorias)? */
+function naFileira(): boolean {
+  return document.querySelector('.vod-showcase .vod-row .tv-focus') !== null
+}
+
+/**
+ * Navega entre cards e fileiras pela duração pedida, **só com setas**, em malha fechada. Devolve quantas teclas foram.
+ *
+ * Por que em malha fechada (feature 089): o roteiro antigo dava `PASSOS_POR_FILEIRA` teclas horizontais **cegas**. Ao
+ * chegar no primeiro cartão, o `←` seguinte devolve o foco à lista lateral de categorias — comportamento correto do app
+ * (features 052/053) — e dali os `→` **paginam a lista** em vez de andar nos cards. Medido no PC com 34 categorias:
+ * **53% das teclas caíam na lista lateral**, então a sonda media metade navegação de categoria quando dizia medir
+ * navegação de cards. Agora, se o foco sai das fileiras, uma tecla o devolve e o ciclo segue.
+ */
 async function navegar(duracaoMs: number): Promise<number> {
   const fim = Date.now() + duracaoMs
   let teclas = 0
@@ -160,10 +173,20 @@ async function navegar(duracaoMs: number): Promise<number> {
     teclas += 1
     await esperar(CADENCIA_MS)
   }
+  /** Anda na horizontal enquanto o foco continuar numa fileira; saiu, devolve com uma tecla contrária e para. */
+  const andarNaFileira = async (key: string, volta: string): Promise<void> => {
+    for (let passo = 0; passo < PASSOS_POR_FILEIRA && Date.now() < fim; passo += 1) {
+      await andar(key)
+      if (!naFileira()) {
+        await andar(volta)
+        return
+      }
+    }
+  }
   while (Date.now() < fim) {
-    for (let passo = 0; passo < PASSOS_POR_FILEIRA && Date.now() < fim; passo += 1) await andar('ArrowRight')
+    await andarNaFileira('ArrowRight', 'ArrowLeft')
     if (Date.now() < fim) await andar('ArrowDown')
-    for (let passo = 0; passo < PASSOS_POR_FILEIRA && Date.now() < fim; passo += 1) await andar('ArrowLeft')
+    await andarNaFileira('ArrowLeft', 'ArrowRight')
     if (Date.now() < fim) await andar('ArrowDown')
   }
   return teclas
