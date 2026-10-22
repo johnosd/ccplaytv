@@ -29,6 +29,7 @@ import { ImeProbeOverlay } from './components/ImeProbeOverlay.tsx'
 import { prepareLocalStartup } from './lib/startupReadiness.ts'
 import { warmCatalogDb } from './lib/catalog/dbWarmup.ts'
 import { startAutopilot } from './lib/perf/autopilot.ts'
+import { installActivityCounters } from './lib/perf/activityCounters.ts'
 import { I18nProvider } from './lib/i18n/I18nProvider.tsx'
 
 const queryClient = new QueryClient()
@@ -51,6 +52,12 @@ if (import.meta.env.VITE_CCPLAY_PLATFORM_PROBE === '1') {
 // pacote normal). Despacha as teclas e mede janelas de duração fixa, para duas rodadas serem comparáveis.
 if (import.meta.env.VITE_CCPLAY_AUTOPILOT === '1') {
   void startAutopilot().catch(() => {})
+}
+
+// Feature 089 (T022): conta quantas vezes scroll, IndexedDB e o cache de consultas são acionados por janela. Daqui,
+// porque o cache vive acima do `PerfOverlay` na árvore — e porque medição não entra no caminho quente (D-008).
+if (import.meta.env.VITE_CCPLAY_PERF === '1') {
+  installActivityCounters(queryClient.getQueryCache())
 }
 
 createRoot(document.getElementById('root')!).render(

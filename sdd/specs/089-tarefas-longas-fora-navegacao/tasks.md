@@ -119,18 +119,28 @@ na lista real continua **a verificar no T020**.
 
 ### Implementation
 
-- [ ] T020 [US1] TV (**pedir autorização**): rodada de atribuição pelo `quickstart.md` §4, com a medida do atraso
+- [X] T020 [US1] TV (**pedir autorização**): rodada de atribuição pelo `quickstart.md` §4, com a medida do atraso
       ligada. Esperar `"janela":0` e **`falhas = 0`** (se não vier 0, o T010/T014 não fecharam — voltar, não insistir).
-- [ ] T021 [US1] Ler o resultado pela tabela de `logic/atraso-e-sonda.md` §1 e **nomear** o trabalho dominante. Se os
+- [X] T021 [US1] Ler o resultado pela tabela de `logic/atraso-e-sonda.md` §1 e **nomear** o trabalho dominante. Se os
       atrasos saírem espalhados, isso é conclusão válida: elimina a navegação por completo (R-001).
-- [ ] T022 [US1] Se a soma ficar muito abaixo do total, acrescentar **uma** medida (D-003) e registrar por que ela
+- [X] T022 [US1] Se a soma ficar muito abaixo do total, acrescentar **uma** medida (D-003) e registrar por que ela
       entrou. Não enfileirar várias → **FR-003**.
-- [ ] T023 [US1] Gravar `evidencias/medicao-tv-<data>.md`: aparelho, tabela por janela, a atribuição, classificação
+- [X] T023 [US1] Gravar `evidencias/medicao-tv-<data>.md`: aparelho, tabela por janela, a atribuição, classificação
       (**gate**), leitura honesta e **como reproduzir a medição** (comandos do `quickstart.md` §4). **Ler o `.jsonl`
       atrás de texto do provedor antes** → **FR-013**, **FR-014**, **SC-009**.
-- [ ] T024 [US1] Reinstalar o **pacote normal** e avisar o usuário → **FR-015**.
-- [ ] T025 [US1] **Ponto de decisão**: se o alvo exigir Worker ou outro formato de gravação, **parar** e reportar com
+- [X] T024 [US1] Reinstalar o **pacote normal** e avisar o usuário → **FR-015**.
+- [X] T025 [US1] **Ponto de decisão**: se o alvo exigir Worker ou outro formato de gravação, **parar** e reportar com
       os números — a feature encerra pelo **FR-011**. Caso contrário, seguir para a Fase 4 com o alvo nomeado.
+
+- [X] T026 [US1] *(ad-hoc, decidida no T022)* `src/lib/perf/activityCounters.ts`: contadores de acionamento por
+      janela (`scrollsN`, `idbTxN`, `queriesN`), **uma** medida só (D-003), toda instalada **de fora** — ouvinte de
+      `scroll` em captura, remendo temporário em `IDBDatabase.prototype.transaction` e
+      `queryClient.getQueryCache().subscribe()`. Nenhuma linha nos arquivos no teto do ratchet (D-008).
+- [X] T027 [US1] *(ad-hoc)* Fiar em `src/main.tsx` (onde o cache de consultas existe — o `PerfOverlay` está **fora**
+      do `QueryClientProvider`) e emitir no mesmo lote de ~5 s em `src/components/PerfOverlay.tsx`.
+- [X] T028 [US1] *(ad-hoc)* 4 testes em `activityCounters.test.ts` (não travado), incluindo a devolução do
+      `IDBDatabase.prototype.transaction` original ao desinstalar — deixá-lo remendado contaminaria a sessão.
+- [X] T029 [US1] *(ad-hoc)* TV, rodada **2 de 4**: a medida que separou as três candidatas.
 
 ### Critério de Conclusão
 
@@ -139,11 +149,40 @@ T025 tomada **explicitamente** — não por omissão. `falhas = 0` na rodada.
 
 ### Registro da Fase
 
-Status:
-Feito:
-Contrato:
-Testes executados:
-Pendências:
+Status: **Concluída** (2026-10-22). **O alvo está nomeado.** T020–T029 feitos, duas rodadas de TV usadas de quatro.
+Feito: T020 (rodada **1 de 4** na TV, `falhas = 0`), T021 (atribuição lida pela tabela de `logic` §1),
+T023 (`evidencias/medicao-tv-2026-10-22.md`, auditada por FR-014), T024 (pacote normal reinstalado; nada desinstalado).
+Contrato: sem contrato nesta fase.
+Testes executados: a medição é o gate. **SC-006 CUMPRIDO**: as quatro janelas mediram e `falhas = 0` — o conserto do
+`passosAteTopbar()` funcionou na lista real, e **Séries entrou duas vezes** (38/41 fps contra 34/36 de Filmes), o que
+fecha o R-009 da 088. A soma das faixas fechou **exatamente** com o total (89 662 = 89 662 ms): o invariante do
+contrato vale no aparelho. Linha de base preservada: 31% de thread presa, 433 ms de pior quadro, 37 fps.
+Atribuição: padrão **bimodal**, normalizado por largura de faixa (intervalo entre teclas: 357 ms) — 0–50 ms **1,23×**,
+50–150 ms 0,95×, 150–300 ms **0,72×**, acima de 300 ms **1,62×**. **Não é artefato das pausas**: o enriquecimento
+acima de 300 ms é 1,62× na navegação plena e 1,07× (uniforme) nas janelas com pouca tecla.
+Eliminados nesta rodada: **a pré-carga** (`IDLE_AFTER_KEY_MS = 2000`, o portão nunca abre a 357 ms por tecla) e **a
+capa** (sem nenhuma capa pintando, `atrasoAcima300Ms` é 333 ms contra 328–373 com capas; pior quadro 400 contra 409).
+RODADA 2 (T022/T026–T029), a que nomeou o alvo: contadores por janela em navegação plena (n=40) — `scrollsN` **6**
+(0,4 por tecla), `idbTxN` **9** (0,6), **`queriesN` 274 (19,6 por tecla, máximo 607)**. A ordem de grandeza decide. E o
+tempo preso acompanha: com `queriesN` acima da mediana, 1 682 ms e **33 fps**; abaixo, 1 487 ms e **41 fps**. Pelo
+mesmo critério, `scrollsN` **não** correlaciona (40 → 40 fps): **o virtualizador está eliminado**, e cortar `overscan`
+não devolveria fluidez. `idbTxN` correlaciona mas com volume 30× menor, e é plausivelmente consequência.
+MECANISMO, no código: `features/catalog/catalogApi.ts:1774`, `useCategoryPreviews` monta a `queryKey` com a **lista de
+ids das categorias da janela visível** (`idsKey`). Cada tecla que desliza a janela muda a chave → consulta nova criada
+→ um `fetchQuery` por categoria da janela → a consulta anterior fica órfã. Dá a ordem de 20 eventos por tecla, que é o
+medido. O cache por categoria evita reler o disco (daí o `idbTxN` baixo), mas a **orquestração** é refeita a cada
+tecla. Não aparecia nas etapas da 088 porque o re-render que ela provoca acontece **depois** do primeiro quadro.
+Decisão do T025: **seguir para a Fase 4** — o alvo não exige Worker nem mudança no formato de gravação, então o FR-011
+não se aplica.
+Pendências: contagem e correlação **não são cronometragem** — a prova de que o alvo é o certo será o ganho medido nas
+duas rodadas restantes (FR-005). O código registra que `useQueries` com observadores variáveis **já foi tentado** e
+estourou "Maximum update depth": a Fase 4 não deve voltar a isso. Nota histórica: o dono dos 93% ficou sem nome ao
+fim da rodada 1 — Sabe-se *quando* o tempo acontece, não *de quem* é. O padrão descarta
+trabalho síncrono com a tecla e trabalho periódico independente, e deixa de pé trabalho que a navegação dispara e que
+**transborda o intervalo entre teclas**. Candidatas não medidas: consultas disparadas/invalidadas pela troca de foco,
+recálculo do virtualizador pelo `scrollToIndex` do `useVirtualFocusSync`, e leitura de IndexedDB de categorias que
+entram na janela visível. Separá-las custa a rodada **2 de 4** — consome a folga do orçamento, que era o achado
+**A-01** do `handoff.md`. **Decisão do usuário (T022/T025).**
 
 ## Phase 4: User Story 2 — reduzir (P1)
 
@@ -210,7 +249,7 @@ Pendências:
 
 - [X] Fase 1 (setup e as nove travas conferidas)
 - [X] Fase 2 (sonda consertada e instrumento pronto, com os 5 contratos verdes)
-- [ ] Fase 3 (o dono nomeado na TV, com a decisão do T025 explícita)
+- [X] Fase 3 (o dono nomeado na TV, com a decisão do T025 explícita)
 - [ ] Fase 4 (redução medida em duas rodadas, ou o alvo declarado não cumprido)
 - [ ] Todos os 5 contratos verdes e `check-contract-tests.ps1` íntegro nas nove travas
 - [ ] `npm run test` / `tsc` / `lint` / `build` / `test:e2e` verdes

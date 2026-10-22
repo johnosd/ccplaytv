@@ -4,6 +4,7 @@ import { createLongTaskTracker } from '../lib/perf/longTasks'
 import { closeRenderSpan, installKeySpan, snapshotSharedSpans, takeSharedIntervals } from '../lib/perf/phaseSpans'
 import { attributeLongTasks } from '../lib/perf/longTaskAttribution'
 import { createKeyDelayTracker } from '../lib/perf/keyDelay'
+import { snapshotActivityCounters } from '../lib/perf/activityCounters'
 import { subscribeEntryReports, takeEntryReports, type EntryReport } from '../lib/perf/entryTiming'
 import { emitMetric } from '../lib/perf/metricsChannel'
 import { probeBudget } from '../lib/catalog/storageBudget'
@@ -81,11 +82,15 @@ export function PerfOverlay() {
       const janelasLongas = longTasks.takeWindows()
       const atribuicao = attributeLongTasks(janelasLongas, takeSharedIntervals())
       const porAtraso = atrasos.snapshot(janelasLongas)
+      // T022: quantas vezes cada subsistema foi acionado na janela — a medida que separa as três candidatas
+      // que sobraram da rodada 1. Instalada em `main.tsx`, porque o cache de consultas vive acima deste nó.
+      const acionamentos = snapshotActivityCounters()
       emitMetric({ source: 'frames', slow, idleSlow, ...(keyed ? { fps: keyed.fps, worstMs: keyed.worstMs, over50: keyed.over50 } : {}),
         ...(longas ?? {}),
         ...(etapas ?? {}),
         ...(atribuicao ?? {}),
         ...(porAtraso ?? {}),
+        ...(acionamentos ?? {}),
         ...(peakHeap > 0 ? { heapMB: Math.round(peakHeap / 1048576), heapNowMB: Math.round(heapNow() / 1048576) } : {}) })
     }, 5_000)
     // Feature 085/082: o orçamento medido sem gravar nada, 3× (20 s, 80 s e 140 s depois de abrir), para ter as etapas

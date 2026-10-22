@@ -177,13 +177,15 @@ Testes da redução são escritos pelo executor em arquivos não travados, depoi
 | --- | --- |
 | Contratos travados (089) | **5/5 verdes**; trava íntegra |
 | As outras oito travas | **Íntegras** |
-| `lib/perf/keyDelay.ts` | **Pronto**: faixas de atraso, chaves do conjunto fechado, rastreador com semente |
-| `lib/perf/autopilot.ts` | **Consertado**: limite derivado do DOM (`passosAteTopbar()`), piso 69 |
-| `components/PerfOverlay.tsx` | Emite as chaves de atraso no mesmo lote de ~5 s, com **uma** leitura de `takeWindows()` |
-| Ensaio no PC (T014) | **`falhas: 0`** nas quatro janelas; e mediu 6 cat → 9 subidas, 34 cat → **31** |
-| Pacote normal | **Sem** instrumentação: nenhum dos 6 marcadores em `dist/assets` |
-| `npm run test` | **3737/3737** (691 arquivos), sem flake |
-| **Fase 3 (a TV)** | **Pendente — pede autorização do usuário** |
+| `npm run test` | 3737/3737 antes do T026; a rodar de novo no Polish |
+| **SC-006 (a sonda)** | **CUMPRIDO** em **duas** rodadas independentes (`falhas = 0`) |
+| **O ALVO** | **NOMEADO**: `useCategoryPreviews` recria a consulta da janela a cada tecla (`catalogApi.ts:1774`) |
+| Evidência | `queriesN` **274**/janela (19,6 por tecla) contra `scrollsN` 6 e `idbTxN` 9; 41 → 33 fps quando sobe |
+| Virtualizador / `scrollToIndex` | **ELIMINADO** — `scrollsN` não correlaciona (40 → 40 fps) |
+| Pré-carga, capa, painel de medição | Eliminados (rodada 1 e feature 088) |
+| Orçamento de TV | **2 de 4 usadas**; as duas restantes são as de verificação do FR-005 |
+| Pacote normal | **Na TV**, sem marcador; nada desinstalado |
+| **Fase 4 (reduzir)** | **Pronta para começar**, com alvo e mecanismo |
 
 ## Riscos e Decisões
 
@@ -198,21 +200,33 @@ Testes da redução são escritos pelo executor em arquivos não travados, depoi
 | R-007 | **O flake de `progressRecorder.falhas.test.ts`** (1 em 2, herdado, arquivo não tocado por esta feature) | Suíte vermelha confundida com regressão | Rodar a suspeita isolada e a suíte duas vezes antes de culpar uma mudança |
 | R-008 | **O diagnóstico do `falhas = 2` estava com a mecânica errada** (descoberto pelo ensaio do T014): eu atribuí a profundidade ao número de `ArrowDown` da navegação; ela vem do **número de categorias** da lista | O primeiro conserto foi um literal (69) derivado da duração da janela — cobriria a TV de hoje e voltaria a falhar numa lista com 80 categorias | **Resolvido**: `passosAteTopbar()` deriva do DOM e escala com as categorias; o piso de 69 cobre a lista não montada. `logic` §2 corrigido com a tabela medida (6 cat → 9, 34 cat → 31) |
 | R-009 | **`createKeyDelayTracker` guarda a última tecla como semente** entre janelas, contrariando o que o T016 previa | Sem a semente, uma tarefa longa no início da janela seguinte viraria `atrasoSemTecla` e inflaria a faixa que aponta a causa para a abertura em vez da navegação | **Decidido e testado**: a semente fica, e o teste do T016 verifica o comportamento correto |
+| R-010 | **O padrão do atraso é bimodal, e o enriquecimento forte está ACIMA de 300 ms** (1,62× na navegação plena), não logo depois da tecla | Descarta trabalho síncrono com a tecla **e** trabalho periódico independente — as duas leituras simples que a tabela de `logic` §1 previa. O que sobra é trabalho que a navegação dispara e que transborda o intervalo entre teclas | **Aberto, e é o conteúdo do T022/T025**: separar as três candidatas (consultas por troca de foco, recálculo do virtualizador, leitura de IndexedDB) custa a rodada 2 de 4 |
+| R-011 | **A folga do orçamento de quatro rodadas foi consumida**, exatamente como o A-01 do handoff previu: 1 (atribuição) + 1 (medida nova) + 2 (verificação) = 4, sem sobra | Se a medida nova não bastar, não há rodada para uma terceira tentativa dentro do FR-010 | **Avisado ao usuário no momento certo**, como o A-01 mandava. Pedir uma 5ª rodada é decisão dele |
+| R-012 | **O alvo é a recriação da consulta da janela de previews a cada tecla** (`useCategoryPreviews`, `catalogApi.ts:1774`): a `queryKey` contém a lista de ids das categorias visíveis, então deslizar a janela cria consulta nova, dispara um `fetchQuery` por categoria e deixa a anterior órfã | 19,6 eventos de cache por tecla, e 8 fps de diferença entre as janelas com mais e menos eventos | **Nomeado, não resolvido**: é o alvo da Fase 4. A prova será o ganho em duas rodadas (FR-005); contagem não é cronometragem |
+| R-013 | **`useQueries` com observadores variáveis já foi tentado e falhou** — o comentário em `useCategoryPreviews` registra "Maximum update depth" numa descida longa | A solução óbvia (um observador por categoria) é justamente a que quebrou antes | **Registrado antes de começar a Fase 4**: a saída precisa ser uma chave **estável** ou agregação fora do React Query, não voltar ao `useQueries` |
 
 ## Execution Notes
 
 | Data | Fase/Story | Resumo | Pendência Principal |
 | --- | --- | --- | --- |
+| 2026-10-22 | Fase 3 (US1, rodada 2) | **O alvo foi nomeado**: `queriesN` 274/janela (19,6 por tecla) contra 6 e 9 dos outros contadores, com 41 → 33 fps. Mecanismo no código: a `queryKey` de `useCategoryPreviews` muda a cada tecla. **Virtualizador eliminado** | A prova é o ganho em duas rodadas (FR-005); restam exatamente duas (R-011) |
+| 2026-10-22 | Fase 3 (US1, TV) | Rodada 1 de 4. **SC-006 cumprido** (`falhas = 0`, Séries medida) e o invariante da soma validado no aparelho. Atribuição **bimodal** (1,62× acima de 300 ms); pré-carga e capa **eliminadas** | **O dono dos 93% segue sem nome** (R-010); a folga do orçamento foi consumida (R-011). T022/T025 são decisão do usuário |
 | 2026-10-22 | Fase 1 (Setup) | T001/T002: 5 contratos vermelhos pelos motivos registrados e as nove travas íntegras | Nenhuma |
 | 2026-10-22 | Fase 2 (Foundational) | T010–T017: `keyDelay` pronto, sonda consertada, 5/5 contratos verdes. **O ensaio no PC refutou a mecânica do meu diagnóstico** (R-008) e o conserto foi refeito para escalar com as categorias. Ensaio de ponta a ponta: **`falhas: 0`** nas quatro janelas | O SC-006 na lista real só vale no T020 — o PC não aprova desempenho |
 
-PRÓXIMO: **Fase 3 — a atribuição na TV (T020–T025)**. Pede **autorização do usuário** para instalar (rodada **1 de 4** do orçamento), e o T025 é **parada obrigatória**: se o alvo exigir Worker ou outro formato de gravação, a feature encerra pelo FR-011, e a decisão é dele.
+PRÓXIMO: **Fase 4 (T030–T041) — reduzir, com alvo nomeado.** Fazer a janela de previews parar de recriar a consulta a cada tecla, **sem** voltar ao `useQueries` que estourou antes (R-013). As duas rodadas restantes são as de verificação (FR-005): ganho que não aparecer nas duas **sai**.
 
 ## Arquivos Principais
 
 <!-- Preenchido pelo sdd-execute. -->
 
 ## Cuidados para Retomada
+
+- **`features/catalog/catalogApi.ts` é grande e tem teto no ratchet** — confira antes de acrescentar linhas lá para a Fase 4; pode exigir extração.
+- **O `PerfOverlay` está FORA do `QueryClientProvider`** (`main.tsx:67` contra `:61`): instrumentação que precisa do cache de consultas é instalada no `main.tsx`, não no painel.
+
+- **Nunca leia a distribuição do atraso pela proporção bruta**: as faixas têm larguras diferentes (50, 100, 150 ms e o resto do intervalo entre teclas). Normalize pela largura, senão a faixa 150–300 parece a maior quando é a **mais pobre** (0,72×).
+- **Separe as janelas por `teclaN` antes de concluir.** O enriquecimento acima de 300 ms é 1,62× na navegação plena e 1,07× com pouca tecla: sem essa separação, a conclusão viraria "é artefato das pausas da sonda".
 
 - **Ao ensaiar no PC, confirme a PORTA do dev.** O Vite cai para 5174 quando a 5173 está ocupada, e um ensaio rodado contra o dev antigo testa o app **sem** instrumentação — foi o que aconteceu na primeira tentativa do T014, e o coletor não recebeu nada. Mate as portas antes (`Get-NetTCPConnection -LocalPort 5173,5174,8770`).
 - **A profundidade da vitrine escala com o número de categorias da lista**, não com quantas vezes a navegação desceu: 6 categorias → 9 subidas até a topbar, 34 → 31 (medido). Qualquer limite fixo de passos volta a falhar numa lista maior.
