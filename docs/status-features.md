@@ -1451,6 +1451,7 @@ preservado aqui, com os mesmos números que o painel mostrava.
 | epg-guia-completo-no-renderiza-grade | EPG guia completo não renderiza a grade | Test | verified | Concluído | 2026-10-18 |
 | fixture-antiga-catlogo-blocos-acessa-blockitems | Fixture antiga do catálogo em blocos acessa `block.items` | Test | verified | Concluído | 2026-10-18 |
 | sincronizar-agora-epg-fica-sincronizando-sem | "Sincronizar agora" do EPG fica "Sincronizando" sem terminar na lista real da TV | Test | verified | Concluído | 2026-10-20 |
+| url-do-stream-no-src-do-video-de-dev | URL do stream no `src` do `<video>` de dev | Test | verified | Concluído | 2026-10-22 (reaberto e fechado: a ressalva de HTTP real caiu — a tentativa anterior usava `about:blank`, cross-origin, e falhava até no controle) |
 
 ### Melhorias ad-hoc já aplicadas (29)
 

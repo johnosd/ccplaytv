@@ -1,8 +1,8 @@
 # Bug Test: URL do stream no `src` do `<video>` de dev
 
 - **Slug**: url-do-stream-no-src-do-video-de-dev
-- **Data**: 2026-10-05
-- **Result**: partial
+- **Data**: 2026-10-05, reaberto e concluído em 2026-10-22
+- **Result**: verified
 
 ## Checagens
 
@@ -25,3 +25,34 @@ O sintoma (URL no atributo `src`) não reproduz mais, confirmado pelo E2E 058 e 
 ## Recomendação
 
 Segurar até um teste manual rápido no `npm run dev` com um filme `.mp4` real (play, pausa, seek). Sem regressão observada.
+
+## Reabertura de 2026-10-22 — a ressalva caiu
+
+A ressalva que manteve o veredito `partial` era: *"a reprodução nativa por HTTP de um `.mp4` real após a remoção do
+atributo não foi comprovada (só com `blob:`)"*. Era a dúvida certa, porque é no HTTP que o navegador faz requisições de
+**range** depois do `loadstart` — exatamente o momento em que o atributo deixa de existir.
+
+**Por que a tentativa anterior ficou inconclusiva** (`not-run`, "a sonda por servidor HTTP falhou também no controle,
+error.code 4"): a página de teste era `about:blank`, cuja origem é `null`. O `<video>` carregando de `http://127.0.0.1`
+ficava **cross-origin**, e o Chromium devolvia `MEDIA_ERR_SRC_NOT_SUPPORTED` (código 4) com ou sem a remoção — não era
+limitação da correção, era erro de método. Servindo a página do **mesmo** servidor, o controle passa a reproduzir.
+
+Verificação (Playwright + servidor HTTP com suporte a `Range`, mídia VP8/Vorbis porque o Chromium do Playwright não
+traz H.264/AAC — o `.mp4` dá código 4 mesmo no controle):
+
+| Checagem | Com a correção | Controle (sem remover) |
+| --- | --- | --- |
+| `getAttribute('src')` depois do `loadstart` | **`null`** | `/filme.webm` |
+| URL presente no HTML | **não** | sim |
+| `loadedmetadata` por HTTP | **sim** | sim |
+| Play avança (`currentTime` cresce) | **sim** | sim |
+| Pausa | **sim** | sim |
+| **Seek** (força range novo após a remoção) | **sim**, parou em 8,4 s | sim |
+| Erros de mídia | **nenhum** | nenhum |
+
+O controle reproduzindo é o que torna o resultado válido: prova que servidor e mídia servem, e que a remoção do
+atributo **não** é o que impede nada.
+
+**Result: `verified`.** O que permanece fora de escopo, como já estava: `currentSrc` continua expondo a URL a
+JavaScript (não é DOM nem UI), e nada disto roda na TV — o adaptador `<video>` é só de desenvolvimento; na TV a
+reprodução é por AVPlay (ADR-001).

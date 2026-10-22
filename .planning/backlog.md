@@ -97,10 +97,26 @@ Só o que está **pendente**, na ordem sugerida de execução. O que foi entregu
 
 ## Bugs
 
+Triagem de 2026-10-22 (os 11 que restavam). **A coluna "Próximo Passo" é derivada do campo `Result:` do `test.md`**,
+então ela não sabe distinguir "ressalva aberta" de "fechado por decisão com ressalva" — e o veredito **não** é inflado
+para limpar o painel. O estado real:
+
+- **Fechados por decisão, veredito mantido de propósito** — não há o que fazer neles:
+  `epg-manual-falha-ao-salvar-epg-02` (2026-10-05: escopo reduzido a melhorar a mensagem; a causa é do servidor do EPG
+  e o app não a elimina) · `epg-nao-atualiza-depois-primeira-carga` (**superado**: foi reaberto como
+  `epg-vinculado-recente-mas-guia-vazio`) · `epg-vinculado-recente-mas-guia-vazio` (2026-10-15: a TV voltou a mostrar
+  o guia e o "Agora").
+- **Esperam só confirmação na TV**, com a correção aplicada e testes verdes — roteiro único em
+  `sdd/bugs/ROTEIRO-TV-2026-10-22.md`, uma instalação fecha os seis: `foco-some-ao-descer-na-lista` ·
+  `ch-mais-menos-nao-trocam-canal` · `live-tv-carregando-durante-reproducao` ·
+  `trailer-setas-horizontais-avancam-video-vez` · `lista-xtream-nao-atualiza-novos-filmes` ·
+  `guide-epg-demorando-carregar-na-tela`.
+- **Falta trabalho de verdade**: `armazenamento-app-cheio-na-tv-impede` — a fase Test inteira (medição com a sonda e
+  confirmação na TV), e o cenário só reproduz com o armazenamento do app cheio.
+
 | Slug | Título | Fase Atual | Veredito/Status | Próximo Passo | Última Atualização |
 | --- | --- | --- | --- | --- | --- |
 | epg-manual-falha-ao-salvar-epg-02 | EPG manual falha com EPG-02 embora o navegador baixe o XML | Test | partial | Concluído (com ressalva) ou reabrir Assess | 2026-10-05 |
-| url-do-stream-no-src-do-video-de-dev | URL do stream no `src` do `<video>` de dev | Test | partial | Concluído (com ressalva) ou reabrir Assess | 2026-10-05 |
 | foco-some-ao-descer-na-lista | Foco some ao descer na lista de episódios do detalhe da série | Test | partial | Concluído (com ressalva) ou reabrir Assess | 2026-10-05 |
 | lista-xtream-nao-atualiza-novos-filmes | Lista Xtream não traz filmes/séries/canais novos ao abrir o app | Test | partial | Concluído (com ressalva) ou reabrir Assess | 2026-10-09 |
 | epg-nao-atualiza-depois-primeira-carga | EPG não atualiza depois da primeira carga | Test | failed | Reabrir fase Assess com evidência nova | 2026-10-10 |
