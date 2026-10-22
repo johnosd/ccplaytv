@@ -17,6 +17,7 @@ import { readExternalRow, writeExternalRow } from './showcaseRows'
 import { toShowcaseItem } from './showcaseSelection'
 import { isSectionLoadActive } from './loadActivity'
 import { isFirstRevealDone } from '../assembly/firstReveal'
+import { emitMetric } from '../perf/metricsChannel'
 import {
   matchDiscoveryTitlesAsync,
   selectTip,
@@ -161,11 +162,19 @@ export async function refreshExternalRow(
   if (result.stale) return false
 
   // 4. O índice do tipo. Catálogo vazio: não há com o que casar.
+  //
+  // As duas medidas abaixo existem para o assessment `tarefa-longa-na-leitura-categoria-gorda`: na TV sobra um quadro
+  // congelado de ~900 ms sem causa identificada, e saber **qual etapa** custa separa o índice do casamento. Só números.
+  const indexStartedAt = performance.now()
   const records = await (options.index?.() ?? buildKindIndex(sourceId, kind, database, signal))
+  const indexMs = Math.round(performance.now() - indexStartedAt)
   if (records.length === 0) return false
 
   // 5. Casar e selecionar — as funções da 057, sem nenhuma regra nova.
+  const matchStartedAt = performance.now()
   const matches = await matchDiscoveryTitlesAsync(result.titles, records, READ, { yieldFn: yieldToMain, signal })
+  emitMetric({ source: 'showcase', kind, indexMs, indexItems: records.length,
+    matchMs: Math.round(performance.now() - matchStartedAt), matched: matches.length })
   const chosen: Array<{ local: CatalogRecord; rank?: number }> = row === 'top10'
     ? selectTop10(matches)
     // A semente tem de ser a mesma da tela de hoje, senão a Dica muda de título (logic §4).

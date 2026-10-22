@@ -18,7 +18,13 @@ import {
 } from './screenDocument'
 
 const SOURCE = 'fonte-aviso'
-const NOW = Date.UTC(2026, 9, 21, 12)
+/**
+ * O instante real, não uma data fixa: o documento de tela é validado **pelo dia** na leitura, e
+ * `refreshMissingScreenDocuments` o regrava com o relógio real (sem injeção de instante, de propósito — é a
+ * fila de 2º plano chamando). Com data fixa, estes testes passavam só no dia em que foram escritos: quebraram
+ * na virada de 2026-10-21 para 22.
+ */
+const NOW = Date.now()
 
 let database: CatalogDb
 

@@ -1,5 +1,6 @@
 import { useEffect, useState, useSyncExternalStore } from 'react'
 import { createActiveFrameTracker, type ActiveFrameStats } from '../lib/perf/activeFrames'
+import { createLongTaskTracker } from '../lib/perf/longTasks'
 import { subscribeEntryReports, takeEntryReports, type EntryReport } from '../lib/perf/entryTiming'
 import { emitMetric } from '../lib/perf/metricsChannel'
 import { probeBudget } from '../lib/catalog/storageBudget'
@@ -29,6 +30,9 @@ export function PerfOverlay() {
     const mountedAt = performance.now()
     let lastKey = mountedAt
     const tracker = createActiveFrameTracker()
+    // Assessment `tarefa-longa-na-leitura-categoria-gorda`: distingue quadro longo POR código nosso de quadro longo
+    // por pausa de memória. Agregado na mesma janela dos quadros, para não inundar o canal.
+    const longTasks = createLongTaskTracker()
     const onKey = () => { lastKey = performance.now(); tracker.onKey(lastKey) }
     const refresh = window.setInterval(() => setKeyedFrames(tracker.snapshot(performance.now())), 500)
     window.addEventListener('keydown', onKey, true)
@@ -44,7 +48,9 @@ export function PerfOverlay() {
     const report = window.setInterval(() => {
       const keyed = tracker.snapshot(performance.now())
       peakHeap = Math.max(peakHeap, heapNow())
+      const longas = longTasks.snapshot()
       emitMetric({ source: 'frames', slow, idleSlow, ...(keyed ? { fps: keyed.fps, worstMs: keyed.worstMs, over50: keyed.over50 } : {}),
+        ...(longas ?? {}),
         ...(peakHeap > 0 ? { heapMB: Math.round(peakHeap / 1048576), heapNowMB: Math.round(heapNow() / 1048576) } : {}) })
     }, 5_000)
     // Feature 085/082: o orçamento medido sem gravar nada, 3× (20 s, 80 s e 140 s depois de abrir), para ter as etapas
@@ -72,7 +78,7 @@ export function PerfOverlay() {
       frame = requestAnimationFrame(tick)
     }
     frame = requestAnimationFrame(tick)
-    return () => { active = false; cancelAnimationFrame(frame); window.clearInterval(refresh); window.clearInterval(report); budgetTimers.forEach((timer) => window.clearTimeout(timer)); window.removeEventListener('keydown', onKey, true) }
+    return () => { active = false; cancelAnimationFrame(frame); window.clearInterval(refresh); window.clearInterval(report); budgetTimers.forEach((timer) => window.clearTimeout(timer)); window.removeEventListener('keydown', onKey, true); longTasks.dispose() }
   }, [])
   const last = reports.slice(-6)
   // A entrada mais recente que já pintou a 1ª página (SC-002 é lido na TV a cada entrada).
