@@ -1,7 +1,7 @@
 {
   "candidate": {
     "variant": "commercial",
-    "revision": "011597a98d18a370a8349fb2c216acb5790c8873",
+    "revision": "b700d0598f3f50d750a0a5d73264720cab5d020b",
     "dirtyPaths": [
       ".planning/backlog.md",
       "logs/tizen-mcp.log",
@@ -311,5 +311,5 @@
       "revision"
     ]
   },
-  "generatedAt": "2026-10-23T21:13:57.998Z"
+  "generatedAt": "2026-10-23T21:17:34.449Z"
 }

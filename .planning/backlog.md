@@ -19,7 +19,7 @@ Só o que está **pendente**, na ordem sugerida de execução. O que foi entregu
 | --- | --- | --- | --- | --- |
 | 043-gostei-filmes-series | "Gostei" em filmes e séries | Especificada | N/A | 2026-10-01 |
 | 078-prontidao-publicacao-samsung | Prontidão para publicação do app Samsung TV | Em Execução | 64/67 tasks | 2026-10-23 |
-| 081-venda-producao-mercadopago | Venda em produção com Mercado Pago | Em Execução | 34/56 tasks | 2026-10-17 |
+| 081-venda-producao-mercadopago | Venda em produção com Mercado Pago | Em Execução | 37/56 tasks | 2026-10-23 |
 
 ## Bugs
 
