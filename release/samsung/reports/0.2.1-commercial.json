@@ -1,33 +1,9 @@
 {
   "candidate": {
     "variant": "commercial",
-    "revision": "b700d0598f3f50d750a0a5d73264720cab5d020b",
+    "revision": "6d2aa0487488c36367bc7c3d5bb2fa4ccd7614dc",
     "dirtyPaths": [
-      ".planning/backlog.md",
-      "logs/tizen-mcp.log",
-      "logs/tizen-simulator-mcp.log",
-      "tv-web/metadata-tmdb-falha.png",
-      "tv-web/test-results/carrosseis-filmes-series/01-hero-filmes.png",
-      "tv-web/test-results/carrosseis-filmes-series/02-primeira-fileira.png",
-      "tv-web/test-results/carrosseis-filmes-series/03-carrossel-longo.png",
-      "tv-web/test-results/carrosseis-filmes-series/04-lista-recolhida.png",
-      "tv-web/test-results/carrosseis-filmes-series/04b-lista-expandida.png",
-      "tv-web/test-results/carrosseis-filmes-series/05-hero-series.png",
-      "tv-web/test-results/carrosseis-filmes-series/05b-categorias-series.png",
-      "tv-web/test-results/carrosseis-filmes-series/06-fim-da-pilha.png",
-      "tv-web/test-results/categorias-controle-parental/03-sugestao-adulta.png",
-      "tv-web/test-results/categorias-controle-parental/04-trilha-cadeado.png",
-      "tv-web/test-results/classificacao-nota-tmdb/02-card-expandido.png",
-      "tv-web/test-results/detalhe-cinema/02-icone-focado.png",
-      "tv-web/test-results/detalhe-cinema/04-player.png",
-      "tv-web/test-results/headers-catchup/a-info-tecnica.png",
-      "tv-web/test-results/headers-catchup/b-arquivo-tocando.png",
-      "tv-web/test-results/headers-catchup/b-do-inicio.png",
-      "tv-web/test-results/headers-catchup/b-guia-arquivo.png",
-      "tv-web/test-results/headers-catchup/b-selo-previa.png",
-      "tv-web/test-results/home-vitrine-expandida/01-billboard-expandido.png",
-      "tv-web/test-results/home-vitrine-expandida/02-card-expandido.png",
-      "tv-web/test-results/home-vitrine-expandida/03-fileira-focada.png"
+      "logs/tizen-simulator-mcp.log"
     ],
     "buildMode": "commercial",
     "version": "0.2.1",
@@ -42,33 +18,9 @@
     {
       "id": "INT-CAND-TREE",
       "status": "Blocked",
-      "detail": "árvore de trabalho com 50 alteração(ões) não commitada(s)",
+      "detail": "árvore de trabalho com 1 alteração(ões) não commitada(s)",
       "paths": [
-        ".planning/backlog.md",
-        "logs/tizen-mcp.log",
-        "logs/tizen-simulator-mcp.log",
-        "tv-web/metadata-tmdb-falha.png",
-        "tv-web/test-results/carrosseis-filmes-series/01-hero-filmes.png",
-        "tv-web/test-results/carrosseis-filmes-series/02-primeira-fileira.png",
-        "tv-web/test-results/carrosseis-filmes-series/03-carrossel-longo.png",
-        "tv-web/test-results/carrosseis-filmes-series/04-lista-recolhida.png",
-        "tv-web/test-results/carrosseis-filmes-series/04b-lista-expandida.png",
-        "tv-web/test-results/carrosseis-filmes-series/05-hero-series.png",
-        "tv-web/test-results/carrosseis-filmes-series/05b-categorias-series.png",
-        "tv-web/test-results/carrosseis-filmes-series/06-fim-da-pilha.png",
-        "tv-web/test-results/categorias-controle-parental/03-sugestao-adulta.png",
-        "tv-web/test-results/categorias-controle-parental/04-trilha-cadeado.png",
-        "tv-web/test-results/classificacao-nota-tmdb/02-card-expandido.png",
-        "tv-web/test-results/detalhe-cinema/02-icone-focado.png",
-        "tv-web/test-results/detalhe-cinema/04-player.png",
-        "tv-web/test-results/headers-catchup/a-info-tecnica.png",
-        "tv-web/test-results/headers-catchup/b-arquivo-tocando.png",
-        "tv-web/test-results/headers-catchup/b-do-inicio.png",
-        "tv-web/test-results/headers-catchup/b-guia-arquivo.png",
-        "tv-web/test-results/headers-catchup/b-selo-previa.png",
-        "tv-web/test-results/home-vitrine-expandida/01-billboard-expandido.png",
-        "tv-web/test-results/home-vitrine-expandida/02-card-expandido.png",
-        "tv-web/test-results/home-vitrine-expandida/03-fileira-focada.png"
+        "logs/tizen-simulator-mcp.log"
       ],
       "nextAction": "commitar ou descartar as alterações e gerar o candidato de novo"
     },
@@ -253,10 +205,9 @@
     },
     {
       "id": "INT-EVD-BUILD",
-      "status": "Blocked",
-      "detail": "roteiro não passou (local · 2026-10-23)",
-      "owner": "release-gate --record-local",
-      "nextAction": "corrigir e repetir o roteiro"
+      "status": "Pass",
+      "detail": "local · 2026-10-23",
+      "owner": "release-gate --record-local"
     },
     {
       "id": "INT-EVD-E2E",
@@ -302,7 +253,6 @@
     "SAM-KIT-TESTACCESS",
     "INT-CAND-TREE",
     "INT-SEC-CUSTODY",
-    "INT-EVD-BUILD",
     "INT-EVD-EMULATOR"
   ],
   "stale": {
@@ -311,5 +261,5 @@
       "revision"
     ]
   },
-  "generatedAt": "2026-10-23T21:17:34.449Z"
+  "generatedAt": "2026-10-23T21:25:59.001Z"
 }

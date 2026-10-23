@@ -3,7 +3,7 @@
   "candidate": {
     "version": "0.2.1",
     "variant": "commercial",
-    "revision": "b700d0598f3f50d750a0a5d73264720cab5d020b",
+    "revision": "6d2aa0487488c36367bc7c3d5bb2fa4ccd7614dc",
     "wgtSha256": "4ec4277b7d0b96d028c6bb2a449bbef789eed1da29a25b948dc0b8c4117c7d2c"
   },
   "environment": "local",
