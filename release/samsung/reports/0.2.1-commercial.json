@@ -1,22 +1,28 @@
 {
   "candidate": {
     "variant": "commercial",
-    "revision": "195a6d4b34334128ddfd06589fd564df018310ef",
-    "dirtyPaths": [],
+    "revision": "d93bc7bea9dbd2d511972062502ba7472606f8eb",
+    "dirtyPaths": [
+      "docs/files/App_Description_template_eng_v.1.42.pptx"
+    ],
     "buildMode": "commercial",
     "version": "0.2.1",
     "wgtSha256": "4ec4277b7d0b96d028c6bb2a449bbef789eed1da29a25b948dc0b8c4117c7d2c",
-    "dirty": false
+    "dirty": true
   },
   "kit": {
     "kitVersion": "0.2.1",
-    "manifestSha256": "ea2f9237f866c6e95d332212b3bf9a0a36e14b5e2d22fd3631246cca8444124d"
+    "manifestSha256": "6b0e5ad273f2df4fc8a939447b0c14bb4d0f5b2fc687df7bf3aae432d838bb2f"
   },
   "results": [
     {
       "id": "INT-CAND-TREE",
-      "status": "Pass",
-      "detail": "árvore limpa na revisão do candidato"
+      "status": "Blocked",
+      "detail": "árvore de trabalho com 1 alteração(ões) não commitada(s)",
+      "paths": [
+        "docs/files/App_Description_template_eng_v.1.42.pptx"
+      ],
+      "nextAction": "commitar ou descartar as alterações e gerar o candidato de novo"
     },
     {
       "id": "INT-CAND-HASH",
@@ -176,7 +182,7 @@
       "status": "Pending",
       "detail": "item ainda não entregue",
       "owner": "release",
-      "nextAction": "definir a lista de teste autorizada, guardar o segredo no cofre e registrar validUntil em demo-access.md"
+      "nextAction": "publicar bridge/teste/ (merge na main), conferir a URL da lista e mudar o status para Pass"
     },
     {
       "id": "INT-KIT-SECRETS",
@@ -241,14 +247,16 @@
   "decision": "Blocked",
   "blockers": [
     "SAM-KIT-TESTACCESS",
+    "INT-CAND-TREE",
     "INT-SEC-CUSTODY",
     "INT-EVD-EMULATOR"
   ],
   "stale": {
     "stale": true,
     "reasons": [
-      "revision"
+      "revision",
+      "kit"
     ]
   },
-  "generatedAt": "2026-10-23T22:03:14.337Z"
+  "generatedAt": "2026-10-23T22:48:00.594Z"
 }
