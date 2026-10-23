@@ -4,6 +4,7 @@
   Documento público estático (ADR-012, atualização da feature 078): o app nunca carrega esta
   página. Sem script, sem cookie, sem analytics, sem recurso de terceiro.
   R-015 (2026-10-17): descreve a versão distribuída, a comercial — portal e licença fazem parte dela.
+  2026-10-23: legendas externas (090) e chave de legenda pelo portal (091); seção em coreano (#ko) pedida pelo Seller Office.
 -->
 <html lang="pt-BR">
 <head>
@@ -36,11 +37,12 @@
     <a href="#pt" hreflang="pt">Português</a>
     <a href="#en" hreflang="en">English</a>
     <a href="#es" hreflang="es">Español</a>
+    <a href="#ko" hreflang="ko">한국어</a>
   </nav>
 
   <section id="pt" lang="pt-BR">
     <h2>Política de privacidade</h2>
-    <p class="muted">Atualizada em 17 de outubro de 2026.</p>
+    <p class="muted">Atualizada em 23 de outubro de 2026.</p>
 
     <p>O CCPlayTV é um player para playlists Xtream/M3U que a própria pessoa já possui. O aplicativo não inclui
       conteúdo, não exige conta pessoal (nome, e-mail ou senha do CCPlayTV) e não usa publicidade, analytics,
@@ -51,7 +53,7 @@
     <p>Ficam no armazenamento local da TV (IndexedDB e armazenamento do aplicativo): as listas adicionadas e suas
       credenciais (servidor, usuário, senha ou URL M3U), o catálogo importado, favoritos, histórico, posição para
       retomar, preferências (idioma, categorias ocultas), os PINs de controle dos pais (guardados como hash), a chave
-      TMDB da própria pessoa (se informada), o pareamento com o portal e o estado da licença e do teste. Credenciais e
+      TMDB e a chave de legenda (OpenSubtitles ou SubDL) da própria pessoa (se informadas), o pareamento com o portal e o estado da licença e do teste. Credenciais e
       chaves nunca aparecem em telas, mensagens de erro ou registros.</p>
 
     <h3>O que sai da TV e para quem</h3>
@@ -62,16 +64,21 @@
         o título pesquisado para devolver capas e sinopses.</li>
       <li><strong>Radio Browser</strong> (diretório público de rádios): ao abrir Rádio, recebe o código do país; ao
         tocar uma estação, o identificador dela. O áudio vem da própria estação.</li>
+      <li><strong>Legendas (OpenSubtitles e SubDL)</strong>: só quando a pessoa pede para buscar legenda no player.
+        A busca passa pelo serviço do portal do CCPlayTV, que usa a chave dele e envia ao fornecedor apenas o idioma e
+        o título, o ano, a temporada e o episódio (ou o identificador do TMDB) — nunca a lista, as credenciais nem o
+        endereço do vídeo. Se a pessoa informar a própria chave de legenda, a TV fala direto com o fornecedor, e essa
+        chave só é enviada a ele.</li>
       <li><strong>YouTube</strong>: ao pedir um trailer, o identificador do vídeo é aberto numa página estática do
         próprio projeto (GitHub Pages) que carrega o player do YouTube, sujeito à política do Google.</li>
       <li><strong>Cloudflare</strong>: só quando a pessoa roda o teste de conexão em Ajustes; envia e recebe dados
         sem significado gerados pelo app para medir a velocidade.</li>
       <li><strong>Serviço do portal do CCPlayTV</strong> (hospedado no Google Cloud): só por ação da pessoa — botão
-        Atualizar, criar, editar ou excluir uma lista, fazer backup, ver ou comprar a licença. Recebe um
+        Atualizar, criar, editar ou excluir uma lista, fazer backup, buscar legenda, ver ou comprar a licença. Recebe um
         identificador da TV (derivado do identificador do aparelho e guardado só como resumo criptográfico) e, quando
         a TV permite, o endereço MAC, que vira o ID mostrado na tela; as listas com suas credenciais, cifradas; o
         backup de uso, cifrado (favoritos, histórico, progresso, preferências, PIN em hash, chave TMDB); o código de
-        recuperação, cifrado; e o estado da licença. Nada é consultado automaticamente em segundo plano.</li>
+        recuperação, cifrado; as chaves pessoais enviadas pelo site (TMDB e legendas), cifradas e apagadas quando a TV as aplica ou em até 7 dias; e o estado da licença. Nada é consultado automaticamente em segundo plano.</li>
       <li><strong>Mercado Pago</strong>: só quando a pessoa compra a licença. Pelo Pix na TV, o serviço envia ao
         Mercado Pago o valor e um e-mail técnico gerado a partir do identificador da TV — sem nome, e-mail ou
         documento da pessoa. Pelo site, a pessoa paga na página do Mercado Pago. Os dados do pagamento ficam com o
@@ -83,7 +90,7 @@
     <p>O site do portal é aberto pelo QR ou pelo ID e pela chave mostrados na TV. Ele usa um único cookie de sessão,
       essencial para manter a TV conectada, que expira em poucas horas; não usa cookies de publicidade nem
       analytics. No próprio navegador ficam só os dados da sessão da aba aberta e, para facilitar a próxima entrada,
-      o último ID de TV digitado. A chave TMDB digitada no site vai cifrada ao serviço e só é entregue à TV quando a pessoa aperta
+      o último ID de TV digitado. A chave TMDB ou de legenda digitada no site vai cifrada ao serviço e só é entregue à TV quando a pessoa aperta
       Atualizar.</p>
 
     <h3>Retenção e exclusão</h3>
@@ -94,6 +101,8 @@
         registro da TV e a licença continuam no serviço para que a mesma TV possa se vincular de novo.</li>
       <li>Cópias de segurança do serviço são mantidas por até 7 dias; registros de operação, sem credenciais, por até
         30 dias.</li>
+      <li>A chave TMDB ou de legenda enviada pelo site é apagada do serviço assim que a TV a aplica ou a recusa, ou em
+        até 7 dias. Ela não entra no backup de uso.</li>
       <li>Para acessar ou apagar os dados guardados no serviço, escreva para o contato abaixo.</li>
     </ul>
 
@@ -103,7 +112,7 @@
 
   <section id="en" lang="en">
     <h2>Privacy policy</h2>
-    <p class="muted">Updated October 17, 2026.</p>
+    <p class="muted">Updated October 23, 2026.</p>
 
     <p>CCPlayTV is a player for Xtream/M3U playlists the person already has. The app includes no content, requires no
       personal account (no CCPlayTV name, e-mail or password) and uses no advertising, analytics, tracking or cookies.
@@ -113,7 +122,7 @@
     <h3>What stays on the TV</h3>
     <p>Stored in the TV's local storage (IndexedDB and app storage): the lists you add and their credentials (server,
       username, password or M3U URL), the imported catalog, favorites, history, resume positions, preferences
-      (language, hidden categories), parental-control PINs (stored as a hash), your own TMDB key (if provided), the
+      (language, hidden categories), parental-control PINs (stored as a hash), your own TMDB key and subtitle key (OpenSubtitles or SubDL, if provided), the
       portal pairing and the license and trial status. Credentials and keys never appear on screens, in error
       messages or in logs.</p>
 
@@ -125,16 +134,21 @@
         searched title to return posters and synopses.</li>
       <li><strong>Radio Browser</strong> (public radio directory): when you open Radio, receives the country code;
         when you play a station, its identifier. The audio comes from the station itself.</li>
+      <li><strong>Subtitles (OpenSubtitles and SubDL)</strong>: only when you ask to search for a subtitle in the
+        player. The search goes through the CCPlayTV portal service, which uses its own key and sends the provider only
+        the language and the title, year, season and episode (or the TMDB identifier) — never your list, credentials
+        or the video address. If you enter your own subtitle key, the TV talks to the provider directly, and that key
+        is sent only to it.</li>
       <li><strong>YouTube</strong>: when you ask for a trailer, the video identifier is opened on a static page of
         this project (GitHub Pages) that loads the YouTube player, subject to Google's policy.</li>
       <li><strong>Cloudflare</strong>: only when you run the connection test in Settings; it sends and receives
         meaningless data generated by the app to measure speed.</li>
       <li><strong>The CCPlayTV portal service</strong> (hosted on Google Cloud): only by your action — the Refresh
-        button, creating, editing or deleting a list, making a backup, viewing or buying the license. It receives a
+        button, creating, editing or deleting a list, making a backup, searching for a subtitle, viewing or buying the license. It receives a
         TV identifier (derived from the device identifier and stored only as a cryptographic digest) and, when the TV
         allows it, the MAC address, which becomes the ID shown on screen; the lists and their credentials, encrypted;
         the usage backup, encrypted (favorites, history, progress, preferences, hashed PIN, TMDB key); the recovery
-        code, encrypted; and the license status. Nothing is queried automatically in the background.</li>
+        code, encrypted; the personal keys sent from the website (TMDB and subtitles), encrypted and deleted once the TV applies them or within 7 days; and the license status. Nothing is queried automatically in the background.</li>
       <li><strong>Mercado Pago</strong>: only when you buy the license. With Pix on the TV, the service sends Mercado
         Pago the amount and a technical e-mail generated from the TV identifier — no name, e-mail or document of
         yours. On the website, you pay on Mercado Pago's page. Payment data stays with Mercado Pago and the bank,
@@ -146,7 +160,7 @@
     <p>The portal website is opened with the QR code or the ID and key shown on the TV. It uses a single session
       cookie, essential to keep the TV connected, which expires within a few hours; it uses no advertising or
       analytics cookies. The browser itself only keeps the session data of the open tab and, to make the next
-      sign-in easier, the last TV ID typed. A TMDB key typed on the website goes encrypted to the service and is only delivered to the
+      sign-in easier, the last TV ID typed. A TMDB or subtitle key typed on the website goes encrypted to the service and is only delivered to the
       TV when you press Refresh.</p>
 
     <h3>Retention and deletion</h3>
@@ -157,6 +171,8 @@
         record and the license stay in the service so the same TV can link again.</li>
       <li>Service backup copies are kept for up to 7 days; operation records, without credentials, for up to
         30 days.</li>
+      <li>A TMDB or subtitle key sent from the website is deleted from the service as soon as the TV applies or
+        rejects it, or within 7 days. It is not part of the usage backup.</li>
       <li>To access or delete data kept in the service, write to the contact below.</li>
     </ul>
 
@@ -166,7 +182,7 @@
 
   <section id="es" lang="es">
     <h2>Política de privacidad</h2>
-    <p class="muted">Actualizada el 17 de octubre de 2026.</p>
+    <p class="muted">Actualizada el 23 de octubre de 2026.</p>
 
     <p>CCPlayTV es un reproductor para playlists Xtream/M3U que la propia persona ya tiene. La aplicación no incluye
       contenido, no exige cuenta personal (nombre, correo ni contraseña de CCPlayTV) y no usa publicidad, analítica,
@@ -177,7 +193,7 @@
     <p>Se guardan en el almacenamiento local del televisor (IndexedDB y almacenamiento de la aplicación): las listas
       que agregas y sus credenciales (servidor, usuario, contraseña o URL M3U), el catálogo importado, favoritos,
       historial, posición para reanudar, preferencias (idioma, categorías ocultas), los PIN de control parental
-      (guardados como hash), tu propia clave de TMDB (si la ingresas), el emparejamiento con el portal y el estado de
+      (guardados como hash), tu propia clave de TMDB y de subtítulos (OpenSubtitles o SubDL, si las ingresas), el emparejamiento con el portal y el estado de
       la licencia y de la prueba. Las credenciales y claves nunca aparecen en pantallas, mensajes de error ni
       registros.</p>
 
@@ -189,17 +205,22 @@
         título buscado para devolver carátulas y sinopsis.</li>
       <li><strong>Radio Browser</strong> (directorio público de radios): al abrir Radio, recibe el código del país;
         al reproducir una estación, su identificador. El audio proviene de la propia estación.</li>
+      <li><strong>Subtítulos (OpenSubtitles y SubDL)</strong>: solo cuando pides buscar un subtítulo en el
+        reproductor. La búsqueda pasa por el servicio del portal de CCPlayTV, que usa su propia clave y envía al
+        proveedor únicamente el idioma y el título, el año, la temporada y el episodio (o el identificador de TMDB) —
+        nunca tu lista, tus credenciales ni la dirección del video. Si ingresas tu propia clave de subtítulos, el
+        televisor habla directamente con el proveedor, y esa clave solo se le envía a él.</li>
       <li><strong>YouTube</strong>: al pedir un tráiler, el identificador del video se abre en una página estática
         del propio proyecto (GitHub Pages) que carga el reproductor de YouTube, sujeto a la política de Google.</li>
       <li><strong>Cloudflare</strong>: solo cuando ejecutas la prueba de conexión en Ajustes; envía y recibe datos
         sin significado generados por la aplicación para medir la velocidad.</li>
       <li><strong>El servicio del portal de CCPlayTV</strong> (alojado en Google Cloud): solo por acción de la persona
-        — botón Actualizar, crear, editar o eliminar una lista, hacer una copia de seguridad, ver o comprar la
+        — botón Actualizar, crear, editar o eliminar una lista, hacer una copia de seguridad, buscar un subtítulo, ver o comprar la
         licencia. Recibe un identificador del televisor (derivado del identificador del aparato y guardado solo como
         resumen criptográfico) y, cuando el televisor lo permite, la dirección MAC, que se convierte en el ID que se
         muestra en pantalla; las listas con sus credenciales, cifradas; la copia de seguridad de uso, cifrada
         (favoritos, historial, progreso, preferencias, PIN en hash, clave de TMDB); el código de recuperación, cifrado;
-        y el estado de la licencia. Nada se consulta automáticamente en segundo plano.</li>
+        las claves personales enviadas desde el sitio (TMDB y subtítulos), cifradas y borradas cuando el televisor las aplica o en un máximo de 7 días; y el estado de la licencia. Nada se consulta automáticamente en segundo plano.</li>
       <li><strong>Mercado Pago</strong>: solo cuando compras la licencia. Con Pix en el televisor, el servicio envía a
         Mercado Pago el importe y un correo técnico generado a partir del identificador del televisor — sin nombre,
         correo ni documento de la persona. En el sitio, pagas en la página de Mercado Pago. Los datos del pago quedan
@@ -211,7 +232,7 @@
     <p>El sitio del portal se abre con el QR o con el ID y la clave que muestra el televisor. Usa una sola cookie de
       sesión, esencial para mantener el televisor conectado, que vence en pocas horas; no usa cookies de publicidad ni
       de analítica. En el propio navegador quedan solo los datos de la sesión de la pestaña abierta y, para facilitar
-      la próxima entrada, el último ID de televisor escrito. La clave de TMDB escrita en el sitio va cifrada al servicio y solo se entrega al televisor cuando
+      la próxima entrada, el último ID de televisor escrito. La clave de TMDB o de subtítulos escrita en el sitio va cifrada al servicio y solo se entrega al televisor cuando
       la persona pulsa Actualizar.</p>
 
     <h3>Retención y eliminación</h3>
@@ -223,11 +244,79 @@
         mismo televisor pueda vincularse de nuevo.</li>
       <li>Las copias de seguridad del servicio se conservan hasta 7 días; los registros de operación, sin
         credenciales, hasta 30 días.</li>
+      <li>La clave de TMDB o de subtítulos enviada desde el sitio se borra del servicio en cuanto el televisor la
+        aplica o la rechaza, o en un máximo de 7 días. No forma parte de la copia de seguridad de uso.</li>
       <li>Para acceder a los datos guardados en el servicio o borrarlos, escribe al contacto de abajo.</li>
     </ul>
 
     <h3>Contacto</h3>
     <p>Preguntas o solicitudes sobre privacidad: <a href="mailto:ccplaytv@gmail.com">ccplaytv@gmail.com</a>.</p>
+  </section>
+
+  <section id="ko" lang="ko">
+    <h2>개인정보 처리방침</h2>
+    <p class="muted">2026년 10월 23일 업데이트.</p>
+
+    <p>CCPlayTV는 사용자가 이미 보유한 Xtream/M3U 재생목록을 재생하고 정리하는 플레이어입니다. 앱에는 콘텐츠가 포함되어
+      있지 않으며, 개인 계정(CCPlayTV 이름, 이메일 또는 비밀번호)이 필요하지 않고, 광고, 분석, 추적, 쿠키를 사용하지
+      않습니다. 휴대폰이나 컴퓨터로 TV를 관리할 수 있는 선택형 웹 포털과, 7일 무료 체험이 포함된 연간 라이선스가
+      있습니다.</p>
+
+    <h3>TV에 저장되는 정보</h3>
+    <p>TV의 로컬 저장소(IndexedDB 및 앱 저장소)에 다음이 저장됩니다. 사용자가 추가한 목록과 해당 자격 증명(서버, 사용자
+      이름, 비밀번호 또는 M3U URL), 가져온 카탈로그, 즐겨찾기, 시청 기록, 이어보기 위치, 환경설정(언어, 숨긴 카테고리),
+      자녀 보호 PIN(해시로 저장), 사용자가 직접 입력한 TMDB 키와 자막 키(OpenSubtitles 또는 SubDL, 입력한 경우), 포털
+      페어링, 라이선스 및 체험 상태. 자격 증명과 키는 화면, 오류 메시지, 로그에 표시되지 않습니다.</p>
+
+    <h3>TV에서 외부로 전송되는 정보와 수신자</h3>
+    <ul>
+      <li><strong>목록 제공자</strong>: 사용자가 추가한 제공자는 카테고리, 방송 편성표, 동영상을 전달하기 위해 해당
+        목록의 자격 증명을 받습니다. CCPlayTV는 이 제공자를 운영하거나 통제하지 않습니다.</li>
+      <li><strong>TMDB</strong>(The Movie Database): 사용자가 직접 TMDB 키를 입력한 경우에만, 포스터와 줄거리를
+        받아오기 위해 키와 검색한 제목을 받습니다.</li>
+      <li><strong>Radio Browser</strong>(공개 라디오 디렉터리): 라디오를 열 때 국가 코드를, 방송국을 재생할 때 해당
+        방송국의 식별자를 받습니다. 오디오는 방송국에서 직접 옵니다.</li>
+      <li><strong>자막(OpenSubtitles 및 SubDL)</strong>: 사용자가 플레이어에서 자막 검색을 요청할 때만 사용됩니다.
+        검색은 CCPlayTV 포털 서비스를 거치며, 포털 서비스는 자체 키를 사용하여 제공자에게 언어와 제목, 연도, 시즌,
+        에피소드(또는 TMDB 식별자)만 전송합니다. 목록, 자격 증명, 동영상 주소는 절대 전송하지 않습니다. 사용자가 직접
+        자막 키를 입력한 경우 TV가 제공자와 직접 통신하며, 그 키는 해당 제공자에게만 전송됩니다.</li>
+      <li><strong>YouTube</strong>: 예고편을 요청하면 동영상 식별자가 YouTube 플레이어를 불러오는 이 프로젝트의 정적
+        페이지(GitHub Pages)에서 열리며, Google의 정책이 적용됩니다.</li>
+      <li><strong>Cloudflare</strong>: 설정에서 연결 테스트를 실행할 때만 사용되며, 속도를 측정하기 위해 앱이 생성한
+        의미 없는 데이터를 주고받습니다.</li>
+      <li><strong>CCPlayTV 포털 서비스</strong>(Google Cloud에서 호스팅): 사용자의 동작이 있을 때만 사용됩니다. 새로고침
+        버튼, 목록 만들기·편집·삭제, 백업, 자막 검색, 라이선스 조회 또는 구매가 해당합니다. TV 식별자(기기 식별자에서
+        파생되며 암호화 해시로만 저장됨)와, TV가 허용하는 경우 화면에 표시되는 ID가 되는 MAC 주소, 암호화된 목록과
+        자격 증명, 암호화된 사용 백업(즐겨찾기, 시청 기록, 진행 상황, 환경설정, 해시된 PIN, TMDB 키), 암호화된 복구
+        코드, 웹사이트에서 보낸 개인 키(TMDB 및 자막)로 TV가 적용하거나 7일이 지나면 삭제되는 암호화된 키, 그리고
+        라이선스 상태를 받습니다. 백그라운드에서 자동으로 조회되는 것은 없습니다.</li>
+      <li><strong>Mercado Pago</strong>: 라이선스를 구매할 때만 사용됩니다. TV에서 Pix로 결제하면 서비스가 Mercado
+        Pago에 금액과 TV 식별자로 생성한 기술용 이메일을 보냅니다. 사용자의 이름, 이메일, 문서는 포함되지 않습니다.
+        웹사이트에서는 Mercado Pago 페이지에서 결제합니다. 결제 데이터는 Mercado Pago와 은행의 정책에 따라 그들이
+        보관하며, CCPlayTV는 주문과 그 결과만 저장합니다.</li>
+    </ul>
+    <p>모든 인터넷 연결과 마찬가지로, 이러한 서비스는 TV의 IP 주소를 수신합니다.</p>
+
+    <h3>웹 포털</h3>
+    <p>포털 웹사이트는 TV에 표시된 QR 코드 또는 ID와 키로 엽니다. TV 연결을 유지하는 데 필수인 세션 쿠키 하나만
+      사용하며 몇 시간 후 만료됩니다. 광고나 분석 쿠키는 사용하지 않습니다. 브라우저에는 열려 있는 탭의 세션 데이터와,
+      다음 로그인을 쉽게 하기 위해 마지막으로 입력한 TV ID만 남습니다. 웹사이트에 입력한 TMDB 또는 자막 키는 암호화되어
+      서비스로 전송되며, 사용자가 새로고침을 누를 때만 TV로 전달됩니다.</p>
+
+    <h3>보관 및 삭제</h3>
+    <ul>
+      <li>앱에서 목록을 삭제하면 해당 목록과 카탈로그가 TV와 서비스에서 모두 삭제됩니다. 앱을 삭제하면 모든 로컬
+        데이터가 삭제됩니다.</li>
+      <li>사용 백업은 TV 또는 웹사이트에서 삭제할 수 있습니다. "연결 해제"는 이 TV의 페어링을 해제합니다. 같은 TV를
+        다시 연결할 수 있도록 TV 기록과 라이선스는 서비스에 남습니다.</li>
+      <li>서비스 백업 사본은 최대 7일, 자격 증명이 없는 작업 기록은 최대 30일 동안 보관됩니다.</li>
+      <li>웹사이트에서 보낸 TMDB 또는 자막 키는 TV가 적용하거나 거부하는 즉시, 또는 7일 이내에 서비스에서
+        삭제됩니다. 이 키는 사용 백업에 포함되지 않습니다.</li>
+      <li>서비스에 저장된 데이터를 열람하거나 삭제하려면 아래 연락처로 문의하세요.</li>
+    </ul>
+
+    <h3>연락처</h3>
+    <p>개인정보 관련 문의 또는 요청: <a href="mailto:ccplaytv@gmail.com">ccplaytv@gmail.com</a>.</p>
   </section>
 </main>
 </body>
