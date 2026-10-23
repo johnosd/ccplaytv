@@ -73,3 +73,5 @@ Fatos que reduzem o risco marginal:
 
 - Se houver abuso (relato de chave trocada sem a pessoa saber), exigir confirmação na TV antes de aplicar, ou reduzir a retenção de 7 dias para algumas horas — decisão nova, revisitando esta ADR.
 - OpenAI BYOK (planejado) NÃO herda esta exceção: exigiria ADR própria.
+
+**Atualização (ADR-022, 2026-10-23):** o mesmo caminho foi estendido, por decisão própria do usuário, às chaves BYOK de legenda do OpenSubtitles e do SubDL (constitution 1.17.0, exceção (m)); o OpenAI BYOK continua exigindo ADR própria.

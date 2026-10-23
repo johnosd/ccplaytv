@@ -5,11 +5,12 @@ import { FaqPage } from '../FaqPage'
 import { RecoveryCodeCard } from '../RecoveryCodeCard'
 import { RecoveryPage } from '../RecoveryPage'
 import { BackupPage } from './BackupPage'
+import { SubtitleKeysPage } from './SubtitleKeysPage'
 import { TmdbPage } from './TmdbPage'
 import type { Destination } from '../shell/navigation'
 import { LOGOUT_ITEM, SETTINGS_ITEMS } from './items'
 
-const titles: Record<string, MessageKey> = { tmdb: 'settingsTmdbTitle', backup: 'settingsBackupTitle', code: 'settingsCodeTitle', recover: 'settingsRecoverTitle', help: 'settingsHelpTitle' }
+const titles: Record<string, MessageKey> = { tmdb: 'settingsTmdbTitle', subtitles: 'settingsSubtitlesTitle', backup: 'settingsBackupTitle', code: 'settingsCodeTitle', recover: 'settingsRecoverTitle', help: 'settingsHelpTitle' }
 
 /**
  * Ajustes (feature 077, US1/US5): lista de itens com título e uma linha de descrição; cada um abre uma sub-tela que
@@ -45,6 +46,7 @@ export function SettingsPage({ session, view, onOpen, onBack, onNavigate, onLogo
   }
   function body(current: string): ReactNode {
     if (current === 'tmdb') return <TmdbPage session={session} />
+    if (current === 'subtitles') return <SubtitleKeysPage session={session} />
     if (current === 'backup') return <BackupPage session={session} />
     if (current === 'code') return <RecoveryCodeCard session={session} onRecover={() => onOpen('recover')} />
     if (current === 'recover') return <RecoveryPage onBack={onBack} />

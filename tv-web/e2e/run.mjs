@@ -38,6 +38,7 @@ export const SUITE = [
   'e2e/limpeza-qa.mjs',
   'e2e/audio-legendas-info.mjs',
   'e2e/legendas-externas.mjs',
+  'e2e/chave-legenda-portal.mjs',
   'e2e/idioma-do-app.mjs',
   'e2e/qualidade-aspecto.mjs',
   'e2e/fontes-estado.mjs',

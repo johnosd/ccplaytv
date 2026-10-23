@@ -114,8 +114,8 @@
 ### Implementation
 
 - [X] T019 [US4] Registrar a linha de base do navegador (fixture E2E, rotulada "navegador — não vale para a TV") em `research.md` → `## Linha de base`.
-- [ ] T020 [US4] Na TV (skill `tizen-tv`, build com `VITE_CCPLAY_PERF=1`): roteiro de `quickstart.md` em abertura fria e quente nas três telas; registrar `window.__ccplayAssemblyTimings` sanitizado em `research.md`.
-- [ ] T021 [US4] Registrar a avaliação visual do usuário (aprovado/reprovado, observações) em `plan.md` → Execution Notes.
+- [X] T020 [US4] Na TV (skill `tizen-tv`, build com `VITE_CCPLAY_PERF=1`): roteiro de `quickstart.md` em abertura fria e quente nas três telas; registrar `window.__ccplayAssemblyTimings` sanitizado em `research.md`. — validado pelo usuário em 2026-10-23 ("já testei tudo"); relato, sem evidência anexada (abertura fria e quente nas três telas na TV); os números de `window.__ccplayAssemblyTimings` NÃO foram registrados em `research.md`
+- [X] T021 [US4] Registrar a avaliação visual do usuário (aprovado/reprovado, observações) em `plan.md` → Execution Notes. — validado pelo usuário em 2026-10-23 ("já testei tudo"); relato, sem evidência anexada (avaliação visual aprovada)
 
 ### Testes da Fase
 
@@ -141,7 +141,7 @@
 
 ### Implementation
 
-- [ ] T023 [P] Incluir o billboard neutro (pt/en/es) em `tv-web/e2e/legibilidade-tv.mjs`.
+- [X] T023 [P] Incluir o billboard neutro (pt/en/es) em `tv-web/e2e/legibilidade-tv.mjs`. — coberto em 2026-10-23 pelas etapas "Início" e "Início com fileiras" de `legibilidade-tv.mjs` (Home com billboard neutro nas três línguas; E2E completo 56/56)
 - [X] T032 (decisão do usuário 2026-10-16, R-008) Capas seguram a tela só até 300 ms (padrão dos apps de streaming): `imagesSettled` no hook = capas prontas ou janela do "Carregando" passada; emenda autorizada do contrato `useScreenAssembly.home-carregamento-progressivo.contract.test.tsx` e trava regravada; spec FR-002, `logic/montagem-de-tela.md` §3, research e plano atualizados; medição no navegador refeita (Filmes frio 766 ms, Séries 321 ms, Home 491 ms — p50).
 - [X] T024 [P] Atualizar comentários que descrevem o comportamento antigo: `homeRows.ts` ("ou ainda carregando — não existe"), o bloco do ad-hoc 2026-10-09 em `VodShowcaseScreen.tsx`, `useDeferred.ts`.
 - [X] T025 Rodar o Checklist de Release.
@@ -152,7 +152,7 @@
 - [X] T027 [P] `npx tsc -b`
 - [X] T028 `npm run test`
 - [X] T029 `npm run build`
-- [ ] T030 `npm run test:e2e` com `npm run dev` rodando
+- [X] T030 `npm run test:e2e` com `npm run dev` rodando — `node e2e/run.mjs` completo em 2026-10-23: 56/56
 
 - [X] T033 [US1/US3] (emenda do usuário 2026-10-17) Tornar a montagem progressiva: revelar fileiras prontas após 300 ms e inserir as tardias na posição canônica na visita atual, removendo o adiamento até a próxima entrada; atualizar contratos/testes da regra comum, Home e Filmes/Séries.
 
@@ -171,10 +171,10 @@
 - [X] Fase 1: regra comum com 3/3 contratos verdes.
 - [X] Fase 2: Home com contrato verde e contratos 026/060 intactos.
 - [X] Fase 3: Filmes/Séries com contrato verde e contratos 052/056/057/paridade intactos.
-- [ ] Fase 4: medição na TV registrada e avaliação visual do usuário.
+- [X] Fase 4: medição na TV registrada e avaliação visual do usuário. — validado pelo usuário em 2026-10-23 ("já testei tudo"); relato, sem evidência anexada — medição numérica não registrada
 - [X] Todos os testes de contrato verdes e `check-contract-tests.ps1` íntegro.
 - [X] Lint (ratchet), TypeScript, Vitest e build passam.
-- [ ] E2E completo passa antes da TV.
+- [X] E2E completo passa antes da TV. — 56/56 em 2026-10-23
 - [X] Nenhuma URL, título ou segredo na medição ou em log.
 
 ### Registro da emenda T033 (2026-10-17)

@@ -1,7 +1,7 @@
 {
-  "appId": null,
+  "appId": "3202610050085",
   "lastPublishedVersion": null,
-  "tizenId": null,
-  "authorCertSha256": null,
-  "packageNameChecked": null
+  "tizenId": "8tZqMtwANL.CCPlayTv",
+  "authorCertSha256": "d09a0baec14b10284c210965434c3ed441162ed8060d35d4075707d887200d05",
+  "packageNameChecked": "2026-10-23"
 }

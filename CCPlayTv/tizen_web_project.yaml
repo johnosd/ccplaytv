@@ -91,7 +91,6 @@ files:
   - assets/runtime.js
   - assets/storageRelief.js
   # Chaves pessoais de legenda (BYOK): compartilhado entre `runtime.js` e a aba Integrações.
-  - assets/subtitleCredentials.js
   - assets/titleMetadataStore.js
   - assets/translate.js
   - assets/viewChoice.js

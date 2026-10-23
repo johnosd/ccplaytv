@@ -291,6 +291,7 @@ Fora dos contratos, com teste próprio do executor:
 | 2026-10-15 | Polish | T031–T034, T036, T037: E2E novo, legibilidade, build:tizen (R-013), `NO_COLOR` em 4 roteiros (R-012); tsc/lint ok; unitários 3419/3420 | T035 TV física adiada; flake da bancada XMLTV aguarda decisão |
 | 2026-10-15 | T035 (TV física, 1ª passada) | Usuário, na TV de referência: a Rádio "funcionou bem". A foto mostra Brasil com "100 mais ouvidas de 1.832" e a barra tocando "Rádio Mix 106.3 FM · AAC+ · 64 kbps". Achado visual: logos pequenos, e o da linha focada ficava cortado (escala 1.06 do foco). Corrigido em `radio.css`: foco sem escala, folga do anel, um anel só e logo de 96 px (`--space-7`). Reinstalado; legibilidade pt 35/0 e `radio-global` verde | Confirmar o ajuste visual na TV. SC-001 (contagem X/10 com som) e SC-004 (tempo até o som) ainda não foram anotados por estação |
 | 2026-10-15 | T035 (TV física, 2ª passada) | Usuário confirmou na TV de referência: logos maiores e inteiros no foco; **10/10** estações mais ouvidas do Brasil com som (SC-001, meta ≥ 8); **cerca de 2 s** do OK até o som (SC-004, meta ≤ 5 s; estimativa do usuário, não cronometrada por estação) | — |
+| 2026-10-23 | Fechamento | T038–T041 da fase de convergência concluídas; status Convergida | — |
 
 **PRÓXIMO**: `sdd-converge 074-radio-global`. Fora da feature, aguarda decisão: o flake da bancada XMLTV.
 
@@ -311,3 +312,7 @@ Fora dos contratos, com teste próprio do executor:
 - Testes `.ts` com IndexedDB rodam no projeto `node` sem `TESTES_TS_COM_DOM`: `setupTests.node.ts` já carrega o `fake-indexeddb`.
 - Teclado da Rádio: não voltar a passar closures direto ao `useRemoteNav` (R-010). Os handlers estáveis + `useLayoutEffect` são o que tira a corrida.
 - `RadioScreen.test.tsx` limpa `radioDb.directoryCache`/`favorites` no `beforeEach`. O contrato travado não limpa e conta com o cache do BR entre os testes dele.
+
+## Resultado Final
+
+Fechada a pedido do usuário em 2026-10-23, que declarou ter testado tudo (inclusive na TV física); as tarefas que dependiam dessa validação foram marcadas como "validado pelo usuário" — relato, sem evidência anexada nesta sessão. Os riscos da tabela **não** foram reauditados um a um nesta passada; o que é bug daqui em diante entra como bug. Código novo: validação da entrada inicial em `useRadioCatalog.ts` (T038). Decisão aceita (T039): favicon lento não tem tempo limite. Contratos 5/5 e testes da Rádio (28) verdes.

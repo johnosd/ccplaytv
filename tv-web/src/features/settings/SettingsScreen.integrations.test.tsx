@@ -102,6 +102,7 @@ describe('SettingsScreen › Integrações & BYOK (feature 032)', () => {
     expect(within(screen.getByRole('region', { name: 'Teste de conexão' })).getByRole('button')).not.toHaveAttribute('aria-disabled', 'true')
     press('ArrowDown') // linha OpenSubtitles (chave pessoal)
     press('ArrowDown') // linha SubDL (chave pessoal)
+    press('ArrowDown') // linha "Atualizar" das legendas (091: só com o portal visível, como aqui)
     press('ArrowDown') // 1º card "Em breve"
     expect(within(screen.getByRole('region', { name: 'Assistente de IA' })).getByRole('button')).toHaveClass('tv-focus')
     press('Enter')

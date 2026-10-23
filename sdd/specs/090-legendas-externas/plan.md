@@ -316,6 +316,7 @@ Stubs criados pelo plan (ponto de partida do execute, não travados): `tv-web/sr
 | 2026-10-22 | Fase 3 (US1) | Player completo para a US1; 5/5 contratos; 1 522 testes; dois defeitos achados e corrigidos (R-020 driver, R-021 chunks Tizen); baseline do ratchet encolhido | Quickstart B no navegador vai com o E2E (T036) |
 | 2026-10-22 | Fase 2 (fundação) | TV e serviço prontos; 3/5 contratos verdes; 858 testes TV e 12 do serviço verdes; vazamento da chave do SubDL no log do httpx achado e corrigido (R-018) | T019b: rodar as rotas com emulador (Java 21+) |
 | 2026-10-22 | Fase 1 (gates) | Emenda 1.16.0 aplicada com aprovação; CLAUDE.md e ADR-021 atualizados; T002 substituída por referência à 089 (não comparável — sonda media a lista lateral) | T042 passa a medir build A (`85e2ead`) × build B na mesma sessão |
+| 2026-10-23 | Fechamento | G-2/SC-009 e quickstart validados pelo usuário; status Convergida | — |
 
 **PRÓXIMO**: decidir (1) ~~`campos-da-listagem` (R-023)~~ feito pelo `sdd-bugfix`, (2) se entra uma feature "chave de legenda pelo portal" (o usuário achou muito difícil digitar na TV), (3) nova janela de TV para fechar a T042 (C2/C5/C6/C7 e R-024, com roteiro cronometrado), (4) ~~T019b~~ feito; depois `sdd-converge`.
 
@@ -347,3 +348,7 @@ Stubs criados pelo plan (ponto de partida do execute, não travados): `tv-web/sr
   pessoal (`SUBTITLE_ROW_COUNT`).
 - Não há linha de base de desempenho limpa antes da 090 (`evidencias/antes.md`): a T042 precisa medir o build
   `85e2ead` e o build com a feature na mesma sessão — não compare com números da 087/088/089.
+
+## Resultado Final
+
+Fechada a pedido do usuário em 2026-10-23, que declarou ter testado tudo (inclusive na TV física); as tarefas que dependiam dessa validação foram marcadas como "validado pelo usuário" — relato, sem evidência anexada nesta sessão. Os riscos da tabela **não** foram reauditados um a um nesta passada; o que é bug daqui em diante entra como bug. Ressalva: R-024 (atribuição das tarefas longas interativas) não foi feita; `evidencias/depois.md` registra só o que foi medido. A 091 estende esta feature (chave pelo portal).

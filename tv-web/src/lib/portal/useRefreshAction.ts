@@ -32,12 +32,23 @@ export async function refreshFingerprint(scope: RefreshScope): Promise<string> {
   // 072: o backup "mudou" quando o serviço confirmou um novo (instante do último backup).
   if (scope === 'backup') return String((await db.table('portalDevice').get('backup'))?.lastBackupAt ?? '')
   // 077: a chave TMDB "mudou" quando o registro local trocou de revisão/estado (nunca compara nem guarda a chave).
-  if (scope === 'tmdb') { const row = await db.integrations.get('tmdb'); return row ? row.revision + ':' + row.state : '' }
+  if (scope === 'tmdb') {
+    const row = await db.integrations.get('tmdb')
+    // 091: o Atualizar do card TMDB também aplica as chaves de legenda — mudar uma delas conta como "mudou".
+    return (row ? row.revision + ':' + row.state : '') + '|' + await subtitleKeysFingerprint()
+  }
+  if (scope === 'subtitles') return subtitleKeysFingerprint()
   const [sources, revisions] = await Promise.all([db.sources.toArray(), tables.revisions.toArray()])
   return JSON.stringify([
     sources.map(source => [source.id, source.updatedAt]).sort(),
     revisions.map(row => [row.sourceId, row.revision, row.tombstone ?? false]).sort(),
   ])
+}
+
+/** 091: estado/escolha/instante de cada chave de legenda guardada (nunca a chave); muda quando o Atualizar aplica ou remove uma. */
+async function subtitleKeysFingerprint(): Promise<string> {
+  const rows = await db.table('subtitleCredentials').toArray() as { provider: string; state: string; chosen: boolean; lastTestedAt: number }[]
+  return JSON.stringify(rows.map(row => [row.provider, row.state, row.chosen, row.lastTestedAt]).sort())
 }
 
 /** Claims públicas do JWS (só para comparar; quem confia na licença é o verificador). */
@@ -117,9 +128,11 @@ export function refreshMessageKey(status: RefreshStatus, scope: RefreshScope) {
     case 'loading': return 'portal.refresh.loading' as const
     case 'done': return scope === 'license' ? 'portal.refresh.licenseDone' as const
       : scope === 'backup' ? 'portal.backup.done' as const
-      : scope === 'tmdb' ? 'portal.refresh.tmdbDone' as const : 'portal.refresh.listsDone' as const
+      : scope === 'tmdb' ? 'portal.refresh.tmdbDone' as const
+      : scope === 'subtitles' ? 'portal.refresh.subtitlesDone' as const : 'portal.refresh.listsDone' as const
     case 'nothing': return scope === 'license' ? 'portal.refresh.licenseNothing' as const
-      : scope === 'tmdb' ? 'portal.refresh.tmdbNothing' as const : 'portal.refresh.nothing' as const
+      : scope === 'tmdb' ? 'portal.refresh.tmdbNothing' as const
+      : scope === 'subtitles' ? 'portal.refresh.subtitlesNothing' as const : 'portal.refresh.nothing' as const
     case 'wait': return 'portal.refresh.wait' as const
     case 'offline': return 'portal.refresh.offline' as const
     case 'failed': return 'portal.refresh.failed' as const

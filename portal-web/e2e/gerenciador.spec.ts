@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
+import { trackPortalTraffic } from './portalQuiet'
 
 const session = { deviceId: 'tv-fixture', csrfToken: 'csrf-fixture', expiresAt: new Date(Date.now() + 3600000).toISOString() }
 const source = { id: 'source-existing', type: 'provider_credentials', displayName: 'Lista existente' }
@@ -94,11 +95,15 @@ test('lista aguardando avisa quando a atualização da TV a aplica', async ({ pa
 // Sessão vencida ou chave trocada na TV durante o uso: volta à entrada, com o ID lembrado e um aviso claro.
 test('sessão encerrada no meio do uso volta à entrada com o ID lembrado e o aviso', async ({ page }) => {
   await mockPortal(page)
+  // Leituras iniciais ainda em voo quando a rota vira 401 derrubariam a sessão ANTES do clique (corrida só vista em paralelo): ver `portalQuiet.ts`.
+  const traffic = trackPortalTraffic(page)
   await page.goto('/')
   await page.getByLabel('Endereço MAC da TV', { exact: true }).fill('a0-8c-fd-19-0a-8c')
   await page.getByLabel('Chave do dispositivo', { exact: true }).fill('0123456789')
   await page.getByRole('button', { name: 'Conectar', exact: true }).click()
   await expect(page.getByRole('heading', { name: 'Listas', level: 1 })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Editar', exact: true })).toBeVisible()
+  await traffic.quiet()
   // A partir daqui o serviço recusa a sessão (a rota registrada por último vence).
   await page.route('**/portal/v1/**', route => route.fulfill({ status: 401, json: { code: 'unauthorized', retryable: false } }))
   await page.getByRole('region', { name: 'Resumo da TV' }).getByRole('button', { name: 'Atualizar estado' }).click()

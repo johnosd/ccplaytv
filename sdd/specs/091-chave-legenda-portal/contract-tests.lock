@@ -1,0 +1,27 @@
+{
+  "feature": "091-chave-legenda-portal",
+  "lockedAt": "2026-10-23 11:19",
+  "total": 4,
+  "files": [
+    {
+      "path": "tv-web/src/lib/portal/subtitleKeysRemote.chave-legenda-portal.contract.test.ts",
+      "sha256": "6bbdb20a0b0af061ccf4319f3c50f73285b86ae8535b151b400a3337d87ff2af",
+      "tests": 2
+    },
+    {
+      "path": "tv-web/src/lib/portal/portalAgent.chave-legenda-portal.contract.test.ts",
+      "sha256": "949761b0141b8360098f597e956f19887e99f744d8b7c6ac279fb4883e442416",
+      "tests": 1
+    },
+    {
+      "path": "portal-web/src/features/settings/subtitleKeyStatus.chave-legenda-portal.contract.test.ts",
+      "sha256": "d63dd707c0dea1d48713f1c4a5192c9fd15df0521278cf7a2220f0393ab30132",
+      "tests": 1
+    },
+    {
+      "path": "api/tests/portal/test_subtitle_keys_contract.py",
+      "sha256": "5b4bef3f8ff5171318acd30325b30f010709f635c9e9750131473217ed616f5e",
+      "tests": 0
+    }
+  ]
+}

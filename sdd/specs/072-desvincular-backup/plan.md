@@ -221,6 +221,7 @@ obrigatórios nas tasks (sigilo, mesma TV, limites).
 | 2026-10-14 | Fase 2 (T003–T007) | Esquema v25, estado do backup na TV, serviço e rotas de backup cifrado na API, pytest do backup (sigilo, no-store, uma versão, 413). | Fase 3: desvincular e reassociar. |
 | 2026-10-14 | Fase 1 (T001–T002) | Constitution 1.12.0 ((g) backup de uso, (h) código guardado), ADR-017 e notas; A001/A002 resolvidos com o usuário. | Fase 2: esquema v25 e serviço de backup. |
 | 2026-10-14 | Planejamento | Spec, plan, tasks, research, data-model, contracts, logic, quickstart e 5 contratos travados (vermelhos). | Fase 1 (emenda + ADR-017) antes de qualquer código. |
+| 2026-10-23 | Fechamento | T035 (TV) validada pelo usuário; T036 sincronizada; status Convergida | — |
 
 PRÓXIMO: T035 — a pessoa testa na TV (Desvincular → Atualizar, Fazer backup agora, Restaurar, Apagar); depois T036 e `sdd-converge`.
 
@@ -235,3 +236,7 @@ PRÓXIMO: T035 — a pessoa testa na TV (Desvincular → Atualizar, Fazer backup
 - **Não editar** os 5 arquivos travados desta feature nem os de 019/026/067/069/070/071 (ver handoff).
 - Nada automático (ADR-016): backup só no Atualizar de listas e no botão; nenhum timer.
 - O código de recuperação nunca vai em URL, log ou erro; só no corpo HTTPS.
+
+## Resultado Final
+
+Fechada a pedido do usuário em 2026-10-23, que declarou ter testado tudo (inclusive na TV física); as tarefas que dependiam dessa validação foram marcadas como "validado pelo usuário" — relato, sem evidência anexada nesta sessão. Os riscos da tabela **não** foram reauditados um a um nesta passada; o que é bug daqui em diante entra como bug. Ressalva: `evidencias/tv.md` não recebeu a passada de hoje; a evidência é o relato do usuário.

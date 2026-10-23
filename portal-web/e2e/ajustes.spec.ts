@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
-// Feature 077/US5: Ajustes reúne Chave TMDB, Backup, Código de recuperação, Recuperar acesso, Ajuda e Sair, nessa ordem, cada
+// Feature 077/US5 (+091): Ajustes reúne Chave TMDB, Chaves de legenda, Backup, Código de recuperação, Recuperar acesso, Ajuda e Sair, nessa ordem, cada
 // um com uma linha que diz para que serve; Backup se exclui em poucos toques e sem apagar nada na TV.
 const session = { deviceId: 'tv-settings-fixture', csrfToken: 'c'.repeat(42) + 'A', expiresAt: new Date(Date.now() + 3600000).toISOString() }
 const nav = (page: Page, name: string) => page.getByRole('navigation', { name: 'Principal' }).getByRole('button', { name, exact: true })
@@ -32,9 +32,10 @@ test('Ajustes lista os itens na ordem do FR-014, cada um com a linha de descriç
   await nav(page, 'Ajustes').click()
   await expect(page.getByRole('heading', { name: 'Ajustes', level: 1 })).toBeVisible()
   const items = page.getByRole('list', { name: 'Ajustes' }).getByRole('button')
-  await expect(items).toHaveCount(6)
+  await expect(items).toHaveCount(7)
   const expected = [
     ['Chave TMDB', 'Capas, elenco e detalhes dos filmes e séries.'],
+    ['Chaves de legenda', 'OpenSubtitles e SubDL: use a sua própria chave.'],
     ['Backup', 'Veja e apague o backup dos seus favoritos e histórico.'],
     ['Código de recuperação', 'Sua senha de reserva para recuperar esta TV.'],
     ['Recuperar acesso', 'Use o código se a TV foi formatada ou o app reinstalado.'],

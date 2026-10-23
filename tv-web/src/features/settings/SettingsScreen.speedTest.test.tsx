@@ -14,7 +14,7 @@ function mount(service?: 'speedtest') {
   render(<QueryClientProvider client={query}><SettingsScreen {...props} /></QueryClientProvider>)
   return props
 }
-function open() { for (let i = 0; i < 5; i += 1) press('ArrowDown'); press('Enter') }
+function open() { for (let i = 0; i < 6; i += 1) press('ArrowDown'); press('Enter') }
 afterEach(async () => { cleanup(); vi.unstubAllGlobals(); await db.networkDiagnostics.clear() })
 
 describe('Configurações — teste de conexão sem fonte', () => {

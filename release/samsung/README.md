@@ -26,6 +26,20 @@ Chame o `node` direto: no PowerShell, `npm run x -- --flag` perde o `--`.
 Saída: `reports/<versão>-<variante>.json` e `.md`. Código de saída 0 =
 `Ready for submission`, 2 = `Blocked`.
 
+## Build comercial de loja (T054 da 078)
+
+Variáveis só no processo (nada vai para arquivo versionado); o mapa de chaves leva **só chaves públicas** (kid → JWK ES256), nunca a privada.
+O mapa vigente de produção (`prod1`) está em `sdd/specs/081-venda-producao-mercadopago/evidencias/infra.md`.
+
+```bash
+cd tv-web
+VITE_PORTAL_ORIGIN=https://portal.ccplaytv.com VITE_PORTAL_SITE_URL=https://portal.ccplaytv.com VITE_LICENSE_PUBLIC_KEYS='{"prod1": <JWK pública de prod1>}' npm run build:tizen:commercial
+```
+
+Depois confira nos `.js` de `CCPlayTv/`: origem de produção presente, `x` de `prod1` presente, chave revogada `v1` ausente e nenhum campo privado `d`;
+rode a guarda do pacote (`findUnlistedFiles`/`findStaleDeclared`) e empacote com `deploy-tv.ps1 -SkipBuild` (TV) ou `release-gate.mjs --variant commercial` (loja).
+Último build: `c2e240c`, de `91c1f00`, em 2026-10-23.
+
 ## Arquivos
 
 | Arquivo | Conteúdo |

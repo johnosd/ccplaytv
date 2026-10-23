@@ -125,8 +125,15 @@ export function createPortalSync(options: PortalSyncOptions): PortalAgentPorts {
       const saved = await device()
       const snapshot = await capturePortalSnapshot(database)
       await same(saved, signal)
-      await connection.client.request('/portal/v1/device/snapshot', { method: 'PUT', bearer: saved.bearer,
-        body: snapshot, signal })
+      const put = (body: unknown) => connection.client.request('/portal/v1/device/snapshot', { method: 'PUT', bearer: saved.bearer, body, signal })
+      try {
+        await put(snapshot)
+      } catch (error) {
+        // 091: serviço anterior às chaves de legenda recusa `integrations.subtitles` (422): publica sem ele, para o Atualizar
+        // de listas nunca depender da ordem de implantação. Qualquer outra falha segue como antes.
+        if (!(error instanceof PortalRequestError) || error.code !== 'invalid_input') throw error
+        await put({ ...snapshot, integrations: { tmdb: snapshot.integrations.tmdb } })
+      }
       // Importação pode terminar depois do ACK inicial; confirmação posterior não reaplica comandos.
       const imports = await tables.imports.where('state').anyOf('completed', 'error').filter(row => row.acknowledgedState !== row.state).limit(5).toArray()
       for (const item of imports) {

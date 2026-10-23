@@ -1,0 +1,15 @@
+{
+  "gate": "INT-EVD-STATIC",
+  "candidate": {
+    "version": "0.2.1",
+    "variant": "commercial",
+    "revision": "1aab7bb759431654d3d7428a62f73978c0a78281",
+    "wgtSha256": "4ec4277b7d0b96d028c6bb2a449bbef789eed1da29a25b948dc0b8c4117c7d2c"
+  },
+  "environment": "local",
+  "script": "npm run lint",
+  "exitCode": 0,
+  "result": "Pass",
+  "date": "2026-10-23",
+  "by": "release-gate --record-local"
+}

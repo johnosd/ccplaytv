@@ -4,7 +4,7 @@
 
 **Created**: 2026-10-15
 
-**Status**: Convergência Pendente
+**Status**: Convergida
 
 **Input**: "Trazer para o ccplayTv a feature 'Tuner' do Open-Media-Explorer — um rádio global
 com seleção de país." Avaliada em `sdd/assessments/radio-global-por-pais/` (veredito `go`,
@@ -87,6 +87,7 @@ uma estação e ouvir som, trocar para outra, parar, voltar ao Início. Tudo só
    Parar na mini-barra, **Then** a reprodução para e a mini-barra mostra o estado parado.
 7. **Given** uma estação tocando, **When** a pessoa sai da tela Rádio (RETURN até o
    Início ou outro destino da topbar), **Then** a reprodução para.
+   **Atualização (2026-10-23, C-003):** a tela Rádio não tem topbar própria (plan D-001); a saída é só por RETURN até o Início. O texto original fica como histórico.
 8. **Given** a pessoa saiu da Rádio com foco na estação X do país Y, **When** volta à
    Rádio, **Then** o país Y está aberto e o foco está na estação X (por identidade), se
    ela ainda estiver na lista.
@@ -218,11 +219,15 @@ antigos e "Tentar de novo" focável.
   (texto de provedor).
 - **FR-011**: O país inicial DEVE ser o último usado. Na primeira vez, o país configurado na
   TV. Se ele não for determinável ou não estiver no diretório, Brasil.
+  **Atualização (2026-10-23, C-001/C-004):** o "país configurado na TV" é a região do primeiro idioma do sistema que tiver uma (`pt-BR` → `BR`; Analyze A-003).
+  A entrada inicial é validada contra a lista de países quando ela chega (cache ou rede): país salvo ou da TV ausente do diretório → país da TV → Brasil → Mundo; só
+  enquanto a pessoa não escolheu nada, nunca por foco (T038). Acima da lista, a tela DEVE indicar o recorte visível: "100 mais ouvidas de N" (país) / "100 mais ouvidas do
+  mundo" (plan D-010; constitution "Progresso e Capacidades São Reais" — A-001/A-005).
 
 **Reprodução**
 
 - **FR-012**: OK numa estação DEVE tocá-la. Focar NUNCA DEVE tocar.
-- **FR-013**: Enquanto toca, a tela DEVE mostrar uma mini-barra com arte, nome, país,
+- **FR-013** *(Atualização 2026-10-23: na interface o elemento se chama barra "Tocando agora"; "mini-barra" é o termo original)*: Enquanto toca, a tela DEVE mostrar uma mini-barra com arte, nome, país,
   formato/kbps e a ação Parar, sem tirar o foco da grade. A pessoa continua navegando.
 - **FR-014**: OK numa estação diferente da que toca DEVE trocar para ela; OK na que toca,
   ou Parar, DEVE parar. Uma resposta atrasada de uma escolha anterior NUNCA DEVE

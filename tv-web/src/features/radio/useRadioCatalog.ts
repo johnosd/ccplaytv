@@ -67,6 +67,8 @@ export function useRadioCatalog(directory: RadioDirectory, language: AppLanguage
   const [state, setState] = useState<RadioStationsState>(() => ({ entry: entered, status: 'loading', stations: [], stale: false }))
   const generation = useRef(0)
   const controller = useRef<AbortController | null>(null)
+  // A entrada inicial é validada contra a lista de países enquanto a pessoa não escolheu nada (nunca por foco).
+  const navigated = useRef(false)
   const tvCountry = useMemo(() => tvCountryCode(), [])
 
   const loadCountries = useCallback(async () => {
@@ -127,6 +129,14 @@ export function useRadioCatalog(directory: RadioDirectory, language: AppLanguage
     [directory],
   )
 
+  const enterByUser = useCallback(
+    (entry: RadioEntryKey) => {
+      navigated.current = true
+      enter(entry)
+    },
+    [enter],
+  )
+
   /** Lista de Favoritos relida depois de favoritar/desfavoritar, só se for a entrada atual (sem nova geração). */
   const reloadFavorites = useCallback(async () => {
     if (entered !== 'favorites') return
@@ -147,6 +157,15 @@ export function useRadioCatalog(directory: RadioDirectory, language: AppLanguage
     // Só ao montar: a entrada inicial é decidida uma vez (§3.2).
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  // `logic/radio-tela.md` §3.2 (T038): país salvo ou da TV que não existe no diretório → país da TV → BR → mundo.
+  useEffect(() => {
+    if (navigated.current || !countries || countries.length === 0) return
+    const code = countryOf(entered)
+    const exists = (candidate: string | null) => candidate !== null && countries.some((country) => country.code === candidate)
+    if (!code || exists(code)) return
+    enter(exists(tvCountry) ? `country:${tvCountry}` : exists(BRAZIL) ? `country:${BRAZIL}` : 'world')
+  }, [countries, entered, enter, tvCountry])
 
   const trail = useMemo<RadioTrailEntry[]>(() => {
     const entries: RadioTrailEntry[] = [
@@ -179,7 +198,7 @@ export function useRadioCatalog(directory: RadioDirectory, language: AppLanguage
     [countries],
   )
 
-  return { trail, entered, state, enter, reloadFavorites, retryCountries: loadCountries, totalOf }
+  return { trail, entered, state, enter: enterByUser, reloadFavorites, retryCountries: loadCountries, totalOf }
 }
 
 export type RadioCatalog = ReturnType<typeof useRadioCatalog>

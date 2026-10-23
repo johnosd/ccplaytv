@@ -2,12 +2,13 @@ import type { MessageKey } from '../../lib/i18n'
 
 /**
  * Itens de Ajustes na ordem fixa do FR-014 (feature 077, D-011). Cada item abre uma sub-tela (`view`), exceto Sair, que é
- * ação direta. A chave TMDB (US4) vem primeiro: é a operação de Ajustes que a pessoa mais usa.
+ * ação direta. A chave TMDB (US4) vem primeiro: é a operação de Ajustes que a pessoa mais usa; as chaves de legenda (feature 091) vêm logo depois.
  */
 export interface SettingsItem { id: string; view: string; title: MessageKey; description: MessageKey }
 
 export const SETTINGS_ITEMS: SettingsItem[] = [
   { id: 'tmdb', view: 'tmdb', title: 'settingsTmdbTitle', description: 'settingsTmdbDesc' },
+  { id: 'subtitles', view: 'subtitles', title: 'settingsSubtitlesTitle', description: 'settingsSubtitlesDesc' },
   { id: 'backup', view: 'backup', title: 'settingsBackupTitle', description: 'settingsBackupDesc' },
   { id: 'code', view: 'code', title: 'settingsCodeTitle', description: 'settingsCodeDesc' },
   { id: 'recover', view: 'recover', title: 'settingsRecoverTitle', description: 'settingsRecoverDesc' },

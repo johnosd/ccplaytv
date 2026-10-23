@@ -4,7 +4,7 @@
 
 **Created**: 2026-10-14
 
-**Status**: Em Execução
+**Status**: Convergida
 
 **Input**: "Desvincular a TV do portal (limpar só o pareamento local e parear de novo, preservando listas, favoritos, histórico, progresso, chave TMDB e PIN) e backup dos dados de uso no serviço, preso à identidade da TV e restaurado ao re-parear/reinstalar." Origem: TV física da 070 (2026-10-13) e conversa de 2026-10-14 — hoje a única saída de um pareamento ruim ("não autorizado" ou ID errado) é desinstalar o app e perder tudo.
 

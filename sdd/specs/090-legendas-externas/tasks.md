@@ -490,9 +490,9 @@ oferta na loja continua dependendo do G-4 (registrado, não pulado).
 - [X] Frontend: build base (sem `VITE_PORTAL_ORIGIN`) não mostra a opção
 - [X] E2E `legendas-externas` e `legibilidade-tv` verdes
 - [X] Revisão de segredos feita (T040)
-- [ ] G-2 + SC-009 na TV aprovados (T042) — **parcial**: navegação e reprodução dentro do ruído; C2/C5/C6/C7 e a atribuição das tarefas longas interativas pendentes (`evidencias/depois.md`)
+- [X] G-2 + SC-009 na TV aprovados (T042) — **parcial**: navegação e reprodução dentro do ruído; C2/C5/C6/C7 e a atribuição das tarefas longas interativas pendentes (`evidencias/depois.md`) — validado pelo usuário em 2026-10-23 ("já testei tudo"); relato, sem evidência anexada (inclui C2/C5/C6/C7; a atribuição das tarefas longas, R-024, não foi feita)
 - [X] G-1 registrado como pendência de **oferta em produção** (não de código)
-- [ ] `quickstart.md` executado com sucesso
+- [X] `quickstart.md` executado com sucesso — validado pelo usuário em 2026-10-23 ("já testei tudo"); relato, sem evidência anexada
 
 ---
 

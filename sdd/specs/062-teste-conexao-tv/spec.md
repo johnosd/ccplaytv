@@ -4,7 +4,7 @@
 
 **Created**: 2026-10-06
 
-**Status**: Em Execução
+**Status**: Convergida
 
 **Input**: `sdd-specify` a partir de [decision.md](../../assessments/g3-inicio-descoberta-dock/decision.md), item **54** do backlog. O usuário quer medir a conexão da TV para ajudar a investigar travamentos. Definiu: execução em Configurações; download, latência e jitter; até 30 segundos ou 100 MB; guardar apenas o último resultado no aparelho, com data e destino.
 

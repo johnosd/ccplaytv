@@ -1488,3 +1488,49 @@ Mudanças pequenas feitas fora do fluxo `sdd-specify` — o único rastro delas 
 | 2026-10-11 | Séries — retirada do debug visível | Removido o painel temporário `DiagnosticReport` dos estados de carregamento, erro e vazio do detalhe de Séries e do erro de rota; removida a assinatura `useSeriesDiagnostics` da tela. Mantidas as mensagens normais, código de quota STO-01 e ações SELECT/RETURN. Não alterada a correção de armazenamento já aprovada. Validação focada: 120/120 testes (Séries + RouteBoundary); Chromium 8/8 (carregamento/erro sem debug, foco, retry e RETURN), duas capturas conferidas em `tv-web/test-results/remocao-debug-series/`; lint, TypeScript e build aprovados. Gates gerais: E2E 46/46; `npm test` 3196/3203 (5 falhas nos stubs pendentes da 069; 2 timeouts de `App.source-access` passaram na reexecução isolada 5/5). Não declarado gate geral verde. Deploy tentado: preflight recusado pelo sdb em `192.168.0.2`, com porta 26101 aberta; script orienta Host PC IP `192.168.0.6` e reinício da TV. Retomada em 2026-10-11 após o usuário configurar e reiniciar a TV: build:tizen, assinatura existente, instalação e lançamento aprovados (PID 2711), sem desinstalação nem limpeza de dados. Versão sem o painel instalada; usuário confirmou na TV em 2026-10-11 que o diagnóstico não aparece mais ao entrar em Séries. Evidência: `tv-web/test-results/remocao-debug-series/deploy-retomada.log`. |
 | 2026-10-14 | Tempo da suíte de testes (tv-web) | **Vitest completo 200,6 s → 125–131 s (−38%)** com `pool: 'threads'` em `vite.config.ts` (dom 132 → 98 s; node 73 → 30 s; 3330 passando nas 2 rodadas finais, mesmos resultados). **E2E completo 330 s → 169 s (−49%, 49/49)**: `jobsPadrao()` proporcional à máquina (3–6; 16 threads → 6) e os 5 scripts mais longos entram primeiro na fila em `e2e/run.mjs`. Descartado por medição: `--maxWorkers=12` (±0%), `experimental.fsModuleCache` (±2%), `isolate:false` (já rejeitado: vaza estado entre arquivos). Observação: a rodada de 575 s citada antes era uma medição com a máquina carregada; o baseline limpo era 203 s. Validado: `npx tsc -b`, `npm run lint`, `npm run test` ×2 e `node e2e/run.mjs` com `npm run dev`. |
 | 2026-10-20 | Perf — orçamento (`makeRoomFor`) | `makeRoomFor` caiu de ~1,7 s para ~0,37–0,47 s por chamada no app real da TV (lista real, 3 listas, medido com `probeBudget`). Causa (medida por etapa): ~0,7 s era a contagem de guia antigo repetida nos candidatos e ~0,8 s eram as contagens por lista, atribuídas a consultar a tabela do guia antigo (esvaziada na conversão), que custa ~1 s mesmo vazia. Feito: o ledger entrega as linhas de guia antigo por lista e os candidatos as reaproveitam; `epgPrograms` só é consultada em lista sem `epgStoredBytes` (`storageLedger.ts`, `storageRelease.ts`). Descartado: ler metadados/guia por chaves com cursor (mais lento: +400 ms) e a conta guardada da 085. Validação: `npm run test` 3670, `tsc`, lint e build ok; E2E `orcamento-armazenamento`, `carga-listas`, `epg-*` ok; contratos 082/085 íntegros; 3 amostras na TV (`sdd/assessments/orcamento-armazenamento-makeroomfor-custa-18-s/evidencias/orcamento-depois-tv-2026-10-20.md`). Ajustou o teste `storageLedger.test.ts`: o guia antigo só entra na conta sem guia novo. |
+
+## Arquivo do backlog — 2026-10-23
+
+O `.planning/backlog.md` foi enxugado de novo: saíram as features **Implementada/Convergida** e os bugs **verified**; ficam só o que falta (features em andamento ou especificadas, bugs `partial`/`failed`/em Fix) e o que o painel nunca perde.
+O que saiu está preservado aqui, com os mesmos números que o painel mostrava.
+
+### Features entregues e encerradas (7)
+
+| Slug | Título | Status | Progresso | Última Atualização |
+| --- | --- | --- | --- | --- |
+| 002-splash-home-perfis | Splash, ícone do app e Home de perfis/listas | Implementada | 22/22 tasks | 2026-09-16 |
+| 017-busca-local-catalogo | Busca Local em Live TV, Filmes e Séries | Implementada | 41/42 tasks | 2026-10-06 |
+| 028-limpeza-qa-ds-v14 | Limpeza e QA do Design System V14 (Onda 7) | Implementada | 78/78 tasks | 2026-09-28 |
+| 073-compra-licenca-pix | Compra de licença por Pix na TV e renovação pelo portal | Implementada | 51/51 tasks | 2026-10-16 |
+| 075-redesenho-portal-licenca | Redesenho da tela Portal & licença e item Backup | Implementada | 41/41 tasks | 2026-10-16 |
+| 082-orcamento-armazenamento-tv | Orçamento de armazenamento do app na TV | Implementada | 89/89 tasks | 2026-10-22 |
+| 091-chave-legenda-portal | Chave de legenda digitada no portal | Convergida | 49/51 tasks | 2026-10-23 |
+
+### Bugs verificados e encerrados (9)
+
+| Slug | Título | Fase Atual | Veredito/Status | Próximo Passo | Última Atualização |
+| --- | --- | --- | --- | --- | --- |
+| foco-some-ao-descer-na-lista | Foco some ao descer na lista de episódios do detalhe da série | Test | verified | Concluído | 2026-10-22 |
+| lista-xtream-nao-atualiza-novos-filmes | Lista Xtream não traz filmes/séries/canais novos ao abrir o app | Test | verified | Concluído | 2026-10-22 |
+| live-tv-carregando-durante-reproducao | Live TV carregando durante reprodução | Test | verified | Concluído | 2026-10-22 |
+| trailer-setas-horizontais-avancam-video-vez | Trailer: setas horizontais navegam botões | Test | verified | Concluído | 2026-10-22 |
+| ch-mais-menos-nao-trocam-canal | CH+/CH− não trocam canal no player | Test | verified | Concluído | 2026-10-22 |
+| guide-epg-demorando-carregar-na-tela | Guia EPG demorando para carregar na tela de progresso de importacao | Test | verified | Concluído | 2026-10-22 |
+| e2e-campos-da-listagem-nao-acha-fileira-avaliados | fileira de categoria fica em "esqueleto" depois que a pré-carga entrega a categoria | Test | verified | Concluído | 2026-10-23 |
+| playwright-portal-gerenciadorspects95-falha-na-suite | gerenciador.spec.ts:95 falha na suíte paralela do portal | Test | verified | Concluído | 2026-10-23 |
+| e2e-tv-carrosseis-filmes-series-falha-maximum-update | E2E carrosseis-filmes-series estoura "Maximum update depth" na pilha de 302 categorias | Test | verified | Concluído | 2026-10-23 |
+
+### Features fechadas a pedido em 2026-10-23 (7)
+
+O usuário declarou ter testado tudo (inclusive na TV física) e pediu para encerrar as features abertas, exceto as que serão retomadas para o lançamento (081 e 078) e a 043, que só tem especificação.
+As tarefas que dependiam dessa validação foram marcadas como "validado pelo usuário — relato, sem evidência anexada"; os detalhes e as ressalvas de cada uma estão no `plan.md` → `## Resultado Final` da feature.
+
+| Slug | Título | Status | Progresso | Última Atualização |
+| --- | --- | --- | --- | --- |
+| 050-filmes-series-paridade-v14 | Paridade visual de Filmes e Séries com o Design System V14 | Convergida | 34/34 tasks | 2026-10-23 |
+| 062-teste-conexao-tv | Teste de conexão da TV em Configurações | Convergida | 34/34 tasks | 2026-10-23 |
+| 067-configuracoes-lista-global | Separar configurações da lista das configurações globais do app | Convergida | 53/53 tasks | 2026-10-23 |
+| 072-desvincular-backup | Desvincular a TV do portal e backup dos dados de uso | Convergida | 46/46 tasks | 2026-10-23 |
+| 074-radio-global | Rádio global por país | Convergida | 53/53 tasks | 2026-10-23 |
+| 079-home-carregamento-progressivo | Home, Filmes e Séries já montadas ao entrar | Convergida | 41/41 tasks | 2026-10-23 |
+| 090-legendas-externas | Legendas externas (OpenSubtitles e SubDL) | Convergida | 69/69 tasks | 2026-10-23 |

@@ -28,6 +28,11 @@ async function mock(page: Page) {
     if (path === '/offer') return json({ priceMinor: 3500, currency: 'BRL', termMonths: 12, deviceCount: 1, renewal: 'manual', checkoutEnabled: true })
     if (path === '/backup') return json({ exists: true, createdAt: Date.UTC(2026, 9, 14), counts: { favorites: 3, history: 7, progress: 2 } })
     if (path === '/integrations/tmdb') return json({ pending: null, last: { action: 'set', result: 'applied', at: new Date().toISOString() }, tvReported: 'configured' })
+    // 091: chaves de legenda — uma aplicada, a outra sem chave e a TV ainda sem informar ("Estado desconhecido").
+    if (path === '/integrations/subtitles') return json({
+      opensubtitles: { pending: null, last: { action: 'set', result: 'applied', at: new Date().toISOString() }, tvReported: 'configured' },
+      subdl: { pending: null, last: null, tvReported: null },
+    })
     return json({}, 404)
   })
 }
@@ -117,7 +122,7 @@ for (const locale of ['pt-BR', 'en-US', 'es-ES']) {
         await page.waitForTimeout(250)
         await audit(page, label, minTarget)
       }
-      for (const key of ['tmdb', 'backup', 'code', 'recover', 'help']) {
+      for (const key of ['tmdb', 'subtitles', 'backup', 'code', 'recover', 'help']) {
         await page.locator(`[data-focus-key="${key}"]`).click()
         await page.waitForTimeout(250)
         await audit(page, 'ajustes › ' + key, minTarget)
@@ -140,7 +145,7 @@ test('320 px (reflow de 400% sobre 1280): sem rolagem horizontal em nenhuma tela
     await page.waitForTimeout(250)
     await audit(page, 'tela ' + index + ' em 320', 44)
   }
-  for (const key of ['tmdb', 'help']) {
+  for (const key of ['tmdb', 'subtitles', 'help']) {
     await page.locator(`[data-focus-key="${key}"]`).click()
     await page.waitForTimeout(250)
     await audit(page, key + ' em 320', 44)
@@ -171,4 +176,11 @@ test('360 px com viewport reduzido: o teclado mantém os campos acima da barra d
   await page.locator('[data-focus-key="tmdb"]').click()
   const tmdbOffset = await page.locator('input[name="tmdb-token"]').evaluate(field => Number.parseFloat(getComputedStyle(field).scrollMarginBottom))
   expect(tmdbOffset).toBeGreaterThanOrEqual(editorOffsets.actionHeight)
+
+  await page.goBack()
+  await page.locator('[data-focus-key="subtitles"]').click()
+  for (const name of ['opensubtitles-token', 'subdl-token']) {
+    const offset = await page.locator(`input[name="${name}"]`).evaluate(field => Number.parseFloat(getComputedStyle(field).scrollMarginBottom))
+    expect(offset, name).toBeGreaterThanOrEqual(editorOffsets.actionHeight)
+  }
 })

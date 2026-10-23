@@ -12,7 +12,7 @@ CCPlay TV organiza listas IPTV M3U/M3U8 e Xtream em uma experiência feita para 
 - **TV ao vivo, filmes e séries:** catálogo local, favoritos, histórico, retomada, busca, EPG e reprodução direta na TV.
 - **Experiência feita para o controle remoto:** foco visível, navegação por setas, retorno ao ponto anterior e interface adaptada à tela grande.
 - **Metadados opcionais:** integração com TMDB por chave própria para capas, detalhes, elenco, semelhantes e trailers.
-- **Portal opcional:** acesso pelo site para gerenciar a mesma TV, sem exigir uma conta pessoal para usar o aplicativo.
+- **Portal opcional:** acesso pelo site para gerenciar a mesma TV e enviar para ela as chaves próprias de TMDB e de legendas (OpenSubtitles e SubDL), que a TV aplica ao apertar **Atualizar**, sem exigir uma conta pessoal para usar o aplicativo.
 
 ## Como começar
 

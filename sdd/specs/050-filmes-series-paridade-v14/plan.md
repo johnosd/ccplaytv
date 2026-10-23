@@ -260,6 +260,7 @@ Configurações/detalhes (FR-016/SC-004) — E2E de capturas e `quickstart.md`.
 | Data | Fase/Story | Resumo | Pendência Principal |
 | --- | --- | --- | --- |
 | 2026-10-02 | Fases 1–5 | Hero em painel com capa ao fundo (`VodHeroArt`), sidebar em painel de 340px, toolbar (Pesquisar com "OK", Ordenar label/valor), molduras de continuação (`useOverflowEdges`), modal de Ordenar V14; E2E novo `filmes-series-paridade-v14.mjs` (achou e corrigiu o anel cortado pela coluna). Gate: tsc/lint/build/build:tizen, 2449/2450 testes, E2E 30/30, 6 travas íntegras. | Teste instável `LiveScreen.paginacao.test.tsx`; capturas antes/depois e TV física |
+| 2026-10-23 | Fechamento | T025 (revisão visual) validada pelo usuário; T026 reexecutada; status Convergida | — |
 
 **PRÓXIMO**: T025 — revisão visual lado a lado com o protótipo (SC-001) e capturas antes/depois de Live, Configurações e detalhes (SC-004), ou dispensa registrada pelo usuário; depois T026 (`sdd-converge`). Hero retirada em 2026-10-07 (R-013).
 
@@ -281,6 +282,6 @@ Configurações/detalhes (FR-016/SC-004) — E2E de capturas e `quickstart.md`.
 - `innerText` (Playwright) devolve a caixa alta aplicada por CSS; aqui o rótulo já é literal em caixa alta.
 - `npm run test:e2e -- --only a,b --jobs 1` não passa pelo PowerShell/npm: use `node e2e/run.mjs --only a,b --jobs 1`.
 
+## Resultado Final
 
-
-
+Fechada a pedido do usuário em 2026-10-23, que declarou ter testado tudo (inclusive na TV física); as tarefas que dependiam dessa validação foram marcadas como "validado pelo usuário" — relato, sem evidência anexada nesta sessão. Os riscos da tabela **não** foram reauditados um a um nesta passada; o que é bug daqui em diante entra como bug. A hero band de Filmes e Séries foi retirada a pedido do usuário depois da entrega (R-013, nota inline na spec). Contratos conferidos pela trava (`check-contract-tests.ps1`).

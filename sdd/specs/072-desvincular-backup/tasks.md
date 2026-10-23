@@ -225,8 +225,8 @@
 - [X] T033 Gates: TV `tsc`/lint/`npm run test`/build/`build:tizen`; API pytest + Ruff; portal-web lint/test/build/E2E;
   `npm run test:e2e` completo com `npm run dev`; travas 072/071/070/069/067/026/019 íntegras.
 - [X] T034 Publicar API + portal-web no staging (`portal.ccplaytv.com`) **com confirmação do usuário**; smokes.
-- [ ] T035 TV física (recomendação): quickstart §4; `evidencias/tv.md`.
-- [ ] T036 Backlog/status via scripts; `plan.md` Estado Atual/Execution Notes.
+- [X] T035 TV física (recomendação): quickstart §4; `evidencias/tv.md`. — validado pelo usuário em 2026-10-23 ("já testei tudo"); relato, sem evidência anexada (quickstart §4); `evidencias/tv.md` não foi atualizado
+- [X] T036 Backlog/status via scripts; `plan.md` Estado Atual/Execution Notes. — backlog/status sincronizados por scripts em 2026-10-23
 
 **Registro da Fase**:
 

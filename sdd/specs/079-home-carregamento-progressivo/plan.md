@@ -199,6 +199,7 @@ Contratos de outras features que esta pode quebrar (rodar sem editar): `HomeScre
 | --- | --- | --- | --- |
 | 2026-10-16 | Fase 1 | Regra pura, hook e medição implementados; 3/3 contratos da fase verdes, 12/12 testes de `lib/assembly`+`lib/perf`, lint ok. | Fase 2 (Home). |
 | 2026-10-16 | Fase 2 | Home monta antes de aparecer; billboard neutro; `follow` no favorito e no fechamento do player; contratos 079/026/060 verdes; `HomeContent.tsx` 628 linhas. | Instabilidade 1/4 em `HomeBillboard`/`HomeLiveCard` na pasta Home. |
+| 2026-10-23 | Fechamento | T020/T021 (TV) validadas pelo usuário, T023/T030 cobertas pelo E2E completo; status Convergida | — |
 
 | 2026-10-16 | Fase 3 | Vitrine de Filmes/Séries na regra comum (teto 2 s); 186/186 em `src/features/vod`; 2 testes antigos ajustados ao atraso de 300 ms. | Fase 4 depende da TV física. |
 
@@ -224,3 +225,7 @@ Contratos de outras features que esta pode quebrar (rodar sem editar): `HomeScre
 - Teste que verifica o estado de espera com relógio real fica sujeito ao teto de 2 s sob carga: usar `vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })`.
 - Roteiro E2E que lê o Início/vitrine logo após `.home-content`/`.vod-screen` precisa esperar `.home-hero`/`section.vod-row`: a tela só aparece depois da montagem.
 - Medir no navegador com a lista real: `CCPLAY_USER_DATA=<perfil> node e2e/home-vitrine-expandida-real.mjs` importa e semeia; depois ligar `ccplaytv:perf` e ler `window.__ccplayAssemblyTimings`.
+
+## Resultado Final
+
+Fechada a pedido do usuário em 2026-10-23, que declarou ter testado tudo (inclusive na TV física); as tarefas que dependiam dessa validação foram marcadas como "validado pelo usuário" — relato, sem evidência anexada nesta sessão. Os riscos da tabela **não** foram reauditados um a um nesta passada; o que é bug daqui em diante entra como bug. Ressalva: a medição numérica da montagem na TV (`__ccplayAssemblyTimings`) não foi registrada; o aceite é a avaliação visual do usuário.
