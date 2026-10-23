@@ -1,18 +1,12 @@
 {
   "candidate": {
     "variant": "commercial",
-    "revision": "f755cd65e643a3888b210c6659e1e383f603b415",
-    "dirtyPaths": [
-      "release/samsung/kit/manifest.json",
-      "release/samsung/kit/media/screenshot_01.jpg",
-      "release/samsung/kit/media/screenshot_02.jpg",
-      "release/samsung/kit/media/screenshot_03.jpg",
-      "release/samsung/kit/media/screenshot_04.jpg"
-    ],
+    "revision": "195a6d4b34334128ddfd06589fd564df018310ef",
+    "dirtyPaths": [],
     "buildMode": "commercial",
     "version": "0.2.1",
     "wgtSha256": "4ec4277b7d0b96d028c6bb2a449bbef789eed1da29a25b948dc0b8c4117c7d2c",
-    "dirty": true
+    "dirty": false
   },
   "kit": {
     "kitVersion": "0.2.1",
@@ -21,16 +15,8 @@
   "results": [
     {
       "id": "INT-CAND-TREE",
-      "status": "Blocked",
-      "detail": "árvore de trabalho com 5 alteração(ões) não commitada(s)",
-      "paths": [
-        "release/samsung/kit/manifest.json",
-        "release/samsung/kit/media/screenshot_01.jpg",
-        "release/samsung/kit/media/screenshot_02.jpg",
-        "release/samsung/kit/media/screenshot_03.jpg",
-        "release/samsung/kit/media/screenshot_04.jpg"
-      ],
-      "nextAction": "commitar ou descartar as alterações e gerar o candidato de novo"
+      "status": "Pass",
+      "detail": "árvore limpa na revisão do candidato"
     },
     {
       "id": "INT-CAND-HASH",
@@ -255,16 +241,14 @@
   "decision": "Blocked",
   "blockers": [
     "SAM-KIT-TESTACCESS",
-    "INT-CAND-TREE",
     "INT-SEC-CUSTODY",
     "INT-EVD-EMULATOR"
   ],
   "stale": {
     "stale": true,
     "reasons": [
-      "revision",
-      "kit"
+      "revision"
     ]
   },
-  "generatedAt": "2026-10-23T22:03:03.785Z"
+  "generatedAt": "2026-10-23T22:03:14.337Z"
 }
