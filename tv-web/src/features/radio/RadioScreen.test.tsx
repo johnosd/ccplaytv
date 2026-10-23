@@ -7,6 +7,7 @@ import { RadioDirectoryError } from '../../lib/radio/radioDirectory'
 import { I18nProvider } from '../../lib/i18n/I18nProvider'
 import { resetAppLanguageForTests, writeAppLanguage } from '../../lib/i18n/appLanguage'
 import { BR_STATIONS, fakeRadioDirectory, fakeRadioEngine, radioKey, radioTap } from '../../testing/radioFakes'
+import { writeLastRadioCountry } from './radioSessionMemory'
 
 beforeEach(async () => {
   window.localStorage.clear()
@@ -170,5 +171,38 @@ describe('RadioScreen (feature 074)', () => {
     radioTap('Enter')
     expect(await screen.findByText('2 mais ouvidas do mundo')).toBeInTheDocument()
     expect(within(document.querySelector<HTMLElement>('.radio-list')!).getByText('Argentina')).toBeInTheDocument()
+  })
+  // T038 (074, FR-011, `logic/radio-tela.md` §3.2): a entrada inicial é validada contra a lista de países.
+  describe('entrada inicial inválida', () => {
+    it('último país sumiu do diretório: cai no país da TV, depois no Brasil (T038)', async () => {
+      writeLastRadioCountry('ZZ')
+      const directory = fakeRadioDirectory()
+      await renderRadio(directory)
+      expect(directory.listStations).toHaveBeenLastCalledWith({ countryCode: 'BR' }, expect.anything())
+      radioTap('Escape')
+      expect(focusedTrailLabel()).toBe('Brasil')
+    })
+
+    it('país da TV fora do diretório e sem país salvo: usa o Brasil (T038)', async () => {
+      // jsdom informa `en-US`: o país da TV é US, que o diretório de teste não tem.
+      const directory = fakeRadioDirectory()
+      await renderRadio(directory)
+      expect(directory.listStations).toHaveBeenLastCalledWith({ countryCode: 'BR' }, expect.anything())
+    })
+
+    it('nem o Brasil existe: cai em Mundo, sem pedir um país que não existe (T038)', async () => {
+      writeLastRadioCountry('ZZ')
+      const directory = fakeRadioDirectory({ listCountries: vi.fn(async () => [{ code: 'PT', directoryName: 'Portugal', stationCount: 50 }]) })
+      render(<RadioScreen onBack={() => {}} directory={directory} createAdapter={fakeRadioEngine().factory} />)
+      await waitFor(() => expect(directory.listStations).toHaveBeenLastCalledWith({ countryCode: null }, expect.anything()))
+    })
+
+    it('o país válido salvo não é trocado (T038)', async () => {
+      writeLastRadioCountry('BR')
+      const directory = fakeRadioDirectory()
+      await renderRadio(directory)
+      expect(directory.listStations).toHaveBeenCalledTimes(1)
+      expect(directory.listStations).toHaveBeenLastCalledWith({ countryCode: 'BR' }, expect.anything())
+    })
   })
 })

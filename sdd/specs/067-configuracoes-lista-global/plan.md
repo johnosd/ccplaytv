@@ -257,6 +257,7 @@ Fora dos contratos (testes do executor e E2E): tela de perfis com "Configurar" (
 | 2026-10-10 | Fase 4 / US2 | Fontes IPTV só com "Configurar" + aviso de escopo global; `SourcesTab` sem mutações; chaves/ramos mortos removidos; catraca mais enxuta (146); 3012 testes verdes, 8 contratos (5 da 067 + 3 emendados) verdes. | Fase 5 |
 | 2026-10-10 | Fase 5 / Polish | 7 roteiros E2E ajustados + roteiro novo (45/45), SC-004=14 teclas, SC-001 emendado (5), migração provada em Chromium, revisão de segredos, 3164 testes, build/Tizen (2 chunks novos listados), docs (README, CLAUDE.md, emendas 066/026). | Passada na TV física (recomendada); depois `sdd-converge` |
 | 2026-10-10 | Fase 6 / Convergência | C-001 resolvido por emenda de texto (progresso fora do FR-009/SC-006, R-010); chave de texto sem uso removida; E2E cobre Editar→RETURN e excluir a lista ativa; 3164 testes e 4 roteiros verdes. | Passada na TV física (recomendada); depois `sdd-converge` |
+| 2026-10-23 | Fechamento | passada recomendada na TV validada pelo usuário; status Convergida | — |
 
 **PRÓXIMO**: rodar `sdd-converge` de novo (fecha a feature); a passada na TV física é recomendada, não é gate.
 
@@ -279,3 +280,7 @@ Fora dos contratos (testes do executor e E2E): tela de perfis com "Configurar" (
 - `navigation/settingsRoutes.tsx` concentra o `dispatch` de Configurações (globais, lista, EPG, TMDB); o `App.tsx` só delega no `default` do `switch`.
 - Chunks compartilhados novos (`SourcesPanel.js`, `onlineStatus.js`) e o de rota (`route-list-settings.js`) já estão em `CCPlayTv/tizen_web_project.yaml`; qualquer reorganização de imports entre as telas de Configurações pode criar outro e o `build:tizen` avisa.
 - Em lista M3U, o **nome do grupo** decide o tipo do item (`Canais | …` = canal, `Filmes`, `Series`): fixture de E2E com grupo sem esse prefixo não gera categoria de canais.
+
+## Resultado Final
+
+Fechada a pedido do usuário em 2026-10-23, que declarou ter testado tudo (inclusive na TV física); as tarefas que dependiam dessa validação foram marcadas como "validado pelo usuário" — relato, sem evidência anexada nesta sessão. Os riscos da tabela **não** foram reauditados um a um nesta passada; o que é bug daqui em diante entra como bug. Todos os itens obrigatórios já estavam marcados; faltava só a passada recomendada na TV.

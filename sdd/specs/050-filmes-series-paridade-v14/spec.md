@@ -4,7 +4,7 @@
 
 **Created**: 2026-10-02
 
-**Status**: Convergência Pendente
+**Status**: Convergida
 
 **Input**: Pedido de ajustar as telas de Filmes e Séries para ficarem iguais ao protótipo `CCPlayTV_Tizen_Ultimate_Prototype_v13_2.html` (funções `catalog()`, `catalogSearchModal()`, `sortModal()`), usando como consulta o Component Lab V14 e a Spec V14. A feature 025 já migrou essas telas para a estrutura V14 (sidebar, toolbar, hero compacta, grade); a distância que resta é de acabamento e composição, como a 048 fez para a Live.
 

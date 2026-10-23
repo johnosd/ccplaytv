@@ -440,18 +440,18 @@ Task: "T009 [P] countryNames.ts + tvCountry.ts"
 **Purpose**: Lacunas achadas pelo `sdd-converge` em 2026-10-15. Nenhuma é CRITICAL nem HIGH; os contratos 5/5 continuam
 verdes e a trava íntegra.
 
-- [ ] T038 [US1] (C-001 · MEDIUM · FR-011, Edge Cases "país fora do diretório"/"último país sumiu", `logic/radio-tela.md`
+- [X] T038 [US1] (C-001 · MEDIUM · FR-011, Edge Cases "país fora do diretório"/"último país sumiu", `logic/radio-tela.md` — feito em 2026-10-23: `useRadioCatalog.ts` valida a entrada inicial contra a lista de países (país salvo/da TV ausente → país da TV → Brasil → Mundo; só enquanto a pessoa não escolheu nada) com 4 testes em `RadioScreen.test.tsx`
   §3.2) Em `tv-web/src/features/radio/useRadioCatalog.ts`, validar a entrada inicial contra a lista de países quando ela
   chegar (cache ou rede). Se o código salvo não existir, usar o país da TV; se esse também não existir, BR; se nem BR
   existir, `world`. Reentrar só quando a entrada inicial for inválida, nunca por foco. Teste em
   `tv-web/src/features/radio/RadioScreen.test.tsx` cobrindo "último país sumiu" e "país da TV fora do diretório".
-- [ ] T039 (C-002 · LOW · FR-028) Favicon sem tempo limite: o `PosterArt` mantém as iniciais visíveis até a imagem
+- [X] T039 (C-002 · LOW · FR-028) Favicon sem tempo limite: o `PosterArt` mantém as iniciais visíveis até a imagem — decisão (usuário, 2026-10-23): aceito; o `PosterArt` mantém as iniciais até a imagem carregar e no erro, sem tempo limite para imagem lenta (LOW, FR-028)
   carregar e as mostra de novo no `onError`, mas não desiste de uma imagem lenta. Decidir com o usuário entre aceitar
   (registrar em `plan.md` → `Riscos e Decisões`) ou implementar o tempo limite na Rádio sem mudar o `PosterArt` das outras
   telas.
-- [ ] T040 [US1] (C-003 · LOW · spec US1-AC7/FR-015 × plan D-001) Emendar `spec.md`: a saída da Rádio é só por RETURN
+- [X] T040 [US1] (C-003 · LOW · spec US1-AC7/FR-015 × plan D-001) Emendar `spec.md`: a saída da Rádio é só por RETURN — feito em 2026-10-23: nota inline na `spec.md` (saída só por RETURN até o Início; plan D-001)
   até o Início, porque a tela não tem topbar própria (D-001). Mudança só no texto; o código já segue o plano.
-- [ ] T041 (C-004 · LOW · Analyze A-001/A-003/A-005) Emendar `spec.md`:
+- [X] T041 (C-004 · LOW · Analyze A-001/A-003/A-005) Emendar `spec.md`: — feito em 2026-10-23: notas inline na `spec.md` (recorte "100 mais ouvidas de N", país da TV = região do idioma do sistema, termo "Tocando agora")
   - FR do recorte visível "100 mais ouvidas de N" (D-010; constitution "Progresso e Capacidades São Reais");
   - premissa de que o país da TV vem da região do idioma do sistema;
   - termo "barra 'Tocando agora'" no lugar de "mini-barra".

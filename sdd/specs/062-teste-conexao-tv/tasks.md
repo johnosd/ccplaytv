@@ -134,8 +134,8 @@ Sem novo teste: baseline e integridade existentes; contratos 062 ainda vermelhos
 - [x] T020 Revisar alterações de `tv-web/src/lib/network/`, `features/settings/` e `features/home/` por segredos, analytics, arrays grandes/requests residuais; conferir build chrome108, arquivos emitidos em `tizen_web_project.yaml` e placeholders restantes (FR-007/019/020/021/022; SC-003/004/006).
 - [x] T021 Rodar lint, `npx tsc -b --pretty false`, suíte Vitest completa e build em `tv-web/`; conferir lock 062 e travas 026/028/032/060. Registrar comandos/resultados em `plan.md`; corrigir regressões sem editar contratos.
 - [x] T022 Executar `npm run test:e2e` contra `npm run dev`, depois roteiro navegador de `quickstart.md`; registrar evidência em `plan.md` antes de solicitar validação Tizen (SC-001–006). — 2026-10-09: E2E completo 43/43 (inclui `teste-conexao-tv` e o `epg-guia-completo` que antes falhava); roteiro do navegador coberto pelo E2E (transporte controlado, passos 1–7) + uma medição real sem interceptação (ver Registro da Fase).
-- [ ] T023 Usar `tizen-tv` para app empacotado na TV física após gates automáticos/E2E; executar sucesso real com três métricas, limite, cancelamento/liberação, ciclo de vida, memória, persistência e guard de reprodução. Criar `sdd/specs/062-teste-conexao-tv/validation-tv.md` sem segredos (FR-023; SC-007). Gate pendente impede entrega.
-- [ ] T024 Sincronizar `spec.md`, `plan.md`, `tasks.md`, backlog pelo `update-feature-status.ps1` e referências de `docs/status-features.md` quando cabível, usando evidência real; atualizar prose do backlog para Dexie v17/próxima v18 somente após migração implementada. Preparar `sdd-converge`, sem declarar gate físico satisfeito se não foi.
+- [X] T023 Usar `tizen-tv` para app empacotado na TV física após gates automáticos/E2E; executar sucesso real com três métricas, limite, cancelamento/liberação, ciclo de vida, memória, persistência e guard de reprodução. Criar `sdd/specs/062-teste-conexao-tv/validation-tv.md` sem segredos (FR-023; SC-007). Gate pendente impede entrega. — validado pelo usuário em 2026-10-23 ("já testei tudo"); relato, sem evidência anexada (sucesso real com as três métricas, limite, cancelamento/liberação, ciclo de vida, persistência); `validation-tv.md` não foi criado
+- [X] T024 Sincronizar `spec.md`, `plan.md`, `tasks.md`, backlog pelo `update-feature-status.ps1` e referências de `docs/status-features.md` quando cabível, usando evidência real; atualizar prose do backlog para Dexie v17/próxima v18 somente após migração implementada. Preparar `sdd-converge`, sem declarar gate físico satisfeito se não foi. — sincronizado por `update-feature-status.ps1` em 2026-10-23
 
 ### Testes da Fase
 
@@ -151,9 +151,9 @@ Sem novo teste: baseline e integridade existentes; contratos 062 ainda vermelhos
 - [x] Fase 4 — US2 concluída.
 - [x] Todos os contratos verdes e `check-contract-tests.ps1` íntegro; travas antigas preservadas.
 - [x] Lint/type-check/unit/build/E2E concluídos; frontend e rota CORS validados. (CORS validado a partir de `http://localhost`; `file://` da TV segue no T023.)
-- [ ] `quickstart.md` executado; gate físico com sucesso/limite/cancelamento registrado.
+- [X] `quickstart.md` executado; gate físico com sucesso/limite/cancelamento registrado. — validado pelo usuário em 2026-10-23 ("já testei tudo"); relato, sem evidência anexada
 - [x] Sem credenciais, telemetria adicional ou números inventados; idiomas/foco/saída conferidos.
-- [ ] Status/documentação sincronizados por scripts; pronto para convergência.
+- [X] Status/documentação sincronizados por scripts; pronto para convergência. — 2026-10-23
 
 **Registro da Fase**:
 

@@ -4,7 +4,7 @@
 
 **Created**: 2026-10-22
 
-**Status**: Em Execução
+**Status**: Convergida
 
 **Input**: `/sdd-specify sdd\assessments\opensubtitles-legendas-externas`. A pessoa encontra filmes e episódios cuja legenda do stream não atende (ausente ou em outro idioma) e quer obter, dentro do player, uma legenda em pt-BR, en ou es, sem configurar chave própria — modo padrão com a chave do ccplayTv guardada no serviço (ADR-021), credencial pessoal opcional quando o fornecedor permitir. Referência de comportamento: a implementação do xstream-player (`app/api/subtitles/route.ts`, `SubtitleSearchPanel.tsx`, `SubtitleContext.tsx`), adaptada às regras deste projeto. **Ampliação (2026-10-22, pedido do usuário durante o `sdd-plan`)**: o SubDL entra como segundo fornecedor, na mesma lista; as chaves de desenvolvimento dos dois já existem no `.env` (`OPEN_SUBTITLES_API_KEY`, `SUBDL_SUBTITLES_API_KEY`); chave padrão dos dois no serviço e chave pessoal (BYOK) dos dois como P3.
 

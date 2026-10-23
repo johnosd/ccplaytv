@@ -4,7 +4,7 @@
 
 **Created**: 2026-10-16
 
-**Status**: Em Execução
+**Status**: Convergida
 
 **Input**: Handoff aprovado em `sdd/assessments/home-carregamento-progressivo-ordem-visual-das/decision.md`; escopo ampliado e modelo decidido na entrevista de 2026-10-16 (ver Clarifications).
 

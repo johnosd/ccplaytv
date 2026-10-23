@@ -212,6 +212,7 @@ Complementares no execute: falhas sanitizadas/429, corpo incorreto/sem stream, a
 | 2026-10-06 | Fase 1 / Setup | T001/T002 concluídas: v17 livre, config Tizen já permite internet; probe 1 byte 200/ACAO/TAO `*`; baseline 39/39, tipos/lint exit 0, 5 contratos vermelhos por stubs e locks íntegros. Sem alterações em produção. | Confirmar Fase 2/T003; TV continua gate futuro |
 | 2026-10-06 | Fase 2 / Foundational | T003–T007: motor e singleton v17, 4/4 contratos e 21/21 testes da área, tipos/lint exit 0, lock íntegro. Usuário autorizou modo contínuo. | Fase 3 / US1; gate físico T023 |
 | 2026-10-06 | Fase 3 / US1 | T008–T015; card/dialog/controlador reais, idiomas e CSS settings.css, 21/21 testes incluindo cinco contratos; tipos/lint exit 0. RETURN aguarda efeitos assíncronos no teste. | Dock/resumo US2, E2E e TV |
+| 2026-10-23 | Fechamento | T023 (gate físico) validada pelo usuário; T024 sincronizada; status Convergida | — |
 
 | 2026-10-06 | Fase 4 / US2 | T016–T019; dock/card por serviço, Query local global e resumo, placeholders speedtest retirados; 44/44 e 6/6 contratos; locks íntegros. | Gates completos/E2E/TV |
 
@@ -243,3 +244,7 @@ Complementares no execute: falhas sanitizadas/429, corpo incorreto/sem stream, a
 - Comandos locais requerem execução fora do sandbox neste ambiente porque o helper Windows falha ao aplicar ACLs. Lint retorna exit 0 com warnings preexistentes; nenhum ajuste fora do escopo foi feito.
 
 - PowerShell 5.1 envia pipes como ASCII: usar OutputEncoding UTF8 para scripts Python com prosa; apply_patch evita corrupção.
+
+## Resultado Final
+
+Fechada a pedido do usuário em 2026-10-23, que declarou ter testado tudo (inclusive na TV física); as tarefas que dependiam dessa validação foram marcadas como "validado pelo usuário" — relato, sem evidência anexada nesta sessão. Os riscos da tabela **não** foram reauditados um a um nesta passada; o que é bug daqui em diante entra como bug. Ressalva: o arquivo `validation-tv.md` do gate físico (FR-023/SC-007) não foi criado; a evidência é o relato do usuário.

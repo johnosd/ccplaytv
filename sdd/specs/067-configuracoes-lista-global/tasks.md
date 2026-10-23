@@ -189,7 +189,7 @@ description: "Tasks da feature 067 — Configurações da lista × globais, PIN 
 - [X] `npm run test:e2e` completo verde (com `npm run dev` rodando)
 - [X] `quickstart.md` executado no navegador
 - [X] Revisão de segredos feita
-- [ ] TV física (recomendada, não gate): D-pad nas abas novas, PIN por lista com teclas numéricas, migração com a 066 instalada
+- [X] TV física (recomendada, não gate): D-pad nas abas novas, PIN por lista com teclas numéricas, migração com a 066 instalada — validado pelo usuário em 2026-10-23 ("já testei tudo"); relato, sem evidência anexada (D-pad nas abas novas, PIN por lista, migração)
 
 **Registro da Fase**:
 
