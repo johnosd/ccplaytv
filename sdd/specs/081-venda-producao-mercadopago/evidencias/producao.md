@@ -21,3 +21,12 @@ O usuário comprou só por cartão. O caminho `pix_disabled` (a TV mostra "pague
 ## T029 — estorno — **não executado, por decisão**
 
 A compra feita é a licença que o usuário vai usar; estornar revogaria a licença. A revogação por estorno segue sem prova real em produção.
+
+## Correção e T028 — Pix real em produção (2026-10-23, depois do relato)
+
+- **Pix real na TV: funcionou.** O usuário fez 1 compra por **Pix** na TV e a licença **ganhou mais 1 ano** (relato). Nos logs de produção (somente leitura): `POST /portal/v1/device/orders/pix` 200 às 20:51:28Z, depois `POST /portal/v1/device/orders/pix/refresh` 200 às 20:53:40Z.
+- **Correção do que está escrito acima sobre o webhook:** o webhook assinado **funciona**. Hoje, nas mesmas janelas da compra, `MercadoPago WebHook v1.0 payment` (assinado) devolveu **200** (20:51:30Z e 20:53:35Z), e só o formato legado `MercadoPago Feed v2.0 payment` devolveu 401 — comportamento esperado, porque
+  ele não traz a assinatura. Os 401 do `WebHook v1.0` vistos em 18–22/10 (por exemplo 2026-10-22 10:37Z) são anteriores e não foram investigados (provável segredo/configuração da época). Portanto o T027 passa também no item do webhook assinado, e a decisão de "aceitar o webhook como reforço" ficou sem efeito prático.
+- **Efeito na decisão do Pix:** a decisão "lançar sem Pix real" fica **cancelada**: o Pix real foi provado em produção, então `CCPLAY_PORTAL_PIX_PAYER_DOMAIN` permanece e **nada será desligado**.
+- **Estorno (T029):** continua dispensado; há agora duas compras reais (cartão e Pix) e a revogação por estorno segue sem prova. Se o usuário quiser provar a revogação, o candidato é estornar a compra Pix (a de teste), sabendo que o efeito na licença deve ser conferido com cuidado.
+

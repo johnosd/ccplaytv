@@ -263,14 +263,16 @@ concessões são revogadas.
 - [X] T027 [USUÁRIO] [US2] Compra real por **cartão** no portal (Checkout Pro). Conferir:
   > **2026-10-23 — parcial:** compra real por cartão, a TV recebeu a licença de 12 meses (relato do usuário); o webhook assinado devolveu 401 em todas as notificações dos últimos 14 dias — sem o "200" exigido aqui; continua aberta** (detalhes em `evidencias/producao.md`)
   > **Decisão do usuário (2026-10-23):** o webhook fica como **reforço**; a venda segue sem ele (já havia sido aceito antes). A licença chega pela consulta autenticada, que foi o que a compra real comprovou.
+  > **Atualização (2026-10-23, mais tarde):** o webhook assinado (`MercadoPago WebHook v1.0 payment`) devolveu **200** na compra Pix de hoje; só o formato legado `Feed v2.0` devolve 401 (esperado). Item do webhook atendido.
   - pedido `approved` só pela consulta autenticada;
   - Atualizar na TV mostra licença de 12 meses;
   - `pendingOrder` limpo no portal;
   - chegada do webhook assinado, pelo log de requisição: status 200 na rota, sem corpo.
   Registrar em `evidencias/producao.md` (ID do pedido truncado, horários, estados).
-- [ ] T028 [USUÁRIO] [US2] Compra real por **Pix** na TV (R-001). Se o provedor recusar, o caminho FR-010:
+- [X] T028 [USUÁRIO] [US2] Compra real por **Pix** na TV (R-001). Se o provedor recusar, o caminho FR-010:
   > **2026-10-23 — não executado:** o usuário comprou só por cartão** (detalhes em `evidencias/producao.md`)
   > **Decisão do usuário (2026-10-23):** lançar **sem Pix real**, com o caminho "pague com cartão no site" (FR-010). Para isso o Pix tem de estar desligado na produção (passos 1–2 acima: retirar `CCPLAY_PORTAL_PIX_PAYER_DOMAIN` e fazer o redeploy) — **ainda não feito**; esta tarefa fecha quando a produção estiver sem Pix e a TV mostrar o caminho do cartão.
+  > **Atualização (2026-10-23, mais tarde): feito.** O usuário fez 1 compra real por **Pix** na TV e a licença ganhou mais 1 ano (logs: `POST /device/orders/pix` 200, `pix/refresh` 200). Caminho que valeu: **Pix funciona**; a decisão anterior de lançar sem Pix **fica cancelada** e o Pix não será desligado na produção.
   1. tirar `CCPLAY_PORTAL_PIX_PAYER_DOMAIN` da produção;
   2. redeploy;
   3. a TV mostra "pague com cartão no site" com QR.
