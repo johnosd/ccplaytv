@@ -1,7 +1,11 @@
 {
   "kitVersion": "0.2.1",
   "defaultLanguage": "pt",
-  "languages": ["pt", "en", "es"],
+  "languages": [
+    "pt",
+    "en",
+    "es"
+  ],
   "storeTitle": "CCPlayTV",
   "privacyUrl": "https://johnosd.github.io/ccplaytv/privacidade/",
   "items": [
@@ -10,31 +14,59 @@
       "owner": "produto",
       "status": "Pass",
       "artifacts": [
-        { "path": "ui-description/CCPlayTV_UI_Description_0.2.1.pptx", "sha256": "850b129e4dad6d7cb7b6d77c95aa77ab3fdebfb128aad368784bcc279a7c4be2" },
-        { "path": "ui-description.md", "sha256": "22147b1d202d3e8dcc70e17e5e00e7ae025d0095a2baa7445d1c7789ace036c9" }
+        {
+          "path": "ui-description/CCPlayTV_UI_Description_0.2.1.pptx",
+          "sha256": "850b129e4dad6d7cb7b6d77c95aa77ab3fdebfb128aad368784bcc279a7c4be2"
+        },
+        {
+          "path": "ui-description.md",
+          "sha256": "22147b1d202d3e8dcc70e17e5e00e7ae025d0095a2baa7445d1c7789ace036c9"
+        }
       ]
     },
     {
       "id": "SAM-KIT-LOGO",
       "owner": "produto",
       "status": "Pass",
-      "artifacts": [{ "path": "media/logo_1920x1080.png", "sha256": "25adb152d5322699a6f4dc97378b0241660f0f3b354d62787058e87d5294af1c" }]
+      "artifacts": [
+        {
+          "path": "media/logo_1920x1080.png",
+          "sha256": "25adb152d5322699a6f4dc97378b0241660f0f3b354d62787058e87d5294af1c"
+        }
+      ]
     },
     {
       "id": "SAM-KIT-ICONBG",
       "owner": "produto",
       "status": "Pass",
-      "artifacts": [{ "path": "media/fundo_1920x1080.jpg", "sha256": "737bebac8739183e510d539598a4c1e633a32e88136aa20a69acc1bf11bb521e" }]
+      "artifacts": [
+        {
+          "path": "media/fundo_1920x1080.jpg",
+          "sha256": "737bebac8739183e510d539598a4c1e633a32e88136aa20a69acc1bf11bb521e"
+        }
+      ]
     },
     {
       "id": "SAM-KIT-SHOTS",
       "owner": "produto",
       "status": "Pass",
       "artifacts": [
-        { "path": "media/screenshot_01.jpg", "sha256": "c904355dd3f69ddcfd0888cac9ce86f030d2105925d45774110b5430b6bced5b" },
-        { "path": "media/screenshot_02.jpg", "sha256": "bc092dc171f71d7c1e26c601b6004c166a860e75383ac71fd9979e92d4720bbf" },
-        { "path": "media/screenshot_03.jpg", "sha256": "fe3c8223dfe2cfae02477a8cec0ae2c13838a51cdbaf8fef647819855ccee4bf" },
-        { "path": "media/screenshot_04.jpg", "sha256": "8397c61566ada8b80f4ff2c29030e95eca3c5efc248f9139958159d116b2027b" }
+        {
+          "path": "media/screenshot_01.jpg",
+          "sha256": "5733cf21fd4460fa861f5615b9be74d277dc19e1f75ccfee48dd386d19729be8"
+        },
+        {
+          "path": "media/screenshot_02.jpg",
+          "sha256": "d3987f45f47a01d3acc2e62b81edace76b6f2ab75a05e9ae1bb1c67b4439bf56"
+        },
+        {
+          "path": "media/screenshot_03.jpg",
+          "sha256": "f4c55d166d6953ae692a38c15c7a50e8c68866bcc73c64f0e296db31ccbdb585"
+        },
+        {
+          "path": "media/screenshot_04.jpg",
+          "sha256": "6c1a3897fab7147dada515d60711165dbb5dc0bfc956adffc506d1a0dbeaf613"
+        }
       ]
     },
     {
@@ -42,9 +74,18 @@
       "owner": "produto",
       "status": "Pass",
       "artifacts": [
-        { "path": "listing/pt.md", "sha256": "23bcb2fb31d36e9aad6a88ec34f13c9c08b61f903aa09a9eb60436e089e8a4d8" },
-        { "path": "listing/en.md", "sha256": "0163d020bbc16c4d9cdc3c19bf69ded6b49a1eeca85eadfc9caa614c4b1b0c95" },
-        { "path": "listing/es.md", "sha256": "85080dcfa9d10b1396e1f4b871797666f71dac5cee302c170f65c79a5a392574" }
+        {
+          "path": "listing/pt.md",
+          "sha256": "23bcb2fb31d36e9aad6a88ec34f13c9c08b61f903aa09a9eb60436e089e8a4d8"
+        },
+        {
+          "path": "listing/en.md",
+          "sha256": "0163d020bbc16c4d9cdc3c19bf69ded6b49a1eeca85eadfc9caa614c4b1b0c95"
+        },
+        {
+          "path": "listing/es.md",
+          "sha256": "85080dcfa9d10b1396e1f4b871797666f71dac5cee302c170f65c79a5a392574"
+        }
       ]
     },
     {
@@ -64,7 +105,12 @@
       "id": "SAM-KIT-TESTACCESS",
       "owner": "release",
       "status": "Pending",
-      "artifacts": [{ "path": "demo-access.md", "sha256": "35f2d2b13ba6477110644f2764586f53704f41b14809bba1cedc7c95034d05da" }],
+      "artifacts": [
+        {
+          "path": "demo-access.md",
+          "sha256": "35f2d2b13ba6477110644f2764586f53704f41b14809bba1cedc7c95034d05da"
+        }
+      ],
       "nextAction": "definir a lista de teste autorizada, guardar o segredo no cofre e registrar validUntil em demo-access.md"
     }
   ]
