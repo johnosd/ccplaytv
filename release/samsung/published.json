@@ -2,6 +2,6 @@
   "appId": null,
   "lastPublishedVersion": null,
   "tizenId": null,
-  "authorCertSha256": null,
+  "authorCertSha256": "d09a0baec14b10284c210965434c3ed441162ed8060d35d4075707d887200d05",
   "packageNameChecked": null
 }
