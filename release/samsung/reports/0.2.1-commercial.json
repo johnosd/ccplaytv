@@ -1,7 +1,7 @@
 {
   "candidate": {
     "variant": "commercial",
-    "revision": "4aa2bcaf986e95a4c008600787bcacfb87791a84",
+    "revision": "dd2a039d88f7090c2217bb27ea89b2653dce8089",
     "dirtyPaths": [],
     "buildMode": "commercial",
     "version": "0.2.1",
@@ -42,7 +42,7 @@
     {
       "id": "SAM-CFG-TIZENID",
       "status": "Pass",
-      "detail": "Tizen ID presente e coerente com o package"
+      "detail": "Tizen ID igual ao publicado"
     },
     {
       "id": "SAM-CFG-PACKAGEID",
@@ -127,15 +127,13 @@
     },
     {
       "id": "SAM-REG-PACKAGENAME",
-      "status": "Pending",
-      "detail": "colisão de nome de pacote ainda não conferida",
-      "nextAction": "conferir no Seller Office e registrar packageNameChecked em published.json"
+      "status": "Pass",
+      "detail": "nome do pacote conferido no Seller Office"
     },
     {
       "id": "SAM-REG-APPID",
-      "status": "Pending",
-      "detail": "App ID do Seller Office ainda não registrado (≠ Tizen ID)",
-      "nextAction": "registrar o app no Seller Office e preencher appId em published.json"
+      "status": "Pass",
+      "detail": "App ID do Seller Office registrado"
     },
     {
       "id": "SAM-KIT-UIDESC",
@@ -242,8 +240,6 @@
   ],
   "decision": "Blocked",
   "blockers": [
-    "SAM-REG-PACKAGENAME",
-    "SAM-REG-APPID",
     "SAM-KIT-TESTACCESS",
     "INT-SEC-CUSTODY",
     "INT-EVD-EMULATOR"
@@ -254,5 +250,5 @@
       "revision"
     ]
   },
-  "generatedAt": "2026-10-23T21:32:28.762Z"
+  "generatedAt": "2026-10-23T21:54:14.191Z"
 }
