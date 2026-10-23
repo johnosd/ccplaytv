@@ -9,6 +9,7 @@ import type {
 import type { MediaKey } from '../../lib/tizenMediaKeys'
 import type { StreamInfo } from '../../lib/player/tracks'
 import type { PlaybackDiagnosis } from '../../lib/player/playbackDiagnosis'
+import type { ExternalSubtitlesDeps } from '../../lib/subtitles/types'
 import type { PlayerEpisodeStep, PlayerIdentity } from '../chromeControls'
 
 export interface PlayerLayerTopLayer {
@@ -166,6 +167,12 @@ export interface PlayerLayerProps {
    * arquivo mas sem programa atual no EPG: soft disabled, OK só explica.
    */
   startOver?: { enabled: boolean; onSelect: () => void } | null
+  /**
+   * Feature 090 (`logic/legenda-externa.md` §5): legenda externa. Ausente = padrão de produção
+   * (`defaultExternalSubtitles()`, desligado sem portal configurado); `null` = desligado. Só filme e episódio ganham
+   * a opção (o alvo de um canal é `null`).
+   */
+  externalSubtitles?: ExternalSubtitlesDeps | null
 }
 
 /** Programa de arquivo a tocar (feature 058): horários reais do EPG (epoch ms) e o título exibido no chrome. */
@@ -201,6 +208,8 @@ export type PanelState =
   // Feature 041: painéis de escolha única (`PlayerChoicePanel`).
   | { kind: 'aspect'; focusKey: string; originIndex: number }
   | { kind: 'quality'; focusKey: string; originIndex: number }
+  // Feature 090: diálogo "Buscar legenda online", aberto a partir do painel de faixas (RETURN volta a ele).
+  | { kind: 'subtitleSearch'; focusKey: string; originIndex: number }
 
 /** Última leitura do painel de info: o que o motor disse e a faixa de áudio ativa. */
 export interface InfoSnapshot {

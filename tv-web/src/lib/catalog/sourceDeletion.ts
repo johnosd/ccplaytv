@@ -12,7 +12,7 @@ export function sourceDeletionTables(database: CatalogDb) {
   return ['sources', 'channels', 'categories', 'storedEntries', 'categoryBlocks',
     'catalogReadManifests', 'catalogReadChunks', 'categoryChunks', 'epgChunks', 'seriesWatchMembers', 'seriesWatchSummaries',
     'sectionStaging', 'showcaseCandidates', 'showcaseExternalRows', 'importRuns', 'userStates', 'epgPrograms', 'titleMetadata',
-    'categoryPreferences', 'parentalPins', 'sourceRevisions', 'pendingPortalDeletes',
+    'categoryPreferences', 'parentalPins', 'externalSubtitles', 'sourceRevisions', 'pendingPortalDeletes',
     'pendingImportOutbox', 'pendingRestore'].map(name => database.table(name))
 }
 
@@ -40,6 +40,9 @@ export async function deleteSource(id: string, database: CatalogDb = db,
     await Promise.all([
       database.showcaseCandidates.where('sourceId').equals(id).delete(),
       database.showcaseExternalRows.where('sourceId').equals(id).delete(),
+      // Feature 090 (FR-021): as legendas guardadas dos itens da lista saem junto (pelo nome: lib/catalog não importa
+      // lib/subtitles).
+      database.table('externalSubtitles').where('sourceId').equals(id).delete(),
     ])
     // Preferências de categoria (066, FR-005) e o PIN da lista (067, FR-025 — o PIN é por lista desde então).
     await Promise.all([categoryPreferences(database).where('sourceId').equals(id).delete(), parentalPins(database).delete(id)])

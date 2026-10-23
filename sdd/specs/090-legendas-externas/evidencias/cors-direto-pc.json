@@ -1,0 +1,47 @@
+{
+  "tarefa": "T053",
+  "data": "2026-10-23",
+  "metodo": "Chromium (Playwright) no PC, página file:// (origem opaca `null`, a mesma do app empacotado na TV) e página http://localhost:5173 de controle; chaves de desenvolvimento lidas do .env sem impressão. Só status, hosts e tamanhos foram registrados. Ensaio no Chromium 153 do PC; NÃO é a TV (a prova da TV está em cors-direto-tv-2026-10-23.md e contradiz este resultado).",
+  "opensubtitles": {
+    "de_file_origem_null": {
+      "busca_com_Api_Key": "bloqueada — preflight sem status HTTP ok (\"It does not have HTTP ok status\"); fetch lança TypeError",
+      "busca_sem_cabecalho_custom": "chega ao servidor (403 por falta de chave), sem bloqueio de CORS",
+      "post_download": "não chega a ser enviado (mesmo preflight)"
+    },
+    "de_http_localhost": {
+      "busca_com_Api_Key": {
+        "status": 200,
+        "resultados": 18
+      },
+      "post_download_sem_user_agent_proprio": {
+        "status": 403,
+        "link": false
+      }
+    },
+    "do_servico_node_com_user_agent": {
+      "post_download": {
+        "status": 200,
+        "link_host": "www.opensubtitles.com",
+        "restante_da_cota": 99
+      }
+    },
+    "preflight_por_curl": "200 com Access-Control-Allow-Origin * e Allow-Headers * tanto para Origin: null quanto para http://localhost:5173 — a recusa só acontece no preflight do navegador, não é reproduzível por curl",
+    "conclusao": "No Chromium do PC o OpenSubtitles fica bloqueado do file:// (preflight sem status ok) — registro; a TV é quem decide e ela passou."
+  },
+  "subdl": {
+    "de_file_origem_null": {
+      "busca": {
+        "status": 200,
+        "resultados": 5,
+        "par_no_id": true
+      },
+      "download_zip_em_dl_subdl_com": {
+        "status": 200,
+        "bytes": 30490,
+        "magic_zip": true
+      }
+    },
+    "conclusao": "O SubDL funciona de uma página file:// de ponta a ponta no PC (a chave vai na consulta, sem preflight)."
+  },
+  "decisao": "SUPERADA pela prova na TV física (cors-direto-tv-2026-10-23.md): na TV o preflight passa e busca, download e arquivo funcionam. Este arquivo fica como registro do ensaio no Chromium 153 do PC, que NÃO representa o aparelho."
+}

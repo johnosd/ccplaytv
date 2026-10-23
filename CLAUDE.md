@@ -133,7 +133,7 @@ requesting a `tizen-tv`/`tizen-emulator` validation pass.
 
 ## The constitution is a real gate
 
-`.planning/memory/constitution.md` (v1.15.0) holds 13 non-negotiable
+`.planning/memory/constitution.md` (v1.16.0) holds 13 non-negotiable
 principles, checked by `sdd-plan` and binding on any change — not just on
 formally planned features. The ones most easily violated by accident:
 
@@ -556,3 +556,10 @@ senão a prévia para de acompanhar a pré-carga da 038. Ganho medido na TV: thr
 E uma lição de atribuição: **contagem não é tempo**. O `queriesN` (eventos do cache de consultas) correlacionava com o
 tempo preso e levou ao alvo certo, mas a previsão de que ele **cairia** com a mudança estava errada — ele não caiu, e o
 ganho veio de outro lado da mesma mudança. Mede-se antes e depois; não se declara a causa pela contagem.
+
+
+# Regra da feature 090 — legenda externa: nada fora do player, nada antes do `playing`
+
+A legenda externa (OpenSubtitles/SubDL, `lib/subtitles/`) é **desenhada pelo app** pelo tempo da mídia (`parseSubtitleFile` → `createExternalCueDriver` → `SubtitleOverlay`); não usa `setExternalSubtitlePath` do AVPlay. **Nada dela roda fora do player nem antes do primeiro `playing`**: o alvo e a memória são lidos num único passo ocioso (`requestIdleCallback`) depois dele, e o padrão de produção (`lib/subtitles/runtime.ts`) só entra por `import()` dinâmico — um import estático no player muda a divisão de chunks e quebra o pacote Tizen (confira `findUnlistedFiles` depois do build). A rede só acontece por ação da pessoa (constitution 1.16.0, exceções (k) serviço e (l) chave pessoal; ADR-021): focar nunca busca.
+
+A chave pessoal de legenda (`subtitleCredentials`) só passa por `subtitleCredentials.ts` → `subtitleSearch.ts` → `fetch` do próprio fornecedor: nunca em estado de tela, log, erro, backup ou serviço. O CORS do OpenSubtitles se decide **na TV**, não no PC (o Chromium do PC o recusa em `file://`; a TV não). Leia `sdd/specs/090-legendas-externas/logic/legenda-externa.md` antes de mexer.

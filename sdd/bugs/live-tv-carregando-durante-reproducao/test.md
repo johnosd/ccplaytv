@@ -1,12 +1,18 @@
 # Bug Verification: Live TV carregando durante reprodução
 
 - **Slug**: live-tv-carregando-durante-reproducao
-- **Testado**: 2026-10-11
+- **Testado**: 2026-10-22
 - **Assessment**: ./assessment.md
 - **Fix**: ./fix.md
-- **Result**: partial
+- **Result**: verified
 
 ## Summary
+
+Encerrado em 2026-10-22 após confirmação do usuário na TV física: todos os itens do [roteiro único](../ROTEIRO-TV-2026-10-22.md) foram validados com sucesso. No item 3, reprodução de canal por 1–2 minutos sem interação foi aprovada, sem o aviso indevido de "Carregando" sobre o vídeo em reprodução.
+
+A evidência física é o relato do usuário. Esta atualização é documental; os testes automatizados abaixo não foram reexecutados.
+
+### Registro anterior — 2026-10-11
 
 Correção aplicada; reprodução equivalente automatizada passou. Antes: 4 falhas/40 casos, sendo duas do Live e duas do trailer. Depois: 42/42 nos três arquivos dos bugs; suíte ampliada 445/445 (61 arquivos); E2E 4/4. Partial exclusivamente porque o sintoma relatado na TV física não foi rerodado no aparelho.
 
@@ -35,10 +41,16 @@ Comandos executados em tv-web, diretamente com node (equivalentes aos scripts np
 
 ## Residual Risks
 
+Registro de 2026-10-11: o cenário físico do item 3 foi aprovado em 2026-10-22. A confirmação não fornece uma captura da ordem dos callbacks nem amplia a cobertura para todas as condições de rede/rebuffering mencionadas abaixo.
+
 AVPlay foi simulado; a ordem exata dos callbacks do canal na foto é desconhecida. Dois tempos crescentes confirmam playing sem depender de timeout. Tempo parado continua mostrando buffering; pausa/erro/fechamento não são recuperados pelos ticks. Confirmar em hardware com canal real, troca de canais e rebuffering.
 
 Suite completa do repositório não executada: foram usados os testes relevantes de player/trailer e quatro roteiros E2E. Alterações locais anteriores preservadas; dados da TV não foram tocados.
 
 ## Recommendation
+
+Fechar como `verified`, conforme validação física e autorização expressa do usuário em 2026-10-22: "Todos os itens foram validados com sucesso. Podem fechar todos esses bugs".
+
+### Recomendação anterior — 2026-10-11
 
 Manter correção aplicada; segurar encerramento físico até repetir o cenário original na TV. Nenhum bug permaneceu reproduzível na validação automatizada. Commit sugerido: fix(player): corrigir carregamento do Live e foco dos trailers.

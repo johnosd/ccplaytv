@@ -1,8 +1,13 @@
 import { Fragment, useEffect, useRef, useState } from 'react'
-import type { PlayerSession } from '../lib/player/PlayerService'
+import type { SubtitleCue } from '../lib/player/tracks'
+
+/** Quem entrega as linhas: a sessão (legenda embutida) ou o driver da legenda externa (feature 090). */
+export interface SubtitleSource {
+  subscribeSubtitles(listener: (cue: SubtitleCue | null) => void): () => void
+}
 
 export interface SubtitleOverlayProps {
-  session: PlayerSession
+  source: SubtitleSource
   /** Atraso escolhido (0 = imediato). Valores negativos nunca chegam aqui (D-006). */
   delayMs: number
   /** Pausado: a última linha fica na tela até retomar (edge case da spec). */
@@ -23,7 +28,7 @@ function plainLines(text: string): string[] {
  * assinatura própria na sessão, então uma linha nunca re-renderiza o
  * `PlayerLayer` inteiro. Estilo fixo (item 56 torna configurável).
  */
-export function SubtitleOverlay({ session, delayMs, paused, raised }: SubtitleOverlayProps) {
+export function SubtitleOverlay({ source, delayMs, paused, raised }: SubtitleOverlayProps) {
   const [text, setText] = useState<string | null>(null)
 
   // Refs para o efeito de assinatura ler o valor atual sem reassinar a cada
@@ -69,7 +74,7 @@ export function SubtitleOverlay({ session, delayMs, paused, raised }: SubtitleOv
       }, durationMs)
     }
 
-    const unsubscribe = session.subscribeSubtitles((cue) => {
+    const unsubscribe = source.subscribeSubtitles((cue) => {
       if (cue === null) {
         // Troca/desativação de faixa: some agora, e nada agendado da faixa
         // anterior pode aparecer depois.
@@ -95,8 +100,10 @@ export function SubtitleOverlay({ session, delayMs, paused, raised }: SubtitleOv
     return () => {
       unsubscribe()
       clearAll()
+      // Fonte trocada (externa ↔ embutida, sessão nova): a linha da fonte anterior não pode ficar na tela.
+      setText(null)
     }
-  }, [session])
+  }, [source])
 
   // Retomar depois de uma linha que expirou durante a pausa: some agora.
   useEffect(() => {

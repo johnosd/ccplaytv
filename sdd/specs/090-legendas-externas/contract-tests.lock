@@ -1,0 +1,27 @@
+{
+    "feature":  "090-legendas-externas",
+    "lockedAt":  "2026-10-22 20:26",
+    "total":  5,
+    "files":  [
+                  {
+                      "path":  "tv-web/src/components/PlayerLayer.legendas-externas.contract.test.tsx",
+                      "sha256":  "267b5a20aee4e4b27fef6cb15755af81cecd971696ee056afe2174ce6f0d303f",
+                      "tests":  2
+                  },
+                  {
+                      "path":  "tv-web/src/lib/subtitles/externalCueDriver.legendas-externas.contract.test.ts",
+                      "sha256":  "7dea6d342c002acb85fdf7ec203a8e085b2354bd5a35a67a8e2ed35f78070b06",
+                      "tests":  1
+                  },
+                  {
+                      "path":  "tv-web/src/lib/subtitles/subtitleFile.legendas-externas.contract.test.ts",
+                      "sha256":  "b0d13b06127067a42a91f96409f59cf9be6d4484c6c7ee4b21eba0d0151e34cb",
+                      "tests":  1
+                  },
+                  {
+                      "path":  "tv-web/src/lib/subtitles/subtitleTarget.legendas-externas.contract.test.ts",
+                      "sha256":  "42e54406522eab6dc1c220b1f5d4381507ce62b5e8fc5ba314c1963d616d9667",
+                      "tests":  1
+                  }
+              ]
+}

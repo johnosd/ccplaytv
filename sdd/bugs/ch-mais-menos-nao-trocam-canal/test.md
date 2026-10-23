@@ -1,12 +1,18 @@
 # Bug Verification: CH+/CH− não trocam canal no player
 
 - **Slug**: ch-mais-menos-nao-trocam-canal
-- **Testado**: 2026-10-11
+- **Testado**: 2026-10-22
 - **Assessment**: ./assessment.md
 - **Fix**: ./fix.md
-- **Result**: partial
+- **Result**: verified
 
 ## Summary
+
+Encerrado em 2026-10-22 após confirmação do usuário na TV física: todos os itens do [roteiro único](../ROTEIRO-TV-2026-10-22.md) foram validados com sucesso. No item 2, troca de canal por CH+/CH− e saída por RETURN foram aprovadas com os painéis fechados e um canal intermediário.
+
+A evidência física é o relato do usuário. Esta atualização é documental; os testes automatizados abaixo não foram reexecutados.
+
+### Registro anterior — 2026-10-11
 
 Defeito na permissão de registro reproduzido pelo teste do manifesto antes do patch e eliminado depois. Testes de encaminhamento das teclas, player, Live e arquivo passaram. O sintoma relatado na TV física ainda precisa ser repetido após atualização do pacote; não se atribui à TV o resultado dos testes simulados.
 
@@ -34,11 +40,17 @@ Depois do patch: `Test Files 6 passed (6)` / `Tests 165 passed (165)`.
 
 ## Residual Risks
 
+Registro de 2026-10-11: a pendência de confirmação de CH+/CH− no aparelho foi encerrada pela validação de 2026-10-22. As notas abaixo descrevem as condições e os limites da verificação anterior.
+
 - Falta confirmar no aparelho que o registro passa a entregar CH+/CH− ao app. Não foi capturado o erro de permissão na instalação antiga.
 - Guia, lista de zapping, painéis e estados de preparação mantêm as políticas existentes; não houve mudança especulativa nesses caminhos.
 - Atualização exige instalar novamente o pacote com a permissão correta, preservando dados locais. Apenas gerar o frontend não modifica o aplicativo instalado.
 - A árvore já continha alterações de outras tarefas; resultados de lint/build refletem esse estado atual. A correção não alterou tais arquivos.
 
 ## Recommendation
+
+Fechar como `verified`, conforme validação física e autorização expressa do usuário em 2026-10-22: "Todos os itens foram validados com sucesso. Podem fechar todos esses bugs".
+
+### Recomendação anterior — 2026-10-11
 
 Segurar o aceite físico: instalar a atualização sem desinstalar, reproduzir canal intermediário com camadas fechadas, confirmar CH+ e CH− e RETURN. Correção local aplicada e testes verdes; manter `partial` até confirmação no aparelho.

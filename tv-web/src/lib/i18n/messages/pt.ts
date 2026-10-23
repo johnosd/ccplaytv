@@ -18,6 +18,7 @@ import { settings } from './settings'
 import { shell } from './shell'
 import { sources } from './sources'
 import { speed } from './speed'
+import { subtitles } from './subtitles'
 import { vodCategory } from './vodCategory'
 import { vodShowcase } from './vodShowcase'
 
@@ -40,6 +41,7 @@ export const pt = {
   ...comingSoon.pt,
   ...player.pt,
   ...playerUi.pt,
+  ...subtitles.pt,
   ...profiles.pt,
   ...portal.pt,
   ...portalAdvanced.pt,

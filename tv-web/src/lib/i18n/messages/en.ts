@@ -18,6 +18,7 @@ import { settings } from './settings'
 import { shell } from './shell'
 import { sources } from './sources'
 import { speed } from './speed'
+import { subtitles } from './subtitles'
 import { vodCategory } from './vodCategory'
 import { vodShowcase } from './vodShowcase'
 import type { MessageKey } from './pt'
@@ -37,6 +38,7 @@ export const en: Record<MessageKey, string> & Record<string, string> = {
   ...comingSoon.en,
   ...player.en,
   ...playerUi.en,
+  ...subtitles.en,
   ...profiles.en,
   ...portal.en,
   ...portalAdvanced.en,

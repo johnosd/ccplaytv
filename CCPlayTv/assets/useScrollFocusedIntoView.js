@@ -1,1 +1,1 @@
-import{A as e,O as t}from"./I18nProvider.js";var n=e(t(),1);function r(e){let t=(0,n.useRef)(null);return(0,n.useEffect)(()=>{t.current?.scrollIntoView({block:`nearest`,inline:`nearest`})},[e]),t}export{r as t};
+import{g as e}from"./translate.js";import{m as t}from"./I18nProvider.js";var n=e(t(),1);function r(e){let t=(0,n.useRef)(null);return(0,n.useEffect)(()=>{t.current?.scrollIntoView({block:`nearest`,inline:`nearest`})},[e]),t}export{r as t};

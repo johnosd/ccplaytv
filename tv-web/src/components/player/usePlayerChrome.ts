@@ -26,6 +26,8 @@ export interface PlayerChromeParams {
   archive: boolean
   /** Feature 058: "Do início" no Live (`null`/ausente = canal sem arquivo). */
   startOver: { enabled: boolean } | null | undefined
+  /** Feature 090: há legenda externa para este item — "Áudio e legendas" é real mesmo sem faixas do motor. */
+  externalAvailableRef?: RefObject<boolean>
 }
 
 export interface PlayerChrome {
@@ -60,6 +62,7 @@ export function usePlayerChrome({
   onGuide,
   archive,
   startOver,
+  externalAvailableRef,
 }: PlayerChromeParams): PlayerChrome {
   const t = useT()
   const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -120,7 +123,7 @@ export function usePlayerChrome({
     const session = sessionRef.current
     const qualityCount = session?.supportsQuality ? qualityOptionsRef.current.length : 0
     return chromeControls(chromeMediaRef.current, capabilities, paused, episodeNeighborsOf(), {
-      tracks: session?.supportsTracks ?? false,
+      tracks: (session?.supportsTracks ?? false) || (externalAvailableRef?.current ?? false),
       info: session?.supportsStreamInfo ?? false,
       guide: onGuide !== undefined,
       aspect: (session?.aspectModes.length ?? 0) > 0,

@@ -1,0 +1,276 @@
+{
+  "at": "2026-10-22T23:23:58.097Z",
+  "calls": [
+    {
+      "label": "filme tmdb 603 EN",
+      "status": 200,
+      "params": {
+        "tmdb_id": "603",
+        "type": "movie",
+        "languages": "EN"
+      },
+      "headers": {
+        "access-control-allow-headers": "host, user-agent, accept, accept-encoding, accept-language, origin, sec-fetch-mode, cdn-loop, cf-connecting-ip, cf-ipcity, cf-ipcontinent, cf-ipcountry, cf-iplatitude, cf-iplongitude, cf-postal-code, cf-ray, cf-region, cf-region-code, cf-timezone, cf-visitor, x-forwarded-for, x-forwarded-host, x-forwarded-port, x-forwarded-proto, x-forwarded-server, x-real-ip",
+        "access-control-allow-methods": "GET",
+        "access-control-allow-origin": "*",
+        "access-control-expose-headers": "host, user-agent, accept, accept-encoding, accept-language, origin, sec-fetch-mode, cdn-loop, cf-connecting-ip, cf-ipcity, cf-ipcontinent, cf-ipcountry, cf-iplatitude, cf-iplongitude, cf-postal-code, cf-ray, cf-region, cf-region-code, cf-timezone, cf-visitor, x-forwarded-for, x-forwarded-host, x-forwarded-port, x-forwarded-proto, x-forwarded-server, x-real-ip",
+        "content-length": "2463",
+        "content-type": "application/json;charset=utf-8"
+      },
+      "topKeys": [
+        "status",
+        "results",
+        "subtitles",
+        "totalPages",
+        "currentPage"
+      ],
+      "status_field": true,
+      "results": [
+        {
+          "sd_id": 21581,
+          "name": "The Matrix",
+          "type": "movie",
+          "imdb_id": "tt0133093",
+          "tmdb_id": 603,
+          "first_air_date": null,
+          "release_date": "1999-03-31T00:00:00.000Z",
+          "slug": "the-matrix",
+          "year": 1999
+        }
+      ],
+      "count": 30,
+      "langs": [
+        "English",
+        "english"
+      ],
+      "sampleFields": [
+        "release_name",
+        "name",
+        "lang",
+        "author",
+        "url",
+        "subtitlePage",
+        "season",
+        "episode",
+        "language",
+        "framerate",
+        "fps",
+        "hi",
+        "episode_from",
+        "episode_end",
+        "full_season"
+      ],
+      "sample": [
+        {
+          "release_name": "Matrix (1999) DVD.US.Retail",
+          "lang": "English",
+          "language": "EN",
+          "hi": false,
+          "season": 0,
+          "episode": null,
+          "urlShape": "/subtitle/N-N.zip?api_key=<KEY>"
+        },
+        {
+          "release_name": "Matrix, The.1999.WEBDL-2160p-FLUX.en.hi",
+          "lang": "English",
+          "language": "EN",
+          "hi": false,
+          "season": 0,
+          "episode": null,
+          "urlShape": "/subtitle/N-N.zip?api_key=<KEY>"
+        }
+      ]
+    },
+    {
+      "label": "filme tmdb 603 BR_PT",
+      "status": 200,
+      "params": {
+        "tmdb_id": "603",
+        "type": "movie",
+        "languages": "BR_PT"
+      },
+      "headers": {
+        "access-control-allow-headers": "host, user-agent, accept, accept-encoding, accept-language, origin, sec-fetch-mode, cdn-loop, cf-connecting-ip, cf-ipcity, cf-ipcontinent, cf-ipcountry, cf-iplatitude, cf-iplongitude, cf-postal-code, cf-ray, cf-region, cf-region-code, cf-timezone, cf-visitor, x-forwarded-for, x-forwarded-host, x-forwarded-port, x-forwarded-proto, x-forwarded-server, x-real-ip",
+        "access-control-allow-methods": "GET",
+        "access-control-allow-origin": "*",
+        "access-control-expose-headers": "host, user-agent, accept, accept-encoding, accept-language, origin, sec-fetch-mode, cdn-loop, cf-connecting-ip, cf-ipcity, cf-ipcontinent, cf-ipcountry, cf-iplatitude, cf-iplongitude, cf-postal-code, cf-ray, cf-region, cf-region-code, cf-timezone, cf-visitor, x-forwarded-for, x-forwarded-host, x-forwarded-port, x-forwarded-proto, x-forwarded-server, x-real-ip",
+        "content-length": "519",
+        "content-type": "application/json;charset=utf-8"
+      },
+      "topKeys": [
+        "status",
+        "results",
+        "subtitles",
+        "totalPages",
+        "currentPage"
+      ],
+      "status_field": true,
+      "results": [
+        {
+          "sd_id": 21581,
+          "name": "The Matrix",
+          "type": "movie",
+          "imdb_id": "tt0133093",
+          "tmdb_id": 603,
+          "first_air_date": null,
+          "release_date": "1999-03-31T00:00:00.000Z",
+          "slug": "the-matrix",
+          "year": 1999
+        }
+      ],
+      "count": 2,
+      "langs": [
+        "brazillian portuguese",
+        "brazillian-portuguese"
+      ],
+      "sampleFields": [
+        "release_name",
+        "name",
+        "lang",
+        "author",
+        "url",
+        "subtitlePage",
+        "season",
+        "episode",
+        "language",
+        "framerate",
+        "fps",
+        "hi",
+        "episode_from",
+        "episode_end",
+        "full_season"
+      ],
+      "sample": [
+        {
+          "release_name": "The.Matrix.1999.WEBRip.iTunes",
+          "lang": "brazillian portuguese",
+          "language": "BR_PT",
+          "hi": false,
+          "season": 0,
+          "episode": null,
+          "urlShape": "/subtitle/N-N.zip?api_key=<KEY>"
+        },
+        {
+          "release_name": "The Matrix",
+          "lang": "brazillian-portuguese",
+          "language": "BR_PT",
+          "hi": true,
+          "season": 0,
+          "episode": null,
+          "urlShape": "/subtitle/N-N.zip?api_key=<KEY>"
+        }
+      ]
+    },
+    {
+      "label": "episódio tmdb 1396 s1e1 EN,ES",
+      "status": 200,
+      "params": {
+        "tmdb_id": "1396",
+        "type": "tv",
+        "season_number": "1",
+        "episode_number": "1",
+        "languages": "EN,ES"
+      },
+      "headers": {
+        "access-control-allow-headers": "host, user-agent, accept, accept-encoding, accept-language, origin, sec-fetch-mode, cdn-loop, cf-connecting-ip, cf-ipcity, cf-ipcontinent, cf-ipcountry, cf-iplatitude, cf-iplongitude, cf-postal-code, cf-ray, cf-region, cf-region-code, cf-timezone, cf-visitor, x-forwarded-for, x-forwarded-host, x-forwarded-port, x-forwarded-proto, x-forwarded-server, x-real-ip",
+        "access-control-allow-methods": "GET",
+        "access-control-allow-origin": "*",
+        "access-control-expose-headers": "host, user-agent, accept, accept-encoding, accept-language, origin, sec-fetch-mode, cdn-loop, cf-connecting-ip, cf-ipcity, cf-ipcontinent, cf-ipcountry, cf-iplatitude, cf-iplongitude, cf-postal-code, cf-ray, cf-region, cf-region-code, cf-timezone, cf-visitor, x-forwarded-for, x-forwarded-host, x-forwarded-port, x-forwarded-proto, x-forwarded-server, x-real-ip",
+        "content-length": "1787",
+        "content-type": "application/json;charset=utf-8"
+      },
+      "topKeys": [
+        "status",
+        "results",
+        "subtitles",
+        "totalPages",
+        "currentPage"
+      ],
+      "status_field": true,
+      "results": [
+        {
+          "sd_id": 1300044,
+          "name": "Breaking Bad",
+          "type": "tv",
+          "imdb_id": "tt0903747",
+          "tmdb_id": 1396,
+          "first_air_date": "2008-01-20T00:00:00.000Z",
+          "release_date": "2008-01-20T00:00:00.000Z",
+          "slug": "breaking-bad",
+          "year": 2008
+        }
+      ],
+      "count": 27,
+      "langs": [
+        "English",
+        "english",
+        "spanish"
+      ],
+      "sampleFields": [
+        "release_name",
+        "name",
+        "lang",
+        "author",
+        "url",
+        "subtitlePage",
+        "season",
+        "episode",
+        "language",
+        "framerate",
+        "fps",
+        "hi",
+        "episode_from",
+        "episode_end",
+        "full_season"
+      ],
+      "sample": [
+        {
+          "release_name": "Breaking Bad, SEASON 1 1080p x265 [23.976 FPS]",
+          "lang": "English",
+          "language": "EN",
+          "hi": false,
+          "season": 1,
+          "episode": null,
+          "urlShape": "/subtitle/N-N.zip?api_key=<KEY>"
+        },
+        {
+          "release_name": "Breaking Bad, Season 1 (1080p BluRay x265 HEVC 10bit AAC 5.1 Silence) [23.976 FPS]",
+          "lang": "English",
+          "language": "EN",
+          "hi": false,
+          "season": 1,
+          "episode": null,
+          "urlShape": "/subtitle/N-N.zip?api_key=<KEY>"
+        }
+      ]
+    },
+    {
+      "label": "preflight Origin null",
+      "status": 204,
+      "headers": {
+        "access-control-allow-headers": "undefined",
+        "access-control-allow-methods": "GET",
+        "access-control-allow-origin": "*",
+        "access-control-expose-headers": "host,user-agent,accept,accept-encoding,accept-language,access-control-request-method,origin,sec-fetch-mode,cdn-loop,cf-connecting-ip,cf-ipcity,cf-ipcontinent,cf-ipcountry,cf-iplatitude,cf-iplongitude,cf-postal-code,cf-ray,cf-region,cf-region-code,cf-timezone,cf-visitor,x-forwarded-for,x-forwarded-host,x-forwarded-port,x-forwarded-proto,x-forwarded-server,x-real-ip",
+        "access-control-max-age": "86400"
+      }
+    },
+    {
+      "label": "download 1 (formato)",
+      "status": 200,
+      "bytes": 36017,
+      "signature": "50 4b 03 04",
+      "isZip": true,
+      "urlShape": "/subtitle/N-N.zip?api_key=<KEY>",
+      "headers": {
+        "access-control-allow-headers": "host, user-agent, accept, accept-encoding, accept-language, origin, sec-fetch-mode, cdn-loop, cf-connecting-ip, cf-ipcity, cf-ipcontinent, cf-ipcountry, cf-iplatitude, cf-iplongitude, cf-postal-code, cf-ray, cf-region, cf-region-code, cf-timezone, cf-visitor, x-forwarded-for, x-forwarded-host, x-forwarded-port, x-forwarded-proto, x-forwarded-server, x-real-ip",
+        "access-control-allow-methods": "GET",
+        "access-control-allow-origin": "*",
+        "access-control-expose-headers": "Content-Disposition, Content-Length",
+        "content-disposition": "attachment; filename*=UTF-8''Matrix%20%281999%29%20DVD.US.Retail.zip",
+        "content-type": "application/zip"
+      },
+      "finalHost": "dl.subdl.com"
+    }
+  ]
+}

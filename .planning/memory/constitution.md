@@ -1,4 +1,24 @@
 <!--
+Relatório de Impacto de Sincronização (2026-10-22, ADR-021, feature 090)
+- Mudança de versão: 1.15.0 -> 1.16.0 (MINOR, expansão delimitada de "Segredos
+  Fora dos Clientes e dos Logs", novas exceções (k) e (l); atualização das listas
+  fechadas de "Comandos Locais..." e da exceção da feature 069 em Restrições).
+- Origem: legendas externas (feature 090, gate G-3) com chave padrão do ccplayTv
+  guardada no serviço (ADR-021) para OpenSubtitles e SubDL, e chave pessoal (BYOK)
+  opcional dos dois. Texto aprovado pelo usuário em 2026-10-22.
+- Exceções delimitadas: (k) o serviço guarda as chaves padrão e só as usa nas
+  operações "buscar legendas" e "obter arquivo de legenda", chamadas pela TV só por
+  ação da pessoa, com limite por TV e licença/teste vigente; (l) a chave pessoal de
+  legenda digitada na TV pode residir no aparelho e ir só ao próprio fornecedor.
+- Continuam proibidos: chave padrão em pacote/cliente/resposta/log; URL de
+  fornecedor que embuta a chave chegando à TV; dados IPTV na busca; chave padrão do
+  TMDB e OpenAI (exigem decisão própria); chave pessoal de legenda no portal ou
+  backup.
+- Riscos aceitos pelo usuário: o serviço vê o título pesquisado e o idioma; a cota
+  padrão é compartilhada entre as TVs.
+- Formalização normativa não comprova implementação, hardware ou lançamento.
+
+Relatório anterior:
 Relatório de Impacto de Sincronização (2026-10-16, ADR-020, feature 077)
 - Mudança de versão: 1.14.1 -> 1.15.0 (MINOR, expansão delimitada de "Segredos
   Fora dos Clientes e dos Logs", nova exceção (j)).
@@ -210,6 +230,9 @@ Histórico:
   vai para a subtela Avançado (feature 076).
 - 1.15.0 (2026-10-16): chave TMDB BYOK digitada no portal, cifrada no serviço e
   aplicada pela TV no Atualizar (feature 077/ADR-020).
+- 1.16.0 (2026-10-22): chaves padrão de legenda (OpenSubtitles e SubDL) no serviço,
+  chamadas só por ação da pessoa (exceção (k)); BYOK de legendas na TV (exceção (l))
+  (feature 090/ADR-021).
 -->
 
 # Constitution do CCPlay TV
@@ -400,6 +423,37 @@ navegador, DOM depois do envio, checkout ou exportação pública. Chave do
 desenvolvedor ou compartilhada continua proibida em qualquer cliente; esta
 exceção NÃO se estende à chave OpenAI, que exigiria ADR própria.
 
+**Exceção de integrações com chave padrão protegida (2026-10-22, feature 090/ADR-021)**,
+decisão explícita do usuário com risco aceito:
+(k) o serviço PODE guardar a chave de aplicação **do ccplayTv** de fornecedores de
+legenda de terceiro (hoje o OpenSubtitles e o SubDL) e usá-la **somente** em
+chamadas a esse fornecedor, por operações delimitadas que a spec da feature enumera
+(na 090: "buscar legendas" e "obter arquivo de legenda"), com destino fixo — nunca
+proxy de URL arbitrária. A TV PODE chamar essas operações **somente por ação da
+pessoa** (SELECT em "Buscar legenda online", trocar o idioma da busca, escolher um
+resultado, "Tentar de novo"), autenticada pela própria identidade de TV; nunca ao
+focar, abrir o player, retomar, avançar episódio ou em autoplay. A TV envia só os
+identificadores da obra (TMDB, temporada, episódio) ou o nome limpo e o ano, o
+idioma e o identificador do resultado escolhido — **nunca** host, usuário, senha,
+URL de reprodução, nome da lista ou vídeo IPTV. A chave padrão NÃO PODE ir para
+pacote, JavaScript, variável pública, resposta, log, erro ou analytics; o serviço
+NÃO PODE registrar em log o termo pesquisado junto à identidade da TV, e DEVE impor
+limite de uso por TV e só atender TV com licença ou teste vigente. Falha do serviço
+ou do fornecedor NÃO PODE afetar reprodução, navegação, importação ou o que já está
+guardado no aparelho. A legenda obtida PODE ficar no aparelho, chaveada pela
+identidade lógica do item, sai junto com a lista e NÃO entra em backup nem
+exportação. Esta exceção NÃO se estende à chave padrão do TMDB nem à OpenAI, que
+exigem feature/decisão própria, e NÃO autoriza contratação, cobrança ou oferta em
+produção (gate da feature). URL de fornecedor que embuta a chave padrão (ex.: o
+link de download do SubDL) NUNCA é repassada à TV nem registrada.
+(l) **BYOK de legendas**: a chave de API **da própria pessoa**, da conta dela no
+OpenSubtitles ou no SubDL, digitada **na TV**, PODE residir no dispositivo e ser
+enviada **só** ao fornecedor a que pertence, direto da TV, sob todas as regras da
+extensão BYOK da feature 032 (nunca em log, tela depois de digitada, erro, outro
+serviço, portal, backup ou exportação; sai do aparelho quando a pessoa a remove).
+Não herda a exceção (j) (envio pelo portal) nem a (g) (backup); estender a elas
+exige decisão própria.
+
 ### Categorias da Fonte São Preservadas
 
 Grupos/categorias declarados pela fonte original NÃO DEVEM ser substituídos
@@ -434,7 +488,7 @@ online e consulta rápida apenas em QR/configuração/compra NÃO entram no
 caminho síncrono dos comandos. Falha de rede NÃO bloqueia licença vigente.
 **Atualização (2026-10-14, feature 071)**: o app NÃO DEVE consultar o serviço sem
 ação da pessoa — nem ciclo diário, nem consulta rápida, nem ao abrir o app ou ao
-negar a entrada. Só as ações listadas na exceção (d)–(f) de "Segredos" e o botão
+negar a entrada. Só as ações listadas nas exceções (d)–(f) e (k) de "Segredos" e o botão
 **Atualizar** falam com o serviço.
 
 ### Trailers e Metadados Não Alteram o Estado Principal da Obra
@@ -565,7 +619,9 @@ resolvidos para esse contorno (ADR-006 E4, Incremento E, emendado).
 
 **Exceção (2026-10-11, feature 069/ADR-013)**: serviço central serverless
 PODE cuidar de identidade/sessões, configurações fornecidas no portal,
-pendências, pagamento/licença, recuperação pelo site e backups de controle.
+pendências, pagamento/licença, recuperação pelo site, backups de controle e,
+desde a feature 090 (ADR-021), operações delimitadas de integração com chave
+padrão protegida (exceção (k) de "Segredos").
 Importação, classificação, catálogo e Direct Play permanecem na TV.
 Indisponibilidade do serviço NÃO impede configuração local ou uso de
 licença local vigente. Infraestrutura/custo/restore/tempo/plataforma DEVEM
@@ -656,4 +712,4 @@ ou redefinição incompatível de um princípio. Uma versão MINOR denota um
 novo princípio ou expansão material da governança. Uma versão PATCH denota
 esclarecimentos, correções ou mudanças de texto não semânticas.
 
-**Versão**: 1.15.0 | **Ratificada**: 2026-09-14 | **Última Emenda**: 2026-10-16
+**Versão**: 1.16.0 | **Ratificada**: 2026-09-14 | **Última Emenda**: 2026-10-22

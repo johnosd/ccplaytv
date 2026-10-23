@@ -3,23 +3,20 @@ import type { PlayerServiceSession, QualityOption } from '../lib/player/PlayerSe
 import { readPlayerPreferences } from '../lib/player/playerPreferences'
 import { useToast } from '../lib/useToast'
 import { Toast } from './Toast'
-import type { MessageKey } from '../lib/i18n/messages/pt'
 import { PlayerChrome } from './PlayerChrome'
 import { PlayerChoicePanel } from './PlayerChoicePanel'
 import { PlayerErrorInfoPanel } from './PlayerErrorInfoPanel'
 import { PlayerInfoPanel } from './PlayerInfoPanel'
+import { PlayerSubtitleSearchPanel } from './PlayerSubtitleSearchPanel'
 import { PlayerTracksPanel } from './PlayerTracksPanel'
 import { SubtitleOverlay } from './SubtitleOverlay'
 import { buildTracksPanel } from './playerPanels'
 import type { PlayerEpisodeStep, PlayerIdentity } from './chromeControls'
 import { useT } from '../lib/i18n/I18nProvider'
 import { formatEpgTimeRange } from '../lib/epg/formatEpgTime'
-import {
-  DEFAULT_GENERIC_ERROR_KEY,
-  DEFAULT_UNAVAILABLE_KEY,
-  RESUME_BLOCKED_KEY,
-  STATE_LABEL_KEY,
-} from './player/playerMessages'
+import { DEFAULT_GENERIC_ERROR_KEY, DEFAULT_UNAVAILABLE_KEY, RESUME_BLOCKED_KEY } from './player/playerMessages'
+import { playerStatusLabel } from './player/playerStatusLabel'
+import { useExternalSubtitles } from './player/useExternalSubtitles'
 import type { PanelState, PlayerArchive, PlayerLayerProps, PlayerLayerTopLayer } from './player/playerLayerTypes'
 import { usePlayerChrome } from './player/usePlayerChrome'
 import { usePanelRefresh, usePlayerPanels } from './player/usePlayerPanels'
@@ -73,6 +70,7 @@ export function PlayerLayer({
   onArchiveEnded,
   onGoLive,
   startOver,
+  externalSubtitles,
 }: PlayerLayerProps) {
   const t = useT()
   const unavailableMessage = unavailableMessageProp ?? t(DEFAULT_UNAVAILABLE_KEY)
@@ -86,9 +84,13 @@ export function PlayerLayer({
   // mudar uma com o player aberto não afeta a sequência em andamento.
   const [preferences] = useState(() => readPlayerPreferences())
   const { toastMessage, toastKey, showToast } = useToast()
+  // Feature 090: antes do chrome e dos painéis, que leem a disponibilidade e delegam a ele (`logic §5`).
+  const external = useExternalSubtitles({ itemId, deps: externalSubtitles, sessionRef, panelRef, t, showToast })
 
   const isArchive = archive !== null && archive !== undefined
-  const chrome = usePlayerChrome({ sessionRef, panelRef, qualityOptionsRef, episodeStep, onGuide, archive: isArchive, startOver })
+  const chrome = usePlayerChrome({
+    sessionRef, panelRef, qualityOptionsRef, episodeStep, onGuide, archive: isArchive, startOver, externalAvailableRef: external.availableRef,
+  })
   const panels = usePlayerPanels({
     sessionRef,
     panelRef,
@@ -100,6 +102,7 @@ export function PlayerLayer({
     onTrackChoiceChange,
     initialViewChoice,
     onViewChoiceChange,
+    external,
   })
   const { phase, hardwarePlane, retry, resumeGate, resumeGateRef, recheckResume, sourceIdRef } = usePlayerSession({
     itemId,
@@ -188,18 +191,7 @@ export function PlayerLayer({
     startOver,
   })
 
-  const label =
-    phase.kind === 'resolving'
-      ? t('player.state.preparing')
-      : phase.kind === 'reconnecting'
-        ? t('player.msg.reconnecting', { attempt: phase.attempt, max: phase.max })
-        : phase.kind === 'session'
-          ? resumeGate === 'verifying'
-            ? t('offline.verifying')
-            : STATE_LABEL_KEY[phase.state]
-              ? t(STATE_LABEL_KEY[phase.state] as MessageKey)
-              : ''
-          : ''
+  const label = playerStatusLabel(phase, resumeGate, t)
   const session = sessionRef.current
   const paused = phase.kind === 'session' && phase.state === 'paused'
   const chromeMedia = chrome.chromeMediaRef.current
@@ -208,7 +200,8 @@ export function PlayerLayer({
   // O painel aberto substitui o chrome (feature 029); ao fechar, ele volta com o foco de origem.
   const chromeVisible =
     !topLayer && !isErrorScreen && session !== null && phase.kind === 'session' && chromeLevel !== 'hidden' && panel === null
-  const tracksModel = panel?.kind === 'tracks' ? buildTracksPanel(panels.panelTracksRef.current, panels.choiceRef.current, t) : null
+  const tracksModel =
+    panel?.kind === 'tracks' ? buildTracksPanel(panels.panelTracksRef.current, panels.choiceRef.current, t, external.panelInput()) : null
 
   return (
     <div
@@ -297,13 +290,16 @@ export function PlayerLayer({
               aparece sob o zapping (FR-008) nem na tela de erro. */}
           {session && phase.kind === 'session' && !topLayer && (
             <SubtitleOverlay
-              session={session}
-              delayMs={panels.choiceRef.current.subtitleDelayMs}
+              source={external.source ?? session}
+              delayMs={external.source ? 0 : panels.choiceRef.current.subtitleDelayMs}
               paused={paused}
               raised={chromeVisible}
             />
           )}
           {panel?.kind === 'tracks' && tracksModel && <PlayerTracksPanel model={tracksModel} focusedKey={panel.focusKey} />}
+          {panel?.kind === 'subtitleSearch' && (
+            <PlayerSubtitleSearchPanel model={external.searchModel()} language={external.searchLanguage} focusedKey={panel.focusKey} />
+          )}
           {(panel?.kind === 'aspect' || panel?.kind === 'quality') && session && (
             <PlayerChoicePanel model={panels.choiceModelFor(session, panel.kind)} focusedKey={panel.focusKey} />
           )}

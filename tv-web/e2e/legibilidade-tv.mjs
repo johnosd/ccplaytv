@@ -23,6 +23,7 @@ import { chromium } from 'playwright'
 import assert from 'node:assert/strict'
 import { cadastrarListaM3u } from './lib/entrada.mjs'
 import { openSectionCategory } from './lib/vod.mjs'
+import { answerSubtitleRoute, installFakeAvplay } from './lib/legendasSim.mjs'
 import { mockRadioDirectory, radioDirectoryStation } from './lib/radioDirectoryMock.mjs'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -542,6 +543,120 @@ async function auditPortalScreens(browser, m3uUrl) {
   }
 }
 
+// Feature 090 (SC-007): diálogo de busca de legenda (resultados, fornecedor fora, erro) e a seção "Legendas" da aba
+// Integrações (linhas e diálogo da chave) nos três idiomas. Vite comercial à parte (porta 5181) com o teste local ainda
+// válido — a auditoria do portal acima deixa a licença vencida de propósito. Serviço e AVPlay simulados (`lib/legendasSim.mjs`).
+const SUBTITLE_PORT = 5181
+const SUBTITLE_APP = `http://127.0.0.1:${SUBTITLE_PORT}`
+const SEARCH_ROW = /Buscar legenda online|Search subtitles online|Buscar subtítulos en línea/
+const SEARCH_DIALOG = /^(Buscar legenda online|Search subtitles online|Buscar subtítulos en línea)$/
+
+async function auditSubtitleScreens(browser, m3uUrl) {
+  const vite = spawn(process.execPath, ['node_modules/vite/bin/vite.js', '--mode', 'commercial', '--host', '127.0.0.1', '--port', String(SUBTITLE_PORT), '--strictPort'], {
+    env: { ...process.env, NO_COLOR: '1', VITE_PORTAL_ORIGIN: PORTAL_ORIGIN, VITE_LICENSE_PUBLIC_KEYS: '{}' }, stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true,
+  })
+  await new Promise((resolve, reject) => {
+    const timeout = setTimeout(() => reject(new Error('vite de legendas não subiu')), 40000)
+    vite.stdout.on('data', (value) => { if (String(value).includes(SUBTITLE_APP)) { clearTimeout(timeout); resolve() } })
+    vite.once('exit', () => { clearTimeout(timeout); reject(new Error('vite de legendas encerrou')) })
+  })
+  const context = await browser.newContext({ locale: 'pt-BR', viewport: { width: 1920, height: 1080 } })
+  await context.addInitScript(installFakeAvplay)
+  const credentials = { deviceId: 'legibilidade-leg', displayId: 'A0:8C:FD:19:0A:8C', bearer: 'legibilidade-leg.' + 'a'.repeat(42) + 'A',
+    deviceKey: '1732049818', authEpoch: 1, recoveryEpoch: 'c'.repeat(42) + 'A', recoveryCode: '0000-0000-0000-0000-0000-0000-0000', recoveryCodeVersion: 1 }
+  const sim = { mode: 'ok', calls: [] }
+  await context.route(PORTAL_ORIGIN + '/**', async (route) => {
+    const headers = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'authorization,content-type', 'Access-Control-Allow-Methods': 'GET,POST,PUT,OPTIONS' }
+    const request = route.request()
+    if (request.method() === 'OPTIONS') return route.fulfill({ status: 204, headers })
+    const pathname = new URL(request.url()).pathname
+    if (pathname.endsWith('/devices/enroll')) return route.fulfill({ json: { ...credentials, operationId: 'enroll-fixture' }, headers })
+    if (pathname.endsWith('/recovery/ack')) return route.fulfill({ status: 204, headers })
+    if (await answerSubtitleRoute(route, sim, headers)) return
+    return route.fulfill({ status: 404, headers })
+  })
+  const page = await context.newPage()
+  const openTracksDialog = async () => {
+    await page.keyboard.press('ArrowRight')
+    await page.keyboard.press('ArrowRight')
+    await page.keyboard.press('Enter')
+    await page.waitForSelector('[role="dialog"] .tv-focus', { timeout: 6000 })
+  }
+  const focusSearchRow = async () => {
+    for (let i = 0; i < 24; i += 1) {
+      const text = (await page.locator('[role="dialog"] .tv-focus').first().innerText().catch(() => '')) ?? ''
+      if (SEARCH_ROW.test(text)) return
+      await page.keyboard.press('ArrowDown')
+    }
+    throw new Error('linha de busca de legenda não encontrada')
+  }
+  const openMovie = async () => {
+    await page.goto(SUBTITLE_APP)
+    await page.waitForSelector('.source-card', { timeout: 15000 })
+    await page.keyboard.press('Enter')
+    await page.waitForSelector('.home-content', { timeout: 10000 })
+    await openSectionCategory(page, 'movies', 'Aventura')
+    await page.waitForSelector('.content-card', { timeout: 8000 })
+    await page.keyboard.press('ArrowDown')
+    await page.waitForSelector('.vod-grid .tv-focus', { timeout: 4000 })
+    await page.keyboard.press('Enter')
+    await page.waitForSelector('.vod-detail', { timeout: 8000 })
+    await page.keyboard.press('Enter')
+    await page.waitForFunction(() => window.__avplay?.calls.includes('play'), null, { timeout: 8000 })
+    await page.waitForTimeout(400)
+  }
+  try {
+    await page.goto(SUBTITLE_APP)
+    await page.waitForSelector('.add-card', { timeout: 20000 })
+    await cadastrarListaM3u(page, { nome: 'Fonte E2E Legendas Legibilidade', url: m3uUrl })
+    await page.waitForSelector('text=/Concluída/', { timeout: 20000 })
+    for (const lang of LANGS) {
+      console.log(`=== legendas ${lang} ===`)
+      await page.evaluate(([key, value]) => window.localStorage.setItem(key, value), [LANGUAGE_KEY, lang])
+      await step(lang, 'Legendas — resultados', async () => {
+        sim.mode = 'ok'
+        await openMovie()
+        await openTracksDialog()
+        await focusSearchRow()
+        await audit(page, lang, 'Legendas — painel com a busca', '[role="dialog"]')
+        await page.keyboard.press('Enter')
+        await page.getByRole('dialog', { name: SEARCH_DIALOG }).getByRole('button').first().waitFor({ timeout: 8000 })
+        await audit(page, lang, 'Legendas — resultados', '[role="dialog"]')
+      })
+      await step(lang, 'Legendas — fornecedor indisponível', async () => {
+        sim.mode = 'subdlDown'
+        await page.keyboard.press('ArrowUp')
+        await page.keyboard.press('Enter') // refaz a busca no mesmo idioma
+        await page.waitForTimeout(900)
+        await audit(page, lang, 'Legendas — fornecedor indisponível', '[role="dialog"]')
+      })
+      await step(lang, 'Legendas — sem conexão', async () => {
+        sim.mode = 'offline'
+        await page.keyboard.press('ArrowUp')
+        await page.keyboard.press('Enter')
+        await page.waitForTimeout(900)
+        await audit(page, lang, 'Legendas — sem conexão', '[role="dialog"]')
+        sim.mode = 'ok'
+      })
+      await step(lang, 'Integrações — Legendas', async () => {
+        await page.goto(SUBTITLE_APP)
+        await page.waitForSelector('.profiles-settings-corner:not(.profiles-portal-corner)', { timeout: 15000 })
+        await page.locator('.profiles-settings-corner:not(.profiles-portal-corner)').click()
+        await page.waitForSelector('.settings-screen .side-category-nav-item', { timeout: 8000 })
+        await page.locator('.settings-screen .side-category-nav-item', { hasText: /Integra/i }).first().click()
+        await page.locator('[data-service="subtitle-keys"]').waitFor({ timeout: 8000 })
+        await audit(page, lang, 'Integrações — Legendas')
+        await page.locator('[data-service="subtitle-keys"] [data-provider="subdl"] button').first().click()
+        await page.waitForSelector('[role="dialog"] input.text-field-input', { timeout: 6000 })
+        await audit(page, lang, 'Integrações — chave de legenda', '[role="dialog"]')
+      })
+    }
+  } finally {
+    await context.close()
+    vite.kill()
+  }
+}
+
 async function run() {
   const server = await startFixtureServer()
   const m3uUrl = `http://127.0.0.1:${server.address().port}/legibilidade-tv.m3u`
@@ -562,8 +677,11 @@ async function run() {
     await page.waitForSelector('.add-card', { timeout: 15000 })
     await cadastrarListaM3u(page, { nome: 'Fonte E2E Legibilidade Com Nome Comprido', url: m3uUrl })
     await page.waitForSelector('text=/Concluída/', { timeout: 15000 })
-    for (const lang of LANGS) await walk(page, lang)
-    await auditPortalScreens(browser, m3uUrl)
+    if (!args.includes('--so-legendas')) {
+      for (const lang of LANGS) await walk(page, lang)
+      await auditPortalScreens(browser, m3uUrl)
+    }
+    await auditSubtitleScreens(browser, m3uUrl)
   } catch (error) {
     findings.push(`erro não tratado: ${error instanceof Error ? error.message.split('\n')[0] : String(error)}`)
   } finally {

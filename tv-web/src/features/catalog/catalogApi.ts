@@ -34,7 +34,7 @@ import {
 import { readKindCursorPage, type KindCursor } from '../../lib/catalog/kindCursor'
 import { listVisibleCategories } from '../../lib/catalog/categoryAccess'
 import { loadShowcaseSelections } from './showcaseSelections'
-import { montarPreviews, previewsFaltando } from './previewWindow'
+import { useCategoryPreviewWindow } from './useCategoryPreviewWindow'
 import { READ_WINDOW_MIN_ITEMS, readCategoryWindow } from '../../lib/catalog/categoryWindow'
 import { READ_PROJECTION_CHUNK_SIZE, readItemToRecord } from '../../lib/catalog/readProjection'
 import { ensureCategory, type CategoryFetchOutcome } from '../../lib/catalog/categoryLoader'
@@ -1776,34 +1776,18 @@ export function useCategoryPreviews(
   sourceId: string | null,
   categories: readonly CatalogCategory[],
 ): ReadonlyMap<number, CategoryPreview> {
-  // Feature 089 (R-012): **sem consulta "da janela"**. A chave dela continha a lista de ids visíveis, então cada tecla
-  // que deslizava a janela criava consulta nova, disparava um `fetchQuery` por categoria e deixava a anterior órfã —
-  // 19,6 eventos de cache por tecla na TV, e 33 fps contra 41. Agora só o que falta/stale/invalidado é buscado, e o
-  // resto sai do cache sem tocar em consulta. `useQueries` segue fora: estourou "Maximum update depth" descendo.
-  const queryClient = useQueryClient()
-  const [previews, setPreviews] = useState<ReadonlyMap<number, CategoryPreview>>(EMPTY_PREVIEWS)
-  const idsKey = categories.map((category) => category.id).join(',')
-  useEffect(() => {
-    if (sourceId === null || categories.length === 0) return undefined
-    const ids = categories.map((category) => category.id)
-    const chave = (id: number) => categoryPreviewKey(sourceId, id)
-    const montar = () => montarPreviews(ids, (id) => queryClient.getQueryData<CategoryPreview>(chave(id)))
-    const faltando = previewsFaltando(ids, (id) => queryClient.getQueryState<CategoryPreview>(chave(id)), Date.now(), PREVIEW_STALE_MS)
-    setPreviews(montar())
-    if (faltando.length === 0) return undefined
-    let vivo = true
-    const porId = new Map(categories.map((category) => [category.id, category]))
-    void Promise.all(faltando.map((id) => queryClient.fetchQuery({
-      queryKey: chave(id),
-      queryFn: () => loadCategoryPreview(sourceId, porId.get(id) as CatalogCategory),
-      staleTime: PREVIEW_STALE_MS, gcTime: 30_000,
-    }))).then(() => { if (vivo) setPreviews(montar()) }, () => {})
-    return () => { vivo = false }
-    // `categories` fora das dependências de propósito: é array novo a cada render, e o que importa são os ids —
-    // com `idsKey` diferente o efeito roda com as categorias daquele render, que são exatamente as de `idsKey`.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sourceId, idsKey, queryClient])
-  return previews
+  // Feature 089 (R-012): **sem consulta "da janela"** — a chave dela continha os ids visíveis, e cada tecla criava
+  // consulta nova (19,6 eventos de cache por tecla na TV, 33 fps contra 41). O efeito mora em
+  // `useCategoryPreviewWindow.ts`; ele também relê quando a pré-carga (038) invalida a prévia de uma categoria da janela.
+  const porId = new Map(categories.map((category) => [category.id, category]))
+  return useCategoryPreviewWindow<CategoryPreview>(
+    sourceId,
+    categories.map((category) => category.id),
+    categoryPreviewKey,
+    (fonte, id) => loadCategoryPreview(fonte, porId.get(id) as CatalogCategory),
+    PREVIEW_STALE_MS,
+    EMPTY_PREVIEWS,
+  )
 }
 const EMPTY_PREVIEWS: ReadonlyMap<number, CategoryPreview> = new Map()
 /** Dentro desta janela a prévia de uma categoria já lida não é relida ao deslizar. */

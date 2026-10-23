@@ -17,7 +17,10 @@ from app.portal.repositories.control import ControlRepository, TransactionPlan, 
 
 AUTH_CODES = {"unauthorized", "invalid_origin", "try_again", "invalid_input",
               "invalid_credentials", "rate_limited", "invalid_csrf", "payload_too_large",
-              "service_unavailable", "recovery_required", "not_escrowed", "pix_disabled", "pix_failed"}
+              "service_unavailable", "recovery_required", "not_escrowed", "pix_disabled", "pix_failed",
+              # 090: legendas externas (contrato servico-legendas.md §4).
+              "subtitles_not_entitled", "subtitles_device_limit", "subtitles_provider_limit",
+              "subtitles_unreadable"}
 # Requisições concorrentes da mesma sessão capturam `now` antes da transação e podem terminar fora de
 # ordem (retries transacionais com jitter); relógio mais atrás que isso continua sendo recusado.
 SESSION_CONCURRENCY_SKEW = timedelta(seconds=30)

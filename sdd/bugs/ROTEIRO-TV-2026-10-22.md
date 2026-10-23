@@ -3,8 +3,21 @@
 **Criado em**: 2026-10-22 · **Para**: fechar de uma vez os bugs cuja correção **já está aplicada e com testes verdes**,
 e que só esperam alguém confirmar o sintoma no aparelho.
 
-Todos os seis estão em `partial`/`applied` por **um** motivo: "confirmar na TV". Nenhum tem código pendente. Em vez de
-seis sessões, é um roteiro de ~10 minutos.
+Na criação deste roteiro, os seis aguardavam confirmação na TV. **Validação concluída em 2026-10-22**:
+o usuário informou "Todos os itens foram validados com sucesso" e autorizou o fechamento. Os seis passaram a
+`verified`, com o relato físico registrado em cada `test.md`. O roteiro abaixo é preservado como histórico.
+
+| Item | Cenário | Resultado na TV |
+| --- | --- | --- |
+| 1 | Foco e rolagem dos episódios | Aprovado pelo usuário |
+| 2 | CH+/CH− e RETURN no player | Aprovado pelo usuário |
+| 3 | Live sem "Carregando" indevido durante reprodução | Aprovado pelo usuário |
+| 4 | Setas horizontais entre botões do trailer | Aprovado pelo usuário |
+| 5 | Renovação Xtream após mais de 10 min, com navegação usável | Aprovado pelo usuário |
+| 6 | Tempo percebido do guia EPG | Aprovado pelo usuário, sem medição em segundos |
+
+O item 7 era apenas uma observação opcional em uso normal. Ele não reproduz armazenamento cheio nem substitui
+a medição com a sonda; `armazenamento-app-cheio-na-tv-impede` continua pendente da fase Test.
 
 ## Antes de começar
 
@@ -98,5 +111,5 @@ medição com a sonda.
 
 ## Depois
 
-Com as respostas, eu fecho como `verified` o que passou, reabro com `sdd-bugfix` o que falhou — e cada `test.md`
-recebe a evidência do que você viu, com data. Nenhum veredito muda sem a sua confirmação.
+Os seis cenários foram encerrados como `verified` após a confirmação do usuário em 2026-10-22. Cada `test.md`
+registra a data, o cenário aprovado e a origem da evidência. Não houve nova execução automatizada nesta atualização.
