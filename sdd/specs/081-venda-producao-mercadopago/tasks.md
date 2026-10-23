@@ -261,17 +261,20 @@ concessões são revogadas.
 - [X] T026 [USUÁRIO] [US2] Redeploy (público + jobs) com o código das fases 2–4 e `CHECKOUT_ENABLED=true`; conferir
   `GET /portal/v1/offer` → `checkoutEnabled: true` (sessão do portal).
 - [ ] T027 [USUÁRIO] [US2] Compra real por **cartão** no portal (Checkout Pro). Conferir:
+  > **2026-10-23 — parcial:** compra real por cartão, a TV recebeu a licença de 12 meses (relato do usuário); o webhook assinado devolveu 401 em todas as notificações dos últimos 14 dias — sem o "200" exigido aqui; continua aberta** (detalhes em `evidencias/producao.md`)
   - pedido `approved` só pela consulta autenticada;
   - Atualizar na TV mostra licença de 12 meses;
   - `pendingOrder` limpo no portal;
   - chegada do webhook assinado, pelo log de requisição: status 200 na rota, sem corpo.
   Registrar em `evidencias/producao.md` (ID do pedido truncado, horários, estados).
 - [ ] T028 [USUÁRIO] [US2] Compra real por **Pix** na TV (R-001). Se o provedor recusar, o caminho FR-010:
+  > **2026-10-23 — não executado:** o usuário comprou só por cartão** (detalhes em `evidencias/producao.md`)
   1. tirar `CCPLAY_PORTAL_PIX_PAYER_DOMAIN` da produção;
   2. redeploy;
   3. a TV mostra "pague com cartão no site" com QR.
   Registrar qual caminho valeu.
 - [ ] T029 [USUÁRIO] [US2] Estornar as duas compras no painel do Mercado Pago. Conferir revogação na TV (Atualizar)
+  > **2026-10-23 — não executado, por decisão:** estornar revogaria a licença que o usuário vai usar** (detalhes em `evidencias/producao.md`)
   e `order_refunded` no portal (US2/AC3). Registrar.
 
 ### Testes da Fase
