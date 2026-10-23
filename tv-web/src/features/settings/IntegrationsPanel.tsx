@@ -14,9 +14,11 @@ import {
   TMDB_STATE_CODE,
   TMDB_STATE_LABEL_KEY,
   tmdbActions,
-  SOON_ROW_START,
-  SPEED_TEST_ROW,
+  integrationRows,
+  type IntegrationRows,
 } from './integrationsModel'
+
+const ROWS_WITHOUT_PORTAL = integrationRows(false)
 
 export interface IntegrationsPanelProps {
   /** `undefined` enquanto a leitura local ainda não voltou — tratado como "Não configurado" (a leitura é só IndexedDB). */
@@ -35,6 +37,8 @@ export interface IntegrationsPanelProps {
   speedTestReadFailed?: boolean
   /** Seção "Legendas" (chaves pessoais, feature 090): fica logo abaixo do card do TMDB. */
   subtitleKeys?: ReactNode
+  /** Posição das linhas da aba (a linha "Atualizar" das legendas só existe com portal); padrão: sem portal. */
+  rows?: IntegrationRows
 }
 
 function formatWhen(epochMs: number, locale: string): string {
@@ -48,7 +52,7 @@ function formatWhen(epochMs: number, locale: string): string {
  * estado (ADR-009), como `AccessibilityPanel`: sempre há um elemento
  * focável, em qualquer estado.
  */
-export function IntegrationsPanel({ status, focusedRow, focusedCol, testing, onActivate, refresh, lastSpeedTest, speedTestReadFailed, subtitleKeys }: IntegrationsPanelProps): ReactNode {
+export function IntegrationsPanel({ status, focusedRow, focusedCol, testing, onActivate, refresh, lastSpeedTest, speedTestReadFailed, subtitleKeys, rows = ROWS_WITHOUT_PORTAL }: IntegrationsPanelProps): ReactNode {
   const t = useT()
   const language = useLanguage()
   const view: TmdbStatusView = status ?? { state: 'not_configured' }
@@ -114,7 +118,7 @@ export function IntegrationsPanel({ status, focusedRow, focusedCol, testing, onA
         <section key={card.id} className="integration-card integration-card--soon" aria-label={t(card.titleKey)}>
           <h2 className="integration-card-title">{t(card.titleKey)}</h2>
           {/* Sem `onSelect`: `ComingSoon` já anuncia "Em breve" no clique; o teclado passa por `onActivate` na tela. */}
-          <ComingSoon id={card.id} focused={focusedRow === SOON_ROW_START + index} />
+          <ComingSoon id={card.id} focused={focusedRow === rows.soonStart + index} />
         </section>
       ))}
       <section className="integration-card" data-service="speedtest" aria-label={t('settings.speed.title')}>
@@ -128,7 +132,7 @@ export function IntegrationsPanel({ status, focusedRow, focusedCol, testing, onA
           </>
           : <p className="integration-card-description">{t('settings.speed.empty')}</p>}
         {speedTestReadFailed && <p className="integration-card-description">{t('settings.speed.storage')}</p>}
-        <Button variant="accent" focused={focusedRow === SPEED_TEST_ROW} onSelect={() => onActivate(SPEED_TEST_ROW, 0)}>{t('settings.speed.open')}</Button>
+        <Button variant="accent" focused={focusedRow === rows.speedTestRow} onSelect={() => onActivate(rows.speedTestRow, 0)}>{t('settings.speed.open')}</Button>
       </section>
     </div>
   )

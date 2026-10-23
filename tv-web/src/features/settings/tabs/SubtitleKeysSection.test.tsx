@@ -10,6 +10,19 @@ import * as importApi from '../../import/importApi'
 import { SettingsScreen, type SettingsScreenProps } from '../SettingsScreen'
 import { db } from '../../../lib/catalog/db'
 import { subtitleCredentials } from '../../../lib/subtitles/subtitleTables'
+import { registerPortalRefresh } from '../../../lib/portal/portalRuntime'
+import { createSubtitleKeysRemoteStep } from '../../../lib/portal/subtitleKeysRemote'
+import type { PortalConnection } from '../../../lib/portal/portalConnection'
+import { portalTables } from '../../../lib/portal/portalTables'
+import { clearSubtitleKeyFeedback } from '../../../lib/portal/subtitleKeyFeedback'
+
+// 091: o portal visível é o padrão dos testes (dev/teste mostram as superfícies do portal); um teste desliga para ver a
+// linha "Atualizar" sumir.
+const portal = vi.hoisted(() => ({ visible: true }))
+vi.mock('../../../lib/portal/portalRuntime', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../../lib/portal/portalRuntime')>()),
+  portalSurfacesVisible: () => portal.visible,
+}))
 
 vi.mock('../../import/importApi', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../import/importApi')>()
@@ -63,11 +76,13 @@ const subdlRow = () => within(section()).getByText(/^SubDL —/).closest('[data-
 const osRow = () => within(section()).getByText(/^OpenSubtitles —/).closest('[data-provider]') as HTMLElement
 
 beforeEach(async () => {
+  clearSubtitleKeyFeedback(db)
   await subtitleCredentials(db).clear()
   await db.integrations.clear()
 })
 
 afterEach(async () => {
+  portal.visible = true
   cleanup()
   vi.clearAllMocks()
   vi.unstubAllGlobals()
@@ -90,8 +105,11 @@ describe('Integrações › Legendas (chave pessoal)', () => {
     expect(within(osRow()).getByRole('button', { name: 'Adicionar chave' })).toHaveClass('tv-focus')
     press('ArrowDown')
     expect(within(subdlRow()).getByRole('button', { name: 'Adicionar chave' })).toHaveClass('tv-focus')
+    press('ArrowDown') // linha "Atualizar" das legendas (091)
+    expect(within(screen.getByRole('region', { name: 'Legendas' })).getByRole('button', { name: 'Atualizar' })).toHaveClass('tv-focus')
     press('ArrowDown') // 1º card "Em breve": o foco não se perdeu
     expect(within(screen.getByRole('region', { name: 'Assistente de IA' })).getByRole('button')).toHaveClass('tv-focus')
+    press('ArrowUp')
     press('ArrowUp')
     press('ArrowUp')
     expect(within(osRow()).getByRole('button', { name: 'Adicionar chave' })).toHaveClass('tv-focus')
@@ -178,5 +196,113 @@ describe('Integrações › Legendas (chave pessoal)', () => {
     expect(await within(section()).findByText(`SubDL — Sua chave — válida (••••${KEY.slice(-4)})`)).toBeInTheDocument()
     expect(document.body.textContent).not.toContain(KEY)
     expect((await subtitleCredentials(db).get('subdl'))?.chosen).toBe(true)
+  })
+  it('linha "Atualizar" (091): focável com e sem chave; SELECT busca só as legendas e relê as linhas', async () => {
+    const scopes: string[] = []
+    // O agente grava a chave que o portal mandou — a seção precisa mostrá-la sem reabrir a aba.
+    const unregister = registerPortalRefresh(async (scope) => {
+      scopes.push(scope)
+      await subtitleCredentials(db).put({ provider: 'subdl', key: KEY, state: 'valid', lastTestedAt: Date.now(), chosen: true })
+      return { ok: true }
+    })
+    renderSettings()
+    enterIntegrations()
+    await within(subdlRow()).findByRole('button', { name: 'Adicionar chave' })
+    enterSubtitleRows()
+    press('ArrowDown') // SubDL
+    press('ArrowDown') // Atualizar
+    expect(within(section()).getByRole('button', { name: 'Atualizar' })).toHaveClass('tv-focus')
+    press('Enter')
+    expect(await within(section()).findByText(`SubDL — Sua chave — válida (••••${KEY.slice(-4)})`)).toBeInTheDocument()
+    expect(await within(section()).findByRole('status')).toHaveTextContent('Chaves de legenda atualizadas.')
+    expect(scopes).toEqual(['subtitles'])
+    expect(section().textContent).not.toContain(KEY)
+    // Com chave guardada a linha continua focável: a seção nunca fica sem elemento focável.
+    expect(within(section()).getByRole('button', { name: 'Atualizar' })).toBeInTheDocument()
+    unregister()
+  })
+
+  it('sem portal (build de loja sem portal) a linha "Atualizar" some e o foco desce direto ao 1º card "Em breve"', async () => {
+    portal.visible = false
+    renderSettings()
+    enterIntegrations()
+    await within(subdlRow()).findByRole('button', { name: 'Adicionar chave' })
+    expect(within(section()).queryByRole('button', { name: 'Atualizar' })).not.toBeInTheDocument()
+    enterSubtitleRows()
+    press('ArrowDown') // SubDL
+    press('ArrowDown')
+    expect(within(screen.getByRole('region', { name: 'Assistente de IA' })).getByRole('button')).toHaveClass('tv-focus')
+  })
+
+  it('remoção do portal aplicada no Atualizar volta ao padrão e mantém a chave do outro fornecedor', async () => {
+    const other = { provider: 'opensubtitles' as const, key: 'chave-os-preservada-091', state: 'valid' as const, lastTestedAt: 1, chosen: true }
+    await subtitleCredentials(db).bulkPut([other, { provider: 'subdl', key: KEY, state: 'valid', lastTestedAt: 1, chosen: true }])
+    const device = { id: 'device' as const, deviceId: 'test-remove-091', bearer: 'fixture', authEpoch: 1, recoveryEpoch: 'epoch' }
+    await portalTables(db).device.put(device as never)
+    const connection = { ready: async () => device, client: { request: async (path: string) => path.endsWith('/ack')
+      ? {} : { operations: [{ provider: 'subdl', operationId: 'op-remove-091', action: 'remove' }] } } } as unknown as PortalConnection
+    const step = createSubtitleKeysRemoteStep(db, connection)
+    const unregister = registerPortalRefresh(async () => { await step(new AbortController().signal); return { ok: true } })
+    try {
+      renderSettings()
+      enterIntegrations()
+      await within(subdlRow()).findByRole('button', { name: 'Trocar chave' })
+      fireEvent.click(within(section()).getByRole('button', { name: 'Atualizar' }))
+      expect(await within(subdlRow()).findByText('SubDL — Padrão do ccplayTv')).toBeInTheDocument()
+      expect(within(subdlRow()).getByRole('button', { name: 'Adicionar chave' })).toBeInTheDocument()
+      expect(within(section()).getByRole('button', { name: 'Atualizar' })).toHaveClass('tv-focus')
+      expect(await subtitleCredentials(db).get('opensubtitles')).toEqual(other)
+      expect(await subtitleCredentials(db).get('subdl')).toBeUndefined()
+    } finally { unregister() }
+  })
+
+  it.each([
+    ['offline', 'Sem conexão para testar a chave enviada pelo portal. Tente de novo mais tarde.'],
+    ['rate_limited', 'O fornecedor está no limite. Tente de novo mais tarde.'],
+    ['refused', 'O fornecedor recusou a chave enviada pelo portal. Confira e envie outra.'],
+  ] as const)('Atualizar mostra o motivo %s do ack na linha certa sem trocar a chave anterior', async (reason, message) => {
+    await subtitleCredentials(db).put({ provider: 'subdl', key: KEY, state: 'valid', lastTestedAt: 1, chosen: true })
+    const device = { id: 'device' as const, deviceId: 'test-091', bearer: 'fixture', authEpoch: 1, recoveryEpoch: 'epoch' }
+    await portalTables(db).device.put(device as never)
+    const acks: unknown[] = []
+    const connection = {
+      ready: async () => device,
+      client: { request: async (path: string, options: { body?: unknown }) => {
+        if (path.endsWith('/ack')) { acks.push(options.body); return {} }
+        return { operations: [{ provider: 'subdl', operationId: 'op-091', action: 'set', key: 'nova-chave-ficticia-091' }] }
+      } },
+    } as unknown as PortalConnection
+    vi.stubGlobal('fetch', vi.fn(async () => {
+      if (reason === 'offline') throw new TypeError('nova-chave-ficticia-091')
+      return new Response('{}', { status: reason === 'rate_limited' ? 429 : 401 })
+    }))
+    const step = createSubtitleKeysRemoteStep(db, connection)
+    const unregister = registerPortalRefresh(async () => { await step(new AbortController().signal); return { ok: true } })
+    try {
+      renderSettings()
+      enterIntegrations()
+      await within(subdlRow()).findByRole('button', { name: 'Trocar chave' })
+      const refresh = within(section()).getByRole('button', { name: 'Atualizar' })
+      for (let count = 0; !refresh.classList.contains('tv-focus') && count < 12; count++) press('ArrowDown')
+      expect(refresh).toHaveClass('tv-focus')
+      press('Enter')
+      expect(await within(subdlRow()).findByText(message)).toBeInTheDocument()
+      expect(section()).not.toHaveTextContent('Nenhuma chave de legenda nova do portal.')
+      expect(section()).not.toHaveTextContent('Chaves de legenda atualizadas.')
+      expect(osRow()).not.toHaveTextContent(message)
+      expect(await subtitleCredentials(db).get('subdl')).toMatchObject({ key: KEY, state: 'valid', chosen: true, lastTestedAt: 1 })
+      expect(acks).toEqual([{ provider: 'subdl', operationId: 'op-091', state: reason === 'refused' ? 'rejected' : 'retry', reason }])
+      expect(section().textContent).not.toContain('nova-chave-ficticia-091')
+      expect(section().textContent).not.toContain(KEY)
+      expect(refresh).toHaveClass('tv-focus')
+      // Corrigir a chave diretamente na TV encerra a mensagem da tentativa anterior pelo portal.
+      fireEvent.click(within(subdlRow()).getByRole('button', { name: 'Trocar chave' }))
+      const dialog = await screen.findByRole('dialog', { name: 'Chave do SubDL' })
+      vi.stubGlobal('fetch', vi.fn(async () => new Response('{"status":true,"subtitles":[]}')))
+      fireEvent.change(within(dialog).getByLabelText('Chave'), { target: { value: 'chave-corrigida-na-tv-091' } })
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Salvar e testar' }))
+      await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+      await waitFor(() => expect(subdlRow()).not.toHaveTextContent(message))
+    } finally { unregister() }
   })
 })

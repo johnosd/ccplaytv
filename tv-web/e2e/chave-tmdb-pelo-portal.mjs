@@ -89,7 +89,7 @@ try {
   }
   // Atualizar da própria aba Integrações & BYOK da TV (escopo tmdb): só a chave, sem ir a Adicionar lista → Recarregar.
   const tvRefresh = async (expectedAcks) => {
-    await tv.locator('.integrations-panel').getByRole('button', { name: 'Atualizar', exact: true }).click()
+    await tv.locator('.integrations-panel').getByRole('region', { name: 'TMDB', exact: true }).getByRole('button', { name: 'Atualizar', exact: true }).click()
     await expect.poll(acks, { timeout: 30000, intervals: [500] }).toBe(expectedAcks)
   }
   await expect(status).toContainText('Não configurada')
@@ -105,7 +105,7 @@ try {
   assert.equal(await portal.getByLabel('Chave do TMDB', { exact: true }).inputValue(), '', 'campo limpo depois do envio')
   assert.equal(acks(), 0, 'a TV não consulta o serviço sozinha')
   await tvRefresh(1)
-  await expect(tv.getByRole('status').filter({ hasText: 'Chave TMDB atualizada' })).toBeVisible()
+  await expect(tv.getByRole('status').filter({ hasText: 'Chaves atualizadas' })).toBeVisible()
   await waitStatus('Aplicada na TV')
   assert.deepEqual(await tvKey(), { rows: 1, state: 'connected', isExpected: true }, 'a TV guardou a chave pelo caminho normal')
   assert.equal(tmdb.accepted >= 1, true, 'a TV testou a chave no TMDB')

@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
+import { trackPortalTraffic } from './portalQuiet'
 // Feature 077/US3: Licença é um cartão com preço, validade e um botão; o rótulo é "Comprar licença" no teste e "Renovar licença"
 // com licença paga; o aceite é a frase com o ID da TV (sem caixa de seleção).
 const CSRF = 'c'.repeat(42) + 'A'
@@ -14,6 +15,7 @@ async function fixture(page: Page, options: { loseFirst?: boolean; enabled?: boo
   const session = { deviceId: 'tv-license-fixture', csrfToken: CSRF, expiresAt: new Date(Date.now() + 3600000).toISOString() }
   const order = () => ({ orderId: 'order-fixture', deviceId: session.deviceId, status, checkoutUrl: status === 'pending' ? 'https://www.mercadopago.com.br/checkout/v1/redirect?pref_id=fixture' : null })
   // Contexto (não só a aba): a volta do Mercado Pago pode abrir numa aba nova (081/T047).
+  const traffic = trackPortalTraffic(page)
   await page.context().route('**/portal/v1/**', async route => {
     const request = route.request(), path = new URL(request.url()).pathname
     const json = (value: unknown, code = 200) => route.fulfill({ status: code, json: value })
@@ -38,7 +40,8 @@ async function fixture(page: Page, options: { loseFirst?: boolean; enabled?: boo
     await nav(page, 'Licença').click()
     await expect(page.getByText('R$ 35,00', { exact: false })).toBeVisible()
   }
-  return { requests, approve: () => { status = 'approved' } }
+  // `approve` espera o painel ficar quieto: um refresh disparado com leitura em voo é descartado (useTvData serializa) e o `device` ficaria velho.
+  return { requests, approve: async () => { await traffic.quiet(); status = 'approved' } }
 }
 test('um botão e a frase com o ID da TV; retry mantém o pedido e pendente não permite recompra; retorno não concede', async ({ page }) => {
   const state = await fixture(page, { loseFirst: true })
@@ -60,7 +63,7 @@ test('um botão e a frase com o ID da TV; retry mantém o pedido e pendente não
   await page.evaluate(() => history.replaceState(null, '', '/?checkout=return'))
   await refresh(page)
   await expect(page.getByText('Aguardando pagamento', { exact: true })).toBeVisible()
-  state.approve()
+  await state.approve()
   await refresh(page)
   await expect(page.getByText(/^Pagamento confirmado\. Na TV, aperte Atualizar/)).toBeVisible()
   await expect(page.getByRole('link', { name: 'Continuar no Mercado Pago' })).toHaveCount(0)
@@ -90,7 +93,7 @@ test('volta do Mercado Pago retoma a sessão em Licença e mostra o pagamento co
   const state = await fixture(page)
   await page.getByRole('button', { name: 'Comprar licença', exact: true }).click()
   await expect(page.getByText('Aguardando pagamento', { exact: true })).toBeVisible()
-  state.approve()
+  await state.approve()
   await page.goto('/?checkout=return')
   await expect(page.getByText(/^Pagamento confirmado\. Na TV, aperte Atualizar/)).toBeVisible()
   await expect(nav(page, 'Licença')).toHaveAttribute('aria-current', 'page')
@@ -136,7 +139,7 @@ test('Pix pendente da TV vira aviso sem nova cobrança e o botão passa a Renova
   await expect(page.getByRole('status').filter({ hasText: 'Há um Pix gerado pela TV aguardando pagamento até' })).toBeVisible()
   await expect(page.getByText('000201', { exact: false })).toHaveCount(0)
   expect(state.requests).toHaveLength(0)
-  state.approve()
+  await state.approve()
   await refresh(page)
   await expect(page.getByRole('button', { name: 'Renovar licença', exact: true })).toBeVisible()
   await expect(page.getByText('Há um Pix gerado pela TV', { exact: false })).toHaveCount(0)

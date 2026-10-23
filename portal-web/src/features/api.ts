@@ -18,7 +18,7 @@ export interface Operation { operationId: string; sourceId: string; action: stri
   expectedRevision: number; createdAt: string; importState: string | null; receipt: { revision: number; state: string } | null }
 export interface Snapshot { capturedAt: string; sources: Source[]; revisions: { sourceId: string; revision: number }[];
   /** 077: o que a TV informou sobre integrações (ausente em TV antiga). Nunca o valor da chave. */
-  integrations?: { tmdb: 'none' | 'configured' } | null }
+  integrations?: { tmdb: 'none' | 'configured'; subtitles?: { opensubtitles: SubtitleTvReport; subdl: SubtitleTvReport } | null } | null }
 export interface Dashboard { configurations: SavedConfiguration[]; operations: Operation[]; snapshot: Snapshot | null; stale: boolean }
 export interface ConfigurationInput { type?: Source['type']; displayName?: string; providerDns?: string;
   providerUsername?: string; providerPassword?: string; m3uUrl?: string; epgManualUrl?: string;
@@ -158,6 +158,16 @@ export interface TmdbServerState {
   last: { action: 'set' | 'remove'; result: 'applied' | 'rejected'; reason?: 'refused' | 'invalid_format'; at: string } | null
   tvReported: 'none' | 'configured' | null
 }
+/** 091/ADR-022: o que a TV informou sobre a chave pessoal de um fornecedor de legenda. Nunca o valor. */
+export type SubtitleTvReport = 'none' | 'configured' | 'rejected' | 'rate_limited'
+export type SubtitleKeyProviderId = 'opensubtitles' | 'subdl'
+/** 091: estado de UM fornecedor no serviço (o mesmo formato da chave TMDB). O navegador só envia a chave; nada aqui a contém. */
+export interface SubtitleKeyServerState {
+  pending: { action: 'set' | 'remove'; createdAt: string; retryReason?: 'offline' | 'rate_limited' } | null
+  last: { action: 'set' | 'remove'; result: 'applied' | 'rejected'; reason?: 'refused' | 'invalid_format'; at: string } | null
+  tvReported: SubtitleTvReport | null
+}
+export type SubtitleKeysServerState = Record<SubtitleKeyProviderId, SubtitleKeyServerState>
 export interface BackupSummary { exists: boolean; createdAt?: number; counts?: { favorites: number; history: number; progress: number } }
 export const api = {
   licenseDevice: () => request<LicenseDevice>('/session/device'),
@@ -213,5 +223,14 @@ export const api = {
     remove: (session: Session, operationId: string) => request<{ operationId: string; action: 'remove'; state: 'pending' }>(
       '/integrations/tmdb/remove', { method: 'POST', body: {}, csrf: session.csrfToken, operationId }),
     cancel: (session: Session) => request<unknown>('/integrations/tmdb/pending', { method: 'DELETE', csrf: session.csrfToken }),
+  },
+  // 091/ADR-022: a chave de legenda vai só no corpo do PUT; nenhuma resposta a devolve e ela nunca entra em URL
+  // (o fornecedor no caminho vem de uma lista fechada). Não há "cancelar" nesta feature.
+  subtitleKeys: {
+    status: () => request<SubtitleKeysServerState>('/integrations/subtitles'),
+    set: (session: Session, provider: SubtitleKeyProviderId, key: string, operationId: string) => request<{ operationId: string; provider: SubtitleKeyProviderId; action: 'set'; state: 'pending' }>(
+      '/integrations/subtitles/' + provider, { method: 'PUT', body: { key }, csrf: session.csrfToken, operationId }),
+    remove: (session: Session, provider: SubtitleKeyProviderId, operationId: string) => request<{ operationId: string; provider: SubtitleKeyProviderId; action: 'remove'; state: 'pending' }>(
+      '/integrations/subtitles/' + provider + '/remove', { method: 'POST', body: {}, csrf: session.csrfToken, operationId }),
   },
 }

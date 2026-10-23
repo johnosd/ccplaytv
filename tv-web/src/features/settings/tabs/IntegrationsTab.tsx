@@ -9,10 +9,7 @@ import { IntegrationsPanel } from '../IntegrationsPanel'
 import { RemoveTmdbKeyModal } from '../RemoveTmdbKeyModal'
 import {
   INTEGRATION_SOON_CARDS,
-  INTEGRATIONS_ROW_COUNT,
-  SOON_ROW_START,
-  SPEED_TEST_ROW,
-  SUBTITLE_ROW_START,
+  integrationRows,
   TMDB_STATE_LABEL_KEY,
   tmdbActions,
 } from '../integrationsModel'
@@ -31,7 +28,10 @@ import type { SettingsTabProps } from './settingsTab'
 /** Linha 0 = ações TMDB; linhas de legenda (chave pessoal); IA/clima placeholders; diagnóstico de conexão na última. */
 export function IntegrationsTab({ focused, initialFocus, navigation, exitToTabs, goToTopbar, showToast, handleRef }: SettingsTabProps): ReactNode {
   const t = useT()
-  const [row, setRow] = useState(initialFocus?.zone === 'panel' && initialFocus.service === 'speedtest' ? SPEED_TEST_ROW : 0)
+  const rows = integrationRows(portalSurfacesVisible())
+  const [storedRow, setRow] = useState(initialFocus?.zone === 'panel' && initialFocus.service === 'speedtest' ? rows.speedTestRow : 0)
+  // O portal pode sumir com o foco na linha "Atualizar": nunca deixa o foco numa linha que não existe.
+  const row = Math.min(storedRow, rows.count - 1)
   const [col, setCol] = useState(0)
   const [confirmRemove, setConfirmRemove] = useState(false)
   const [speedDialog, setSpeedDialog] = useState(false)
@@ -49,22 +49,23 @@ export function IntegrationsTab({ focused, initialFocus, navigation, exitToTabs,
       // Última linha (teste de conexão): `scrollIntoView({ block: 'nearest' })` encostava o botão na borda do
       // painel e o anel de foco saía cortado. Rolar até o fim deixa o respiro do card à vista e é
       // determinístico (um `scroll-padding` aqui reajustava 1 px a cada foco, por causa do `scale` do foco).
-      if (row === SPEED_TEST_ROW && panel) panel.scrollTop = panel.scrollHeight
+      if (row === rows.speedTestRow && panel) panel.scrollTop = panel.scrollHeight
       else focusedEl?.scrollIntoView({ block: 'nearest' })
     }
     // `lastSpeedTest.data`: o card do teste de conexão cresce quando o último resultado chega do
     // IndexedDB (a leitura é assíncrona), então o foco precisa ser trazido à vista de novo.
-  }, [focused, row, speedDialog, confirmRemove, keyDialog, lastSpeedTest.data])
+  }, [focused, row, rows.speedTestRow, speedDialog, confirmRemove, keyDialog, lastSpeedTest.data])
   const tmdbStatusQuery = useTmdbStatus()
   const testTmdbKey = useTestTmdbKey()
   const removeTmdbKey = useRemoveTmdbKey()
   const refresh = useRefreshAction('tmdb')
+  const subtitleRefresh = useRefreshAction('subtitles')
   const actionList = tmdbActions(tmdbStatusQuery.data)
   /** Quantas ações a linha tem: TMDB e fornecedores de legenda têm várias colunas; os demais, uma. */
   function columnsOf(targetRow: number): number {
     if (targetRow === 0) return actionList.length
-    if (targetRow >= SUBTITLE_ROW_START && targetRow < SOON_ROW_START) {
-      const provider = SUBTITLE_KEY_ROWS[targetRow - SUBTITLE_ROW_START]
+    if (targetRow >= rows.subtitleStart && targetRow < rows.subtitleStart + rows.subtitleCount) {
+      const provider = SUBTITLE_KEY_ROWS[targetRow - rows.subtitleStart]
       return subtitleKeyActions(subtitleKeys.statuses.find((item) => item.provider === provider)).length
     }
     return 1
@@ -91,13 +92,18 @@ export function IntegrationsTab({ focused, initialFocus, navigation, exitToTabs,
   function activate(targetRow: number, targetCol: number) {
     setRow(targetRow)
     setCol(targetCol)
-    if (targetRow === SPEED_TEST_ROW) { setSpeedDialog(true); return }
-    if (targetRow >= SUBTITLE_ROW_START && targetRow < SOON_ROW_START) {
-      activateSubtitleKey(targetRow - SUBTITLE_ROW_START, targetCol)
+    if (targetRow === rows.speedTestRow) { setSpeedDialog(true); return }
+    if (targetRow === rows.refreshRow) {
+      // 091: busca só as chaves de legenda enviadas pelo portal e relê o estado das linhas ao terminar.
+      void subtitleRefresh.run().then(() => subtitleKeys.refresh())
+      return
+    }
+    if (targetRow >= rows.subtitleStart && targetRow < rows.subtitleStart + rows.subtitleCount) {
+      activateSubtitleKey(targetRow - rows.subtitleStart, targetCol)
       return
     }
     if (targetRow > 0) {
-      showToast(comingSoonToast(INTEGRATION_SOON_CARDS[targetRow - SOON_ROW_START].id, t))
+      showToast(comingSoonToast(INTEGRATION_SOON_CARDS[targetRow - rows.soonStart].id, t))
       return
     }
     const action = actionList[targetCol]
@@ -117,7 +123,8 @@ export function IntegrationsTab({ focused, initialFocus, navigation, exitToTabs,
     if (action === 'remove') setConfirmRemove(true)
     if (action === 'refresh') {
       // 077: busca a chave que a pessoa enviou pelo portal e relê o estado do cartão ao terminar.
-      void refresh.run().then(() => queryClient.invalidateQueries({ queryKey: ['tmdb-status'] }))
+      // O Atualizar do card TMDB também aplica as chaves de legenda (091): relê as duas.
+      void refresh.run().then(() => { subtitleKeys.refresh(); return queryClient.invalidateQueries({ queryKey: ['tmdb-status'] }) })
     }
   }
 
@@ -153,7 +160,7 @@ export function IntegrationsTab({ focused, initialFocus, navigation, exitToTabs,
         else setRow(row - 1)
         return
       }
-      setRow(clamp(row + 1, 0, INTEGRATIONS_ROW_COUNT - 1))
+      setRow(clamp(row + 1, 0, rows.count - 1))
     },
     onSelect: () => activate(row, effectiveCol),
   }))
@@ -169,14 +176,17 @@ export function IntegrationsTab({ focused, initialFocus, navigation, exitToTabs,
         refresh={refresh}
         lastSpeedTest={lastSpeedTest.data ?? undefined}
         speedTestReadFailed={speedTest.storageUnavailable || lastSpeedTest.isError}
+        rows={rows}
         subtitleKeys={
           <SubtitleKeysSection
             statuses={subtitleKeys.statuses}
+            feedback={subtitleKeys.feedback}
             hasDefault={portalSurfacesVisible()}
-            focusedRow={focused && !speedDialog && !confirmRemove && !keyDialog && row >= SUBTITLE_ROW_START && row < SOON_ROW_START ? row - SUBTITLE_ROW_START : undefined}
+            focusedRow={focused && !speedDialog && !confirmRemove && !keyDialog && row >= rows.subtitleStart && row < rows.soonStart ? row - rows.subtitleStart : undefined}
             focusedCol={effectiveCol}
             testing={subtitleKeys.testing}
-            onActivate={(index, targetCol) => activate(SUBTITLE_ROW_START + index, targetCol)}
+            onActivate={(index, targetCol) => activate(rows.subtitleStart + index, targetCol)}
+            refresh={rows.refreshRow === undefined ? undefined : subtitleRefresh}
           />
         }
       />
@@ -186,8 +196,8 @@ export function IntegrationsTab({ focused, initialFocus, navigation, exitToTabs,
           provider={keyDialog}
           onCancel={() => setKeyDialog(null)}
           onSaved={() => {
+            subtitleKeys.refresh(keyDialog)
             setKeyDialog(null)
-            subtitleKeys.refresh()
             showToast(t('subtitles.keys.state.valid'))
           }}
         />

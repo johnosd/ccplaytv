@@ -76,6 +76,9 @@ const pt: FaqContent = {
     { id: 'tmdb', category: 'lists', question: 'Como coloco minha chave do TMDB?', answer: [
       'No portal, abra Ajustes → Chave TMDB, cole a chave que você criou na sua conta do TMDB e toque em Enviar para a TV. Na TV, abra Configurações → Integrações & BYOK e aperte Atualizar: ela testa a chave e o portal mostra “Aplicada na TV” ou “Recusada pelo TMDB”.',
       'A chave é enviada cifrada, apagada do serviço depois que a TV a aplica e nunca é mostrada de volta. Para trocar, envie outra; para tirar, use Remover chave.'] },
+    { id: 'subtitles', category: 'lists', question: 'Como coloco minha chave de legenda (OpenSubtitles ou SubDL)?', answer: [
+      'No portal, abra Ajustes → Chaves de legenda, cole a chave do fornecedor que você criou na sua conta e toque em Enviar para a TV. Na TV, abra Configurações → Integrações & BYOK e aperte Atualizar: ela testa a chave no fornecedor e o portal mostra “Aplicada na TV” ou “Recusada pelo fornecedor”.',
+      'Cada fornecedor tem a sua chave. Ela é enviada cifrada, apagada do serviço depois que a TV a aplica e nunca é mostrada de volta. Sem a sua chave, a TV usa a chave padrão do ccplayTv. Para tirar, use Remover chave.'] },
     { id: 'backup', category: 'lists', question: 'O que é o backup e como excluo?', answer: [
       'Quando você pede na TV, ela guarda uma cópia cifrada dos seus favoritos, histórico e progresso. O portal mostra só a data e as contagens.',
       'Em Ajustes → Backup você pode Excluir backup. Isso não apaga nada na TV, e a TV só volta a guardar um backup quando você pedir.'] },
@@ -147,6 +150,9 @@ const en: FaqContent = {
     { id: 'tmdb', category: 'lists', question: 'How do I add my TMDB key?', answer: [
       'On the portal, open Settings → TMDB key, paste the key you created in your TMDB account and choose Send to the TV. On the TV, open Settings → Integrations and press Refresh: it tests the key and the portal shows “Applied on the TV” or “Rejected by TMDB”.',
       'The key is sent encrypted, deleted from the service once the TV applies it, and never shown back. To change it, send another; to clear it, use Remove key.'] },
+    { id: 'subtitles', category: 'lists', question: 'How do I add my subtitle key (OpenSubtitles or SubDL)?', answer: [
+      'On the portal, open Settings → Subtitle keys, paste the provider key you created in your account and choose Send to the TV. On the TV, open Settings → Integrations and press Refresh: it tests the key with the provider and the portal shows “Applied on the TV” or “Rejected by the provider”.',
+      'Each provider has its own key. It is sent encrypted, deleted from the service once the TV applies it, and never shown back. Without your key, the TV uses the ccplayTv default key. To clear it, use Remove key.'] },
     { id: 'backup', category: 'lists', question: 'What is the backup and how do I delete it?', answer: [
       'When you ask on the TV, it saves an encrypted copy of your favorites, history and progress. The portal shows only the date and the counts.',
       'In Settings → Backup you can Delete backup. This deletes nothing on the TV, and the TV only saves a backup again when you ask.'] },
@@ -218,6 +224,9 @@ const es: FaqContent = {
     { id: 'tmdb', category: 'lists', question: '¿Cómo agrego mi clave de TMDB?', answer: [
       'En el portal, abre Ajustes → Clave TMDB, pega la clave que creaste en tu cuenta de TMDB y elige Enviar a la TV. En el televisor, abre Ajustes → Integraciones y pulsa Actualizar: prueba la clave y el portal muestra “Aplicada en la TV” o “Rechazada por TMDB”.',
       'La clave se envía cifrada, se borra del servicio cuando el televisor la aplica y nunca se muestra de vuelta. Para cambiarla, envía otra; para quitarla, usa Quitar clave.'] },
+    { id: 'subtitles', category: 'lists', question: '¿Cómo agrego mi clave de subtítulos (OpenSubtitles o SubDL)?', answer: [
+      'En el portal, abre Ajustes → Claves de subtítulos, pega la clave del proveedor que creaste en tu cuenta y elige Enviar a la TV. En el televisor, abre Ajustes → Integraciones y pulsa Actualizar: prueba la clave con el proveedor y el portal muestra “Aplicada en la TV” o “Rechazada por el proveedor”.',
+      'Cada proveedor tiene su clave. Se envía cifrada, se borra del servicio cuando el televisor la aplica y nunca se muestra de vuelta. Sin tu clave, la TV usa la clave predeterminada de ccplayTv. Para quitarla, usa Quitar clave.'] },
     { id: 'backup', category: 'lists', question: '¿Qué es la copia de seguridad y cómo la borro?', answer: [
       'Cuando lo pides en el televisor, guarda una copia cifrada de tus favoritos, historial y progreso. El portal muestra solo la fecha y los recuentos.',
       'En Ajustes → Copia de seguridad puedes Borrar copia. Esto no borra nada en el televisor, y este solo vuelve a guardar una copia cuando lo pidas.'] },

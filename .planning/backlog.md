@@ -31,7 +31,7 @@ Só o que está **pendente**, na ordem sugerida de execução. O que foi entregu
 | 081-venda-producao-mercadopago | Venda em produção com Mercado Pago | Em Execução | 34/56 tasks | 2026-10-17 |
 | 082-orcamento-armazenamento-tv | Orçamento de armazenamento do app na TV | Implementada | 89/89 tasks | 2026-10-22 |
 | 090-legendas-externas | Legendas externas (OpenSubtitles e SubDL) | Em Execução | 67/69 tasks | 2026-10-23 |
-| 091-chave-legenda-portal | Chave de legenda digitada no portal | Especificada | N/A | 2026-10-23 |
+| 091-chave-legenda-portal | Chave de legenda digitada no portal | Convergida | 49/51 tasks | 2026-10-23 |
 
 ## Bugs
 
@@ -49,6 +49,9 @@ Só o que está **pendente**, na ordem sugerida de execução. O que foi entregu
 | guide-epg-demorando-carregar-na-tela | Guia EPG demorando para carregar na tela de progresso de importacao | Test | verified | Concluído | 2026-10-22 |
 | armazenamento-app-cheio-na-tv-impede | Armazenamento do app cheio na TV impede gravar a licença e desvincular | Fix | applied (falta a medição e a confirmação na TV, na fase Test) | Rodar fase Test | 2026-10-17 |
 | e2e-campos-da-listagem-nao-acha-fileira-avaliados | fileira de categoria fica em "esqueleto" depois que a pré-carga entrega a categoria | Test | verified | Concluído | 2026-10-23 |
+| playwright-portal-gerenciadorspects95-falha-na-suite | gerenciador.spec.ts:95 falha na suíte paralela do portal | Test | verified | Concluído | 2026-10-23 |
+| playwright-portal-licencaspects43-falha-esporadica-renovar | licenca.spec.ts:43 falha esporádica ao esperar "Renovar licença" | Test | partial | Concluído (com ressalva) ou reabrir Assess | 2026-10-23 |
+| e2e-tv-carrosseis-filmes-series-falha-maximum-update | E2E carrosseis-filmes-series estoura "Maximum update depth" na pilha de 302 categorias | Test | verified | Concluído | 2026-10-23 |
 
 ## Melhorias Ad-hoc
 

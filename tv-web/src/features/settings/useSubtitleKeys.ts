@@ -7,13 +7,16 @@ import {
   type SubtitleKeyStatus,
 } from '../../lib/subtitles/subtitleCredentials'
 import type { SubtitleProvider } from '../../lib/subtitles/types'
+import { db } from '../../lib/catalog/db'
+import { clearSubtitleKeyFeedback, readSubtitleKeyFeedback, type SubtitleKeyFeedback } from '../../lib/portal/subtitleKeyFeedback'
 
 export interface SubtitleKeys {
   /** Uma linha por fornecedor; vazio enquanto a leitura local não voltou (a seção mostra "sem chave"). */
   statuses: SubtitleKeyStatus[]
+  feedback: SubtitleKeyFeedback
   /** Fornecedor com "Testar" em andamento. */
   testing: SubtitleProvider | null
-  refresh(): void
+  refresh(corrected?: SubtitleProvider): void
   test(provider: SubtitleProvider): Promise<SubtitleKeyStatus>
   remove(provider: SubtitleProvider): Promise<void>
   useMine(provider: SubtitleProvider): Promise<void>
@@ -25,13 +28,15 @@ export interface SubtitleKeys {
  */
 export function useSubtitleKeys(): SubtitleKeys {
   const [statuses, setStatuses] = useState<SubtitleKeyStatus[]>([])
+  const [feedback, setFeedback] = useState<SubtitleKeyFeedback>({})
   const [testing, setTesting] = useState<SubtitleProvider | null>(null)
   const mounted = useRef(true)
 
-  const refresh = useCallback(() => {
+  const refresh = useCallback((corrected?: SubtitleProvider) => {
+    if (corrected) clearSubtitleKeyFeedback(db, corrected)
     listSubtitleKeyStatus().then(
       (rows) => {
-        if (mounted.current) setStatuses(rows)
+        if (mounted.current) { setStatuses(rows); setFeedback(readSubtitleKeyFeedback(db)) }
       },
       () => {},
     )
@@ -47,9 +52,11 @@ export function useSubtitleKeys(): SubtitleKeys {
 
   return {
     statuses,
+    feedback,
     testing,
     refresh,
     async test(provider) {
+      clearSubtitleKeyFeedback(db, provider)
       setTesting(provider)
       try {
         return await testSubtitleKey(provider)
@@ -60,10 +67,12 @@ export function useSubtitleKeys(): SubtitleKeys {
     },
     async remove(provider) {
       await removeSubtitleKey(provider)
+      clearSubtitleKeyFeedback(db, provider)
       refresh()
     },
     async useMine(provider) {
       await setSubtitleKeyChosen(provider, true)
+      clearSubtitleKeyFeedback(db, provider)
       refresh()
     },
   }

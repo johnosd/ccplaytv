@@ -1,4 +1,21 @@
 <!--
+Relatório de Impacto de Sincronização (2026-10-23, ADR-022, feature 091)
+- Mudança de versão: 1.16.0 -> 1.17.0 (MINOR, expansão delimitada de "Segredos
+  Fora dos Clientes e dos Logs", nova exceção (m)).
+- Origem: feature 091 (gate G-1); a pessoa achou "muito difícil digitar" a chave
+  de legenda com o controle da TV. Texto aprovado pelo usuário em 2026-10-23.
+- Exceção delimitada: (m) a chave pessoal de legenda digitada no portal passa pelo
+  serviço cifrada, uma pendente por TV e por fornecedor, entregue só à mesma TV no
+  Atualizar; depois de aplicada continua sob a (l).
+- Continuam proibidos: chave do desenvolvedor/compartilhada em qualquer cliente;
+  chave de legenda em log/URL/backup; OpenAI e outros BYOK (exigem decisão própria).
+- Riscos aceitos pelo usuário: o serviço guarda, cifrada e por até 7 dias, uma chave
+  pessoal de terceiro até a TV aplicá-la; quem tem a sessão do portal pode trocar a
+  chave sem confirmação na TV (mitigado: a TV só troca depois do teste no
+  fornecedor, e o resultado fica visível no portal).
+- Formalização normativa não comprova implementação, hardware ou lançamento.
+
+Relatório anterior:
 Relatório de Impacto de Sincronização (2026-10-22, ADR-021, feature 090)
 - Mudança de versão: 1.15.0 -> 1.16.0 (MINOR, expansão delimitada de "Segredos
   Fora dos Clientes e dos Logs", novas exceções (k) e (l); atualização das listas
@@ -233,6 +250,8 @@ Histórico:
 - 1.16.0 (2026-10-22): chaves padrão de legenda (OpenSubtitles e SubDL) no serviço,
   chamadas só por ação da pessoa (exceção (k)); BYOK de legendas na TV (exceção (l))
   (feature 090/ADR-021).
+- 1.17.0 (2026-10-23): chave BYOK de legenda digitada no portal, cifrada no serviço
+  e aplicada pela TV no Atualizar (exceção (m)) (feature 091/ADR-022).
 -->
 
 # Constitution do CCPlay TV
@@ -451,8 +470,29 @@ OpenSubtitles ou no SubDL, digitada **na TV**, PODE residir no dispositivo e ser
 enviada **só** ao fornecedor a que pertence, direto da TV, sob todas as regras da
 extensão BYOK da feature 032 (nunca em log, tela depois de digitada, erro, outro
 serviço, portal, backup ou exportação; sai do aparelho quando a pessoa a remove).
-Não herda a exceção (j) (envio pelo portal) nem a (g) (backup); estender a elas
-exige decisão própria.
+O envio pelo portal é a exceção (m); a chave de legenda não herda a (g) (backup).
+
+**Exceção de chave de legenda pelo portal (2026-10-23, feature 091/ADR-022)**,
+decisão explícita do usuário com risco aceito, no mesmo molde da (j):
+(m) a chave BYOK de legendas **da própria pessoa** (OpenSubtitles ou SubDL) PODE ser
+digitada no portal autenticado da TV dela e enviada, exclusivamente no corpo HTTPS,
+ao serviço. O serviço DEVE cifrá-la em repouso (contexto próprio por TV, **por
+fornecedor** e por operação), manter **uma só operação pendente por TV e por
+fornecedor**, NÃO PODE logá-la, e a entrega **somente** à sessão autenticada da
+**mesma TV**, que a busca apenas no **Atualizar** da pessoa (sem consulta
+automática, ADR-016). A TV DEVE validar o formato, testar a chave **no próprio
+fornecedor** e só então substituir a existente; responde apenas `applied`,
+`rejected` ou `retry` com motivo de lista fechada, **nunca** a chave, trecho dela ou
+texto livre de erro. O serviço DEVE apagar o envelope ao aplicar, recusar,
+substituir, remover, expirar (no máximo 7 dias) ou apagar o aparelho, e sujeitar a
+operação ao mesmo limite de tentativas e à mesma recusa uniforme das demais
+configurações. O navegador SÓ envia: NENHUMA resposta lhe devolve a chave (editar =
+enviar outra); o campo DEVE ser oculto por padrão e limpo após o envio. A chave NÃO
+PODE estar em URL, `Referer`, log, erro, analytics, cache, armazenamento do
+navegador, DOM depois do envio, checkout, backup ou exportação. Depois de aplicada,
+a chave continua sob a (l): vive só na TV e vai só ao fornecedor a que pertence.
+Chave do desenvolvedor ou compartilhada continua proibida em qualquer cliente; esta
+exceção NÃO se estende à chave padrão do ccplayTv (exceção (k)) nem à OpenAI.
 
 ### Categorias da Fonte São Preservadas
 
@@ -712,4 +752,4 @@ ou redefinição incompatível de um princípio. Uma versão MINOR denota um
 novo princípio ou expansão material da governança. Uma versão PATCH denota
 esclarecimentos, correções ou mudanças de texto não semânticas.
 
-**Versão**: 1.16.0 | **Ratificada**: 2026-09-14 | **Última Emenda**: 2026-10-22
+**Versão**: 1.17.0 | **Ratificada**: 2026-09-14 | **Última Emenda**: 2026-10-23

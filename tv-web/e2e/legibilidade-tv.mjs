@@ -572,9 +572,16 @@ async function auditSubtitleScreens(browser, m3uUrl) {
     const pathname = new URL(request.url()).pathname
     if (pathname.endsWith('/devices/enroll')) return route.fulfill({ json: { ...credentials, operationId: 'enroll-fixture' }, headers })
     if (pathname.endsWith('/recovery/ack')) return route.fulfill({ status: 204, headers })
+    // 091: chave de legenda enviada pelo portal — o Atualizar da seção Legendas busca e confirma (o fornecedor recusa).
+    if (pathname.endsWith('/device/integrations/subtitles/ack')) { sim.keyOps = []; return route.fulfill({ json: {}, headers }) }
+    if (pathname.endsWith('/device/integrations/subtitles')) return route.fulfill({ json: { operations: sim.keyOps ?? [] }, headers })
+    if (pathname.endsWith('/snapshot')) return route.fulfill({ json: { snapshotRevision: 1 }, headers })
     if (await answerSubtitleRoute(route, sim, headers)) return
     return route.fulfill({ status: 404, headers })
   })
+  await context.route('https://api.subdl.com/**', (route) => route.request().method() === 'OPTIONS'
+    ? route.fulfill({ status: 204, headers: { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': '*', 'Access-Control-Allow-Methods': '*' } })
+    : route.fulfill({ status: 401, json: {}, headers: { 'Access-Control-Allow-Origin': '*' } }))
   const page = await context.newPage()
   const openTracksDialog = async () => {
     await page.keyboard.press('ArrowRight')
@@ -646,6 +653,11 @@ async function auditSubtitleScreens(browser, m3uUrl) {
         await page.locator('.settings-screen .side-category-nav-item', { hasText: /Integra/i }).first().click()
         await page.locator('[data-service="subtitle-keys"]').waitFor({ timeout: 8000 })
         await audit(page, lang, 'Integrações — Legendas')
+        // 091: a linha "Atualizar" da seção e o aviso de uma chave enviada pelo portal que o fornecedor recusou.
+        sim.keyOps = [{ provider: 'subdl', operationId: 'leg-op-1', action: 'set', key: 'chave-subdl-recusada-legibilidade' }]
+        await page.locator('[data-service="subtitle-keys"]').getByRole('button', { name: /^(Atualizar|Refresh|Actualizar)$/ }).click()
+        await page.locator('[data-service="subtitle-keys"] [data-provider="subdl"] [role="status"]').waitFor({ timeout: 8000 })
+        await audit(page, lang, 'Integrações — Legendas, aviso do Atualizar')
         await page.locator('[data-service="subtitle-keys"] [data-provider="subdl"] button').first().click()
         await page.waitForSelector('[role="dialog"] input.text-field-input', { timeout: 6000 })
         await audit(page, lang, 'Integrações — chave de legenda', '[role="dialog"]')

@@ -103,7 +103,9 @@ try {
   await page.locator('.settings-screen').waitFor()
   await page.keyboard.press('ArrowUp')
   await page.keyboard.press('ArrowRight')
-  for (let i = 0; i < 5; i++) await page.keyboard.press('ArrowDown') // do card do TMDB: OpenSubtitles, SubDL, IA, Clima, teste de conexão (a 090 pôs duas linhas de legenda)
+  // do card do TMDB: OpenSubtitles, SubDL, Atualizar das legendas (091, só com portal), IA, Clima, teste de conexão
+  const onOpenCard = () => page.evaluate(() => (document.querySelector('.tv-focus')?.textContent ?? '').includes('Abrir teste'))
+  for (let i = 0; i < 10 && !(await onOpenCard()); i++) await page.keyboard.press('ArrowDown')
   await openCard()
   assert.equal((await stats()).calls.length, 0)
   await page.screenshot({ path: `${shots}/ready-pt.png` })

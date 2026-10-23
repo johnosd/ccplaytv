@@ -133,7 +133,7 @@ requesting a `tizen-tv`/`tizen-emulator` validation pass.
 
 ## The constitution is a real gate
 
-`.planning/memory/constitution.md` (v1.16.0) holds 13 non-negotiable
+`.planning/memory/constitution.md` (v1.17.0) holds 13 non-negotiable
 principles, checked by `sdd-plan` and binding on any change — not just on
 formally planned features. The ones most easily violated by accident:
 
@@ -346,7 +346,7 @@ and never reads or modifies.
 
 ## Architecture (from `sdd/adr/`)
 
-ADR-001 to ADR-020 are accepted decisions — read the relevant one in full
+ADR-001 to ADR-022 are accepted decisions — read the relevant one in full
 before proposing anything that conflicts, and amend with an inline
 `**Atualização (ADR-0XX):**` note rather than rewriting history.
 
@@ -372,6 +372,8 @@ before proposing anything that conflicts, and amend with an inline
 | ADR-018 | Radio Browser as a third-party public content directory (updates ADR-008 and ADR-011 §3): the TV queries it directly (CORS `*`, no key, no backend), sends only country code + station uuid (click POST), mirror discovery via `all.api.radio-browser.info`; stations keyed `radio-browser:<stationuuid>`; station favorites are local only (not in the ADR-017 backup); new topbar destination **Rádio** after Séries, needs an active list but doesn't read from it |
 | ADR-019 | Portal & licença shows the fixed QR, device ID and device key on open (amends ADR-016 decision 6); the recovery code (formerly called "license code" — it is not a purchased license) starts hidden behind an eye toggle inside the **Avançado** sub-screen of the same tab (feature 076; no warning modal, no timeout), re-hidden on leaving, backgrounding or regeneration; constitution 1.14.1 |
 | ADR-020 | TMDB key typed in the portal (feature 077): the person's own BYOK key goes browser → service (encrypted, one pending per TV, ≤ 7 days) → TV (fetched only on the person's **Atualizar**, tested against TMDB, acks only `applied\|rejected\|retry`); the browser only sends, never receives the key back; constitution 1.15.0 exception (j) |
+| ADR-021 | Default API keys protected in the service, optional personal keys (feature 090): the service holds the ccplayTv keys for OpenSubtitles/SubDL and uses them only for bounded operations triggered by the person; a personal key is tested and used directly from the TV (constitution 1.16.0 (k)/(l)) |
+| ADR-022 | Subtitle key typed in the portal (feature 091): the person's own OpenSubtitles/SubDL key goes browser → service (encrypted, one pending per TV and provider, ≤ 7 days) → TV (fetched only on **Atualizar**, tested at the provider, acks only `applied\|rejected\|retry`); same model as ADR-020; constitution 1.17.0 exception (m) |
 
 Plus `REQUISITOS-FUNCIONAIS.md` (RF-001 to RF-019) and
 `ESPECIFICACAO-TRAILERS.md` (RF-019 detail).
@@ -563,3 +565,7 @@ ganho veio de outro lado da mesma mudança. Mede-se antes e depois; não se decl
 A legenda externa (OpenSubtitles/SubDL, `lib/subtitles/`) é **desenhada pelo app** pelo tempo da mídia (`parseSubtitleFile` → `createExternalCueDriver` → `SubtitleOverlay`); não usa `setExternalSubtitlePath` do AVPlay. **Nada dela roda fora do player nem antes do primeiro `playing`**: o alvo e a memória são lidos num único passo ocioso (`requestIdleCallback`) depois dele, e o padrão de produção (`lib/subtitles/runtime.ts`) só entra por `import()` dinâmico — um import estático no player muda a divisão de chunks e quebra o pacote Tizen (confira `findUnlistedFiles` depois do build). A rede só acontece por ação da pessoa (constitution 1.16.0, exceções (k) serviço e (l) chave pessoal; ADR-021): focar nunca busca.
 
 A chave pessoal de legenda (`subtitleCredentials`) só passa por `subtitleCredentials.ts` → `subtitleSearch.ts` → `fetch` do próprio fornecedor: nunca em estado de tela, log, erro, backup ou serviço. O CORS do OpenSubtitles se decide **na TV**, não no PC (o Chromium do PC o recusa em `file://`; a TV não). Leia `sdd/specs/090-legendas-externas/logic/legenda-externa.md` antes de mexer.
+
+# Regra da feature 091 — chave de legenda pelo portal: o estado por fornecedor, nunca o valor
+
+A chave de legenda (OpenSubtitles/SubDL) colada no portal segue o molde da TMDB (ADR-022, constitution 1.17.0 (m)): vai só no corpo do `PUT`, é entregue só à TV no **Atualizar** (`lib/portal/subtitleKeysRemote.ts`, passo `integrations` do `PortalAgent`) e testada no fornecedor antes de gravar. Ack, snapshot, log, erro, DOM e storage do navegador carregam só fornecedor/id/estado/motivo de lista fechada — **nunca a chave nem a máscara**; o resultado de um Atualizar vive só em memória (`subtitleKeyFeedback.ts`). As linhas da aba Integrações vêm de `integrationRows(hasPortal)`: teste ou E2E nunca contam ↓ fixos.

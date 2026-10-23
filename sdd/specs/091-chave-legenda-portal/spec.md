@@ -4,7 +4,7 @@
 
 **Created**: 2026-10-23
 
-**Status**: Especificada
+**Status**: Convergida
 
 **Input**: "Abra a feature 'chave de legenda pelo portal' — hoje já temos o TMDB, podemos incluir na mesma sessão como já é feito com ele." Motivo (do usuário, ao medir a feature 090 na TV): *"Muito difícil digitar manualmente. Precisa ter opção pelo portal ou de copiar e colar pelo celular."*
 

@@ -2,6 +2,7 @@
 import type { CatalogDb } from '../catalog/db'
 import { listSources } from '../catalog/sourceRepository'
 import { getTmdbStatus } from '../metadata/tmdbKeyRepository'
+import { listSubtitleKeyStatus, type SubtitleKeyStatus } from '../subtitles/subtitleCredentials'
 import { portalTables } from './portalTables'
 import { toPortalSourceView, type PortalSourceView } from './remoteConfiguration'
 
@@ -10,8 +11,22 @@ export interface PortalSnapshot {
   sources: PortalSourceView[]
   revisions: { sourceId: string; revision: number }[]
   imports: { sourceId: string; configRevision: number; state: string }[]
-  /** 077: só se há chave TMDB guardada na TV, nunca o valor, o formato nem o fim da chave. */
-  integrations: { tmdb: 'none' | 'configured' }
+  /**
+   * 077: só se há chave TMDB guardada na TV, nunca o valor, o formato nem o fim da chave. 091: o mesmo para cada
+   * fornecedor de legenda, com o estado da última tentativa (`rejected`/`rate_limited`) — nunca valor nem máscara.
+   */
+  integrations: { tmdb: 'none' | 'configured'; subtitles: Record<'opensubtitles' | 'subdl', SubtitleReport> }
+}
+
+export type SubtitleReport = 'none' | 'configured' | 'rejected' | 'rate_limited'
+
+/** `subtitleCredentials` → o que o portal pode ver. Registro com `chosen=false` ainda é "tem chave". */
+export function subtitleReport(statuses: readonly SubtitleKeyStatus[]): Record<'opensubtitles' | 'subdl', SubtitleReport> {
+  const report: Record<'opensubtitles' | 'subdl', SubtitleReport> = { opensubtitles: 'none', subdl: 'none' }
+  for (const status of statuses) {
+    report[status.provider] = status.state === 'none' ? 'none' : status.state === 'valid' ? 'configured' : status.state
+  }
+  return report
 }
 
 /** Teto do serviço por snapshot (`SnapshotInput`: sources, revisions e imports com no máximo 50). */
@@ -21,6 +36,7 @@ export async function capturePortalSnapshot(database: CatalogDb, now = Date.now(
   if (!Number.isFinite(now) || now < 0 || !Number.isFinite(new Date(now).getTime())) throw new Error('invalid_snapshot_time')
   const tables = portalTables(database)
   const tmdb = (await getTmdbStatus({ database })).state === 'not_configured' ? 'none' as const : 'configured' as const
+  const subtitles = subtitleReport(await listSubtitleKeyStatus({ database }).catch(() => []))
   return database.transaction('r', database.sources, tables.revisions, tables.imports, async () => {
     const sources = await listSources(database)
     const revisions = []
@@ -37,6 +53,6 @@ export async function capturePortalSnapshot(database: CatalogDb, now = Date.now(
     const allowed = new Set(revisions.map(item => item.sourceId))
     return { capturedAt: new Date(now).toISOString(),
       sources: sources.filter(source => allowed.has(source.id)).map(toPortalSourceView), revisions, imports,
-      integrations: { tmdb } }
+      integrations: { tmdb, subtitles } }
   })
 }

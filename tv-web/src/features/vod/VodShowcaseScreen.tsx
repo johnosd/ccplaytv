@@ -299,9 +299,9 @@ export function VodShowcaseScreen({
     return () => clearTimeout(timer)
   }, [rowsReady])
   const focusRowIndex = effective ? (rowIndexByKey.get(effective.rowKey) ?? 0) : 0
-  useEffect(() => {
-    setWindowAnchor(focusRowIndex)
-  }, [focusRowIndex])
+  // Ajuste DURANTE o render (não em `useEffect`): derivar direto seria um ciclo (entradas → prévias → janela) e o efeito custava um commit
+  // a mais por tecla, o que estourava "Maximum update depth" sob CPU lenta (E2E `carrosseis-filmes-series`).
+  if (windowAnchor !== focusRowIndex) setWindowAnchor(focusRowIndex)
 
   const focusedRowSpec = effective ? specByKey.get(effective.rowKey) : undefined
   const focusedId = effective ? focusedEntryId(effective, entryIdsOf) : null

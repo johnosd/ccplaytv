@@ -152,6 +152,10 @@ class TmdbIntegrationDocument(PortalDocument):
         return self
 
 
+# 091: a operação de chave de legenda tem exatamente o mesmo formato da chave TMDB (um documento por tipo de chave).
+KeyOperationDocument = TmdbIntegrationDocument
+
+
 class RecoveryEscrowDocument(PortalDocument):
     """073/D-008 (constitution 1.13.0 (i)): cópia cifrada do código de recuperação enviada pela própria TV.
     Só é revelada se `code_hmac` ainda for o verificador corrente do dispositivo."""
@@ -371,9 +375,17 @@ class ImportSnapshotDocument(PortalDocument):
     state: Literal["queued", "running", "completed", "error"]
 
 
+class SubtitlesSnapshotDocument(PortalDocument):
+    """091: o que a TV informa sobre a chave pessoal de cada fornecedor de legenda. Nunca o valor, a máscara nem o formato."""
+    opensubtitles: Literal["none", "configured", "rejected", "rate_limited"]
+    subdl: Literal["none", "configured", "rejected", "rate_limited"]
+
+
 class IntegrationsSnapshotDocument(PortalDocument):
-    """077: o que a TV informa sobre integrações. Nunca o valor, o formato nem o fim da chave."""
+    """077: o que a TV informa sobre integrações. Nunca o valor, o formato nem o fim da chave. `subtitles` (091) é opcional:
+    TV antiga não o manda e o portal mostra "estado desconhecido"."""
     tmdb: Literal["none", "configured"]
+    subtitles: SubtitlesSnapshotDocument | None = None
 
 
 class SnapshotDocument(PortalDocument):

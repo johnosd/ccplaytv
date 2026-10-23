@@ -26,15 +26,30 @@ export const INTEGRATION_SOON_CARDS = [
   { id: 'dock-weather', titleKey: 'settings.integrations.soon.dock-weather' },
 ] as const satisfies readonly { id: string; titleKey: MessageKey }[]
 
+/** Onde cada bloco de linhas da aba começa; `refreshRow` só existe com o portal visível (feature 091). */
+export interface IntegrationRows {
+  subtitleStart: number
+  subtitleCount: number
+  /** Linha "Atualizar" da seção Legendas (busca as chaves enviadas pelo portal); `undefined` sem portal. */
+  refreshRow: number | undefined
+  soonStart: number
+  speedTestRow: number
+  count: number
+}
+
 /**
- * Linha 0 = card do TMDB; depois, uma linha por fornecedor de legenda (feature 090, chave pessoal); depois os cards
- * "Em breve"; por último o teste de conexão.
+ * Linha 0 = card do TMDB; depois, uma linha por fornecedor de legenda (feature 090, chave pessoal) e, com o portal, a
+ * linha "Atualizar" da seção (feature 091); depois os cards "Em breve"; por último o teste de conexão. Sem portal a
+ * linha "Atualizar" some e as demais descem uma posição — o foco nunca fica numa linha que não existe.
  */
-export const SUBTITLE_ROW_START = 1
-export const SUBTITLE_ROW_COUNT = SUBTITLE_KEY_ROWS.length
-export const SOON_ROW_START = SUBTITLE_ROW_START + SUBTITLE_ROW_COUNT
-export const SPEED_TEST_ROW = SOON_ROW_START + INTEGRATION_SOON_CARDS.length
-export const INTEGRATIONS_ROW_COUNT = SPEED_TEST_ROW + 1
+export function integrationRows(hasPortal: boolean): IntegrationRows {
+  const subtitleStart = 1
+  const subtitleCount = SUBTITLE_KEY_ROWS.length
+  const refreshRow = hasPortal ? subtitleStart + subtitleCount : undefined
+  const soonStart = subtitleStart + subtitleCount + (hasPortal ? 1 : 0)
+  const speedTestRow = soonStart + INTEGRATION_SOON_CARDS.length
+  return { subtitleStart, subtitleCount, refreshRow, soonStart, speedTestRow, count: speedTestRow + 1 }
+}
 
 /** Rótulo do estado no card (`logic/chave-tmdb.md` §7). */
 export const TMDB_STATE_LABEL_KEY: Record<TmdbState, MessageKey> = {
