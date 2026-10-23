@@ -1,0 +1,17 @@
+{
+  "gate": "INT-EVD-TV",
+  "candidate": {
+    "version": "0.2.1",
+    "variant": "commercial",
+    "revision": "91c1f001f1928df6de84073dccd75c28fbb0741d",
+    "wgtSha256": "4ec4277b7d0b96d028c6bb2a449bbef789eed1da29a25b948dc0b8c4117c7d2c"
+  },
+  "environment": "tv",
+  "device": "QN50Q60DAGXZD",
+  "firmware": "Tizen 8.0 (firmware específico não exposto pelo sdb)",
+  "script": "deploy-tv.ps1 -SkipBuild (pacote comercial com chave pública prod1); compra real por cartão e por Pix",
+  "result": "Pass",
+  "date": "2026-10-23",
+  "by": "usuário",
+  "limitations": "Relato do usuário: depois de atualizar a TV com o pacote comercial, a licença de 12 meses chegou (compra real por cartão no Mercado Pago) e uma compra real por Pix na TV acrescentou mais 1 ano. Sem evidência numérica anexada; reprodução, codec, DRM, desempenho e memória valem só para o roteiro observado neste aparelho."
+}

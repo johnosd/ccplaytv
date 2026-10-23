@@ -1,12 +1,38 @@
 {
   "candidate": {
     "variant": "commercial",
-    "revision": "0b9cb760d5003496a7636bbc11748b8600ad3349",
-    "dirtyPaths": [],
+    "revision": "011597a98d18a370a8349fb2c216acb5790c8873",
+    "dirtyPaths": [
+      ".planning/backlog.md",
+      "logs/tizen-mcp.log",
+      "logs/tizen-simulator-mcp.log",
+      "tv-web/metadata-tmdb-falha.png",
+      "tv-web/test-results/carrosseis-filmes-series/01-hero-filmes.png",
+      "tv-web/test-results/carrosseis-filmes-series/02-primeira-fileira.png",
+      "tv-web/test-results/carrosseis-filmes-series/03-carrossel-longo.png",
+      "tv-web/test-results/carrosseis-filmes-series/04-lista-recolhida.png",
+      "tv-web/test-results/carrosseis-filmes-series/04b-lista-expandida.png",
+      "tv-web/test-results/carrosseis-filmes-series/05-hero-series.png",
+      "tv-web/test-results/carrosseis-filmes-series/05b-categorias-series.png",
+      "tv-web/test-results/carrosseis-filmes-series/06-fim-da-pilha.png",
+      "tv-web/test-results/categorias-controle-parental/03-sugestao-adulta.png",
+      "tv-web/test-results/categorias-controle-parental/04-trilha-cadeado.png",
+      "tv-web/test-results/classificacao-nota-tmdb/02-card-expandido.png",
+      "tv-web/test-results/detalhe-cinema/02-icone-focado.png",
+      "tv-web/test-results/detalhe-cinema/04-player.png",
+      "tv-web/test-results/headers-catchup/a-info-tecnica.png",
+      "tv-web/test-results/headers-catchup/b-arquivo-tocando.png",
+      "tv-web/test-results/headers-catchup/b-do-inicio.png",
+      "tv-web/test-results/headers-catchup/b-guia-arquivo.png",
+      "tv-web/test-results/headers-catchup/b-selo-previa.png",
+      "tv-web/test-results/home-vitrine-expandida/01-billboard-expandido.png",
+      "tv-web/test-results/home-vitrine-expandida/02-card-expandido.png",
+      "tv-web/test-results/home-vitrine-expandida/03-fileira-focada.png"
+    ],
     "buildMode": "commercial",
     "version": "0.2.1",
     "wgtSha256": "4ec4277b7d0b96d028c6bb2a449bbef789eed1da29a25b948dc0b8c4117c7d2c",
-    "dirty": false
+    "dirty": true
   },
   "kit": {
     "kitVersion": "0.2.1",
@@ -15,8 +41,36 @@
   "results": [
     {
       "id": "INT-CAND-TREE",
-      "status": "Pass",
-      "detail": "árvore limpa na revisão do candidato"
+      "status": "Blocked",
+      "detail": "árvore de trabalho com 50 alteração(ões) não commitada(s)",
+      "paths": [
+        ".planning/backlog.md",
+        "logs/tizen-mcp.log",
+        "logs/tizen-simulator-mcp.log",
+        "tv-web/metadata-tmdb-falha.png",
+        "tv-web/test-results/carrosseis-filmes-series/01-hero-filmes.png",
+        "tv-web/test-results/carrosseis-filmes-series/02-primeira-fileira.png",
+        "tv-web/test-results/carrosseis-filmes-series/03-carrossel-longo.png",
+        "tv-web/test-results/carrosseis-filmes-series/04-lista-recolhida.png",
+        "tv-web/test-results/carrosseis-filmes-series/04b-lista-expandida.png",
+        "tv-web/test-results/carrosseis-filmes-series/05-hero-series.png",
+        "tv-web/test-results/carrosseis-filmes-series/05b-categorias-series.png",
+        "tv-web/test-results/carrosseis-filmes-series/06-fim-da-pilha.png",
+        "tv-web/test-results/categorias-controle-parental/03-sugestao-adulta.png",
+        "tv-web/test-results/categorias-controle-parental/04-trilha-cadeado.png",
+        "tv-web/test-results/classificacao-nota-tmdb/02-card-expandido.png",
+        "tv-web/test-results/detalhe-cinema/02-icone-focado.png",
+        "tv-web/test-results/detalhe-cinema/04-player.png",
+        "tv-web/test-results/headers-catchup/a-info-tecnica.png",
+        "tv-web/test-results/headers-catchup/b-arquivo-tocando.png",
+        "tv-web/test-results/headers-catchup/b-do-inicio.png",
+        "tv-web/test-results/headers-catchup/b-guia-arquivo.png",
+        "tv-web/test-results/headers-catchup/b-selo-previa.png",
+        "tv-web/test-results/home-vitrine-expandida/01-billboard-expandido.png",
+        "tv-web/test-results/home-vitrine-expandida/02-card-expandido.png",
+        "tv-web/test-results/home-vitrine-expandida/03-fileira-focada.png"
+      ],
+      "nextAction": "commitar ou descartar as alterações e gerar o candidato de novo"
     },
     {
       "id": "INT-CAND-HASH",
@@ -199,15 +253,16 @@
     },
     {
       "id": "INT-EVD-BUILD",
-      "status": "Pass",
-      "detail": "local · 2026-10-23",
-      "owner": "release-gate --record-local"
+      "status": "Blocked",
+      "detail": "roteiro não passou (local · 2026-10-23)",
+      "owner": "release-gate --record-local",
+      "nextAction": "corrigir e repetir o roteiro"
     },
     {
       "id": "INT-EVD-E2E",
-      "status": "Pending",
-      "detail": "evidência existente é de outro pacote ou de outro ambiente",
-      "nextAction": "executar o roteiro (quickstart) no ambiente browser e gravar release/samsung/evidence/"
+      "status": "Pass",
+      "detail": "browser · 2026-10-23",
+      "owner": "execução sdd (agente)"
     },
     {
       "id": "INT-EVD-EMULATOR",
@@ -217,15 +272,15 @@
     },
     {
       "id": "INT-EVD-TV",
-      "status": "Pending",
-      "detail": "evidência existente é de outro pacote ou de outro ambiente",
-      "nextAction": "executar o roteiro (quickstart) no ambiente tv e gravar release/samsung/evidence/"
+      "status": "Pass",
+      "detail": "tv · QN50Q60DAGXZD · Tizen 8.0 (firmware específico não exposto pelo sdb) · 2026-10-23",
+      "owner": "usuário"
     },
     {
       "id": "INT-UPD-PRESERVE",
-      "status": "Pending",
-      "detail": "evidência existente é de outro pacote ou de outro ambiente",
-      "nextAction": "executar o roteiro (quickstart) no ambiente tv e gravar release/samsung/evidence/"
+      "status": "Pass",
+      "detail": "tv · QN50Q60DAGXZD · Tizen 8.0 (firmware específico não exposto pelo sdb) · 2026-10-23",
+      "owner": "usuário"
     }
   ],
   "approvedTargets": [
@@ -245,15 +300,16 @@
     "SAM-REG-PACKAGENAME",
     "SAM-REG-APPID",
     "SAM-KIT-TESTACCESS",
+    "INT-CAND-TREE",
     "INT-SEC-CUSTODY",
-    "INT-EVD-E2E",
-    "INT-EVD-EMULATOR",
-    "INT-EVD-TV",
-    "INT-UPD-PRESERVE"
+    "INT-EVD-BUILD",
+    "INT-EVD-EMULATOR"
   ],
   "stale": {
-    "stale": false,
-    "reasons": []
+    "stale": true,
+    "reasons": [
+      "revision"
+    ]
   },
-  "generatedAt": "2026-10-23T20:45:18.858Z"
+  "generatedAt": "2026-10-23T21:13:57.998Z"
 }

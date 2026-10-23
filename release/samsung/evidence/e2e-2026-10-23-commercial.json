@@ -1,0 +1,15 @@
+{
+  "gate": "INT-EVD-E2E",
+  "candidate": {
+    "version": "0.2.1",
+    "variant": "commercial",
+    "revision": "91c1f001f1928df6de84073dccd75c28fbb0741d",
+    "wgtSha256": "4ec4277b7d0b96d028c6bb2a449bbef789eed1da29a25b948dc0b8c4117c7d2c"
+  },
+  "environment": "browser",
+  "script": "node e2e/run.mjs (6 em paralelo, dev server na 5173)",
+  "result": "Pass",
+  "date": "2026-10-23",
+  "by": "execução sdd (agente)",
+  "limitations": "56/56 scripts no Chromium contra o dev server, depois das mudanças de 090/091/074; uma rodada anterior falhou 30 scripts porque o dev server tinha caído e foi refeita inteira. Não comprova AVPlay, codecs nem controle remoto (fica para INT-EVD-TV)."
+}
