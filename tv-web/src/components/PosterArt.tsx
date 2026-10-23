@@ -1,4 +1,5 @@
 import { useState, type ReactNode } from 'react'
+import { measureCapaPaint } from '../lib/perf/phaseSpans'
 
 export interface PosterArtProps {
   /**
@@ -80,7 +81,14 @@ export function PosterArt({ url, title, focused, variant = 'poster', children }:
           alt=""
           loading="lazy"
           decoding="async"
-          onError={() => setFailedUrl(url)}
+          onError={() => {
+            // Feature 088 (R-008): a etapa `capa` mede a PINTURA, do momento em que a imagem chega até o quadro
+            // seguinte. A medida anterior abria quando o card *pedia* a imagem, e com 8 capas em paralelo media
+            // espera de parede — 266 s numa janela de 5 s, que não é tempo de thread nem se compara com `longtask`.
+            measureCapaPaint()
+            setFailedUrl(url)
+          }}
+          onLoad={() => measureCapaPaint()}
         />
       )}
       {children}

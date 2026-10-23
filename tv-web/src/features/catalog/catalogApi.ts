@@ -33,8 +33,10 @@ import {
 } from '../../lib/catalog/catalogRepository'
 import { readKindCursorPage, type KindCursor } from '../../lib/catalog/kindCursor'
 import { listVisibleCategories } from '../../lib/catalog/categoryAccess'
+import { loadShowcaseSelections } from './showcaseSelections'
+import { useCategoryPreviewWindow } from './useCategoryPreviewWindow'
 import { READ_WINDOW_MIN_ITEMS, readCategoryWindow } from '../../lib/catalog/categoryWindow'
-import { READ_PROJECTION_CHUNK_SIZE } from '../../lib/catalog/readProjection'
+import { READ_PROJECTION_CHUNK_SIZE, readItemToRecord } from '../../lib/catalog/readProjection'
 import { ensureCategory, type CategoryFetchOutcome } from '../../lib/catalog/categoryLoader'
 import { markEntry, reportBackgroundRead } from '../../lib/perf/entryTiming'
 import { useEntryFirstPaint } from '../../lib/perf/useEntryFirstPaint'
@@ -62,12 +64,11 @@ import {
 import { UNGROUPED_LABEL } from '../live/groupChannels'
 import { type SeriesWatchedSummary } from '../../lib/catalog/seriesWatchedSummary'
 import { loadSeriesWatchedSummaries } from './seriesSummaryApi'
-import { buildSearchIndex, compactSearchRecord, isCovered, loadSearchIndex, type SearchableKind } from '../../lib/catalog/catalogSearch'
+import { isCovered, type SearchableKind } from '../../lib/catalog/catalogSearch'
 import { NO_AGGREGATED_ITEMS, loadAggregatedItems } from './aggregatedIndex'
-import { createRecentlyAddedAccumulator } from '../vod/vodShowcase'
 import { primaryProgress, type PrimaryProgress } from '../vod/detailProgress'
 import { pickBecauseSeed, type BecauseSeedKind } from '../../lib/catalog/becauseSeed'
-import { createRatedSelectionAccumulator, dayKey } from '../vod/ratedSelection'
+import { dayKey } from '../vod/ratedSelection'
 import { loadHistory, type HistoryKind } from './historyApi'
 import {
   clearHistory,
@@ -89,9 +90,8 @@ import type { TmdbTitleRef } from '../../lib/catalog/db'
 import { FILMOGRAPHY_SHOWN_MAX, loadPersonCredits } from '../../lib/metadata/tmdbPeople'
 import { resolveTmdbTitles } from '../../lib/metadata/localTitleMatch'
 import { similarTabStatus } from '../../lib/metadata/similarTab'
-import { matchDiscoveryTitlesAsync, selectTip, selectTop10, yieldToMain, type MatchedTitle } from '../../lib/metadata/discoveryRules'
-import { iterateKindRecordBatches } from '../../lib/catalog/catalogDerivedRows'
-import { loadTipPool, loadWeeklyTrending, type DiscoveryKind } from '../../lib/metadata/tmdbDiscovery'
+import type { DiscoveryKind } from '../../lib/metadata/tmdbDiscovery'
+import { readExternalRow, type ShowcaseExternalRow } from '../../lib/catalog/showcaseRows'
 import { useStoredBackdrops, type BackdropPair } from './cachedBackdrops'
 const EPG_READ_BEFORE_MS = 24 * 60 * 60 * 1000
 const EPG_READ_AFTER_MS = 48 * 60 * 60 * 1000
@@ -913,8 +913,6 @@ export function useTmdbStatus() {
 function invalidateTmdb(queryClient: QueryClient): void {
   void queryClient.invalidateQueries({ queryKey: ['tmdb-status'] })
   void queryClient.invalidateQueries({ queryKey: ['title-metadata'] })
-  // Feature 057: a chave nova (ou testada) muda o que as fileiras Top 10/Dica podem mostrar — sem isto o "sem chave" ficaria em memória.
-  void queryClient.invalidateQueries({ queryKey: ['tmdb-discovery'] })
 }
 
 /** Testa a chave contra o TMDB e só grava se aceita (FR-012). */
@@ -925,7 +923,11 @@ export function useSaveTmdbKey() {
     // A chave digitada é a `variables` da mutação: sem isto ela ficaria no
     // cache de mutações (em memória) por minutos depois de gravada.
     gcTime: 0,
-    onSuccess: () => invalidateTmdb(queryClient),
+    // Feature 087 (FR-010): a pessoa agiu e espera consequência — a fila acorda agora, sem esperar a vez.
+    onSuccess: () => {
+      invalidateTmdb(queryClient)
+      prefetchScheduler.wake()
+    },
   })
 }
 
@@ -954,8 +956,10 @@ export function useRemoveTmdbKey() {
       // Filmografias também vieram do TMDB: só invalidar mostraria o dado velho por um instante (FR-021).
       queryClient.removeQueries({ queryKey: ['person-credits'] })
       queryClient.removeQueries({ queryKey: ['person-titles'] })
-      // Top 10 e Dica também vieram do TMDB (feature 057): descartar, para não mostrar a fileira velha por um instante.
-      queryClient.removeQueries({ queryKey: ['tmdb-discovery'] })
+      // Feature 087 (FR-011): o registro já saiu do banco junto com a chave; aqui a tela relê e a fileira some. É
+      // `invalidate` e não `remove`: `remove` não faz uma consulta com observador ativo reler, e a fileira velha
+      // ficaria na tela até a pessoa sair e voltar.
+      void queryClient.invalidateQueries({ predicate: (q) => q.queryKey[0] === 'catalog-search-index' && q.queryKey[3] === 'external' })
       void queryClient.invalidateQueries({ queryKey: ['tmdb-status'] })
     },
   })
@@ -1632,69 +1636,15 @@ export function useAggregatedItems(
 
 /** Quanto tempo as seleções da vitrine valem em memória (`useRecentlyAdded`, `useTopRated`). */
 const SHOWCASE_STALE_MS = 60_000
-/** Registros entre duas cessões da thread na passada das vitrines. */
-const SHOWCASE_SLICE = 2000
-
-interface ShowcaseSelections {
-  recent: CatalogItemOut[]
-  rated: CatalogItemOut[]
-  coveredCategories: number
-  totalCategories: number
-  entries?: DiscoveryEntries // com chave TMDB: índice compacto para o Top 10/Dica cruzarem na MESMA passada
-}
-
-/**
- * Feature 065 (D-005, FR-006): uma passada pelo tipo, bloco a bloco, cedendo a thread em fatias — retém só os 12 mais novos e
- * os candidatos de "Bem avaliados", nunca o tipo inteiro (antes: `loadSearchIndex` + seleção síncrona no `select`). Mesmas
- * regras e desempates: a ordem da passada é a de `listAllOfKind` (categoria na ordem da fonte, itens na ordem do bloco).
- */
-async function loadShowcaseSelections(sourceId: string, kind: FavoritableKind & StoredKind, now: number, signal: AbortSignal, withEntries: boolean): Promise<ShowcaseSelections> {
-  const categories = await listVisibleCategories(sourceId, kind)
-  const recent = createRecentlyAddedAccumulator((record: CatalogRecord) => record.addedAt)
-  const rated = createRatedSelectionAccumulator<CatalogRecord>(
-    { id: (record) => String(record.id), name: (record) => record.name, rating: (record) => record.providerRating, year: (record) => record.year, addedAt: (record) => record.addedAt },
-    { now, seed: `${dayKey(now)}|${kind}|${sourceId}` },
-  )
-  const compact: CatalogRecord[] | undefined = withEntries ? [] : undefined
-  let sinceYield = 0
-  for await (const records of iterateKindRecordBatches(sourceId, kind, { signal, pageSize: SHOWCASE_SLICE })) {
-    for (const record of records) {
-      recent.add(record)
-      rated.add(record)
-      compact?.push(compactSearchRecord(record))
-    }
-    sinceYield += records.length
-    if (sinceYield >= SHOWCASE_SLICE) {
-      sinceYield = 0
-      await yieldToMain()
-    }
-  }
-  const steps = rated.finishSteps(SHOWCASE_SLICE)
-  let step = steps.next()
-  while (!step.done) {
-    if (signal.aborted) throw new DOMException('Seleção cancelada.', 'AbortError')
-    await yieldToMain()
-    step = steps.next()
-  }
-  return {
-    recent: recent.finish().map((record) => toItemOut(record, kind)),
-    rated: step.value.picked.map((record) => toItemOut(record, kind)),
-    coveredCategories: categories.filter(isCovered).length,
-    totalCategories: categories.length,
-    entries: compact && buildSearchIndex(compact, { coveredCategories: 0, totalCategories: 0 }).entries,
-  }
-}
-
 /** Vitrine do tipo: a chave fica sob `catalog-search-index`, então a pré-carga e a sincronização a invalidam junto com o índice. */
 function useShowcaseSelections(sourceId: string | null, kind: FavoritableKind, enabled: boolean) {
   // Fixado por montagem: a virada do dia com a tela aberta não troca os cards sob o foco.
   const [now] = useState(() => Date.now())
-  const tmdbStatus = useTmdbStatus() // status ilegível conta como "sem chave": as fileiras locais nunca esperam por ele
-  const withEntries = tmdbStatus.data !== undefined && tmdbStatus.data.state !== 'not_configured'
   return useQuery({
-    queryKey: ['catalog-search-index', sourceId, kind, 'showcase', dayKey(now), withEntries],
-    queryFn: ({ signal }) => loadShowcaseSelections(sourceId as string, kind as FavoritableKind & StoredKind, now, signal, withEntries),
-    enabled: enabled && sourceId !== null && kind !== 'channel' && (tmdbStatus.data !== undefined || tmdbStatus.isError),
+    queryKey: ['catalog-search-index', sourceId, kind, 'showcase', dayKey(now)],
+    queryFn: () => loadShowcaseSelections(sourceId as string, kind as 'movie' | 'series', now,
+      (item) => toItemOut(readItemToRecord(item), kind)),
+    enabled: enabled && sourceId !== null && kind !== 'channel',
     // Não relê o tipo a cada montagem da tela: a pré-carga (categoria nova) e o fim de uma sincronização a invalidam.
     staleTime: SHOWCASE_STALE_MS,
     gcTime: 30_000,
@@ -1744,9 +1694,6 @@ export interface DiscoveryPick {
   rank: number
 }
 
-type DiscoveryEntries = Awaited<ReturnType<typeof loadSearchIndex>>['entries']
-type DiscoveryContext = { now: number; seed: string; kind: DiscoveryKind }
-
 /**
  * Retorno de `useWeeklyTop10`/`useDailyTip`. `images` (feature 060) = fundo 16:9 por id de item que já veio nas respostas do
  * TMDB — opcional para quem consome (mocks de testes antigos não o devolvem) e sempre local, nunca uma consulta nova.
@@ -1761,130 +1708,56 @@ export interface DiscoveryRowResult<R> {
   isLoading: boolean
 }
 
-const DISCOVERY_READ = {
-  id: (entry: DiscoveryEntries[number]) => String(entry.record.id),
-  // Nome como a fonte declarou (com `[L]`, `4K`...), como o cruzamento da 035.
-  name: (entry: DiscoveryEntries[number]) => entry.record.originalName,
-  year: (entry: DiscoveryEntries[number]) => entry.record.year,
-  rating: (entry: DiscoveryEntries[number]) => entry.record.providerRating,
-  addedAt: (entry: DiscoveryEntries[number]) => entry.record.addedAt,
-}
-
-type DiscoveryComputed<R> = { scope: string; value: R; images: ReadonlyMap<string, string>; ratings: ReadonlyMap<string, TmdbRating>; coveredCategories: number; totalCategories: number }
-/** Último Top 10/Dica calculado (lista, tipo, idioma), no cache do react-query — coletado como qualquer consulta. */
-const discoveryResultKey = (cacheKey: string) => ['discovery-result', cacheKey] as const
-
 /**
- * Base de `useWeeklyTop10`/`useDailyTip` (feature 057, `logic/descoberta.md` §6): os títulos do TMDB (cache + no máximo uma
- * consulta por período, ao abrir a tela — nunca por foco) cruzados com o índice local de busca, que é o mesmo de
- * `useTopRated`/`useRecentlyAdded` (mesma `queryKey`). Sem títulos do TMDB (sem chave, sem cache) o índice nem é lido.
+ * Feature 087: a tela **lê** o resultado que a fila de segundo plano produziu — nenhuma consulta ao serviço externo e
+ * nenhuma passada pelo catálogo (FR-001, FR-003). Antes dela, o índice do tipo inteiro e o cruzamento rodavam aqui,
+ * depois do desenho. A chave fica sob `catalog-search-index` para a pré-carga e a sincronização a invalidarem junto com
+ * o índice; quem faz a fileira entrar sem remontar a tela é o aviso da gravação (`onExternalRowRefreshed`, FR-006).
  */
-function useDiscoveryRow<R>(
-  source: 'trending' | 'pool',
+function useExternalRow<R>(
+  row: 'top10' | 'tip',
   sourceId: string | null,
   kind: DiscoveryKind,
-  project: (matches: MatchedTitle<DiscoveryEntries[number]>[], context: DiscoveryContext) => R,
+  project: (record: ShowcaseExternalRow, kind: DiscoveryKind) => R,
 ): DiscoveryRowResult<R> {
-  const queryClient = useQueryClient()
-  // O idioma do app entra na chave (feature 054); o que o TMDB devolveu em outro idioma não vale como se fosse o atual.
-  const language = useLanguage()
-  // Fixado por montagem da tela: a virada do dia com a tela aberta não troca cards sob o foco.
-  const [now] = useState(() => Date.now())
-  const tmdb = useQuery({
-    queryKey: ['tmdb-discovery', source, kind, language],
-    queryFn: async ({ signal }) => {
-      const result = await (source === 'trending' ? loadWeeklyTrending : loadTipPool)(kind, { language, signal })
-      // O carregador pode ter mudado o estado do TMDB (chave recusada, limite): Integrações e dock releem.
-      void queryClient.invalidateQueries({ queryKey: ['tmdb-status'] })
-      return result
-    },
+  const query = useQuery({
+    queryKey: ['catalog-search-index', sourceId, kind, 'external', row],
+    // `null` e não `undefined`: o react-query recusa `undefined` como dado de consulta.
+    queryFn: async () => (await readExternalRow(sourceId as string, kind, row)) ?? null,
     enabled: sourceId !== null,
-    // Resultado vigente vale 30 min (o carregador decide pelo período; isto só evita reler o Dexie a cada montagem). Sem chave,
-    // sem rede ou vencido, o próximo uso da tela tenta de novo (uma leitura local, no máximo uma consulta).
-    staleTime: (query) => (query.state.data?.status === 'ok' && !query.state.data.stale ? 30 * 60 * 1000 : 0),
+    staleTime: SHOWCASE_STALE_MS,
   })
-  const titles = tmdb.data?.titles
-  const index = useShowcaseSelections(sourceId, kind, titles !== undefined && titles.length > 0) // 065: mesma passada das vitrines
-
-  // O cruzamento NÃO roda na renderização (nem no `select` do react-query): com a lista real ele prendia a thread por ≈200 ms
-  // e atrasava o primeiro desenho. Roda depois do desenho, em fatias que cedam a thread (`matchDiscoveryTitlesAsync`), e o
-  // índice dos registros é montado uma vez para o Top 10 e a Dica do mesmo tipo. Enquanto recalcula (categoria nova, outro
-  // dia) fica o resultado anterior da MESMA lista, para a fileira e o foco não piscarem.
-  const scope = `${sourceId}|${kind}`
-  // Reabrir a tela começa do último resultado desta lista (ad-hoc 2026-10-09); o cruzamento roda de novo e o substitui.
-  const cacheKey = `${source}|${scope}|${language}`
-  const [computed, setComputed] = useState<DiscoveryComputed<R> | undefined>(() =>
-    queryClient.getQueryData<DiscoveryComputed<R>>(discoveryResultKey(cacheKey)),
-  )
-  const showcase = index.data
-  const indexData = useMemo(() => (showcase?.entries ? { ...showcase, entries: showcase.entries } : undefined), [showcase])
-  useEffect(() => {
-    if (sourceId === null || indexData === undefined || titles === undefined || titles.length === 0) return
-    const controller = new AbortController()
-    void matchDiscoveryTitlesAsync(titles, indexData.entries, DISCOVERY_READ, { signal: controller.signal }).then((matches) => {
-      // Feature 060: o fundo 16:9 que já veio com cada título do TMDB, por id do item da lista (sem consulta nova).
-      const images = new Map<string, string>()
-      const ratings = new Map<string, TmdbRating>()
-      for (const match of matches) {
-        if (match.title.backdropUrl !== undefined) images.set(DISCOVERY_READ.id(match.local), match.title.backdropUrl)
-        ratings.set(DISCOVERY_READ.id(match.local), { average: match.title.voteAverage, votes: match.title.voteCount })
-      }
-      const next: DiscoveryComputed<R> = {
-        scope,
-        value: project(matches, { now, seed: `${dayKey(now)}|${kind}|${sourceId}`, kind }),
-        images,
-        ratings,
-        coveredCategories: indexData.coveredCategories,
-        totalCategories: indexData.totalCategories,
-      }
-      queryClient.setQueryData(discoveryResultKey(cacheKey), next)
-      setComputed(next)
-    }).catch((error: unknown) => {
-      if (!(error instanceof Error && error.name === 'AbortError')) throw error
-    })
-    return () => controller.abort()
-  }, [indexData, titles, scope, sourceId, kind, now, project, cacheKey, queryClient])
-
-  const settledEmpty = tmdb.data !== undefined && tmdb.data.titles.length === 0
-  // Só vale enquanto há títulos do TMDB (chave removida ou cache limpo = a fileira some, nunca um resultado antigo).
-  const current = computed?.scope === scope && titles !== undefined && titles.length > 0 ? computed : undefined
-  return {
-    data: settledEmpty ? (project([], { now, seed: '', kind }) as R) : current?.value,
-    images: current?.images ?? EMPTY_BACKDROPS,
-    ratings: current?.ratings,
-    coveredCategories: current?.coveredCategories ?? 0,
-    totalCategories: current?.totalCategories ?? 0,
-    isLoading: tmdb.isLoading || index.isLoading,
-  }
-}
-function projectTop10(matches: MatchedTitle<DiscoveryEntries[number]>[], context: DiscoveryContext): DiscoveryPick[] {
-  return selectTop10(matches).map(({ local, rank }) => ({ item: toItemOut(local.record, context.kind), rank }))
+  const record = query.data ?? undefined
+  const isLoading = query.isLoading
+  return useMemo(() => ({
+    // Sem resultado guardado a fileira não existe (FR-005); o fundo e a nota vieram guardados, sem consulta (060/061).
+    data: record === undefined ? undefined : project(record, kind),
+    images: new Map(record?.backdrops ?? []),
+    ratings: record?.ratings === undefined ? undefined : new Map(record.ratings),
+    coveredCategories: record?.coveredCategories ?? 0,
+    totalCategories: record?.totalCategories ?? 0,
+    isLoading,
+  }), [record, kind, project, isLoading])
 }
 
-function projectTip(matches: MatchedTitle<DiscoveryEntries[number]>[], context: DiscoveryContext): CatalogItemOut[] {
-  return selectTip(matches, { now: context.now, seed: context.seed }).map((local) => toItemOut(local.record, context.kind))
+/** O Top 10 como a fileira o mostra: o item da lista e a posição real do ranking, guardadas na mesma ordem. */
+function top10FromRecord(record: ShowcaseExternalRow, kind: DiscoveryKind): DiscoveryPick[] {
+  const ranks = record.ranks ?? []
+  return record.items.map((item, index) => ({ item: toItemOut(readItemToRecord(item), kind), rank: ranks[index] ?? index + 1 }))
 }
 
-/**
- * Top 10 da semana (feature 057, FR-001..FR-004, FR-013..FR-016 — `logic/descoberta.md` §6): o ranking semanal do TMDB cruzado
- * com a lista. `data` é `[]` quando não há `TOP10_MIN` cruzados, sem chave ou sem cache.
- */
-export function useWeeklyTop10(
-  sourceId: string | null,
-  kind: 'movie' | 'series',
-): DiscoveryRowResult<DiscoveryPick[]> {
-  return useDiscoveryRow('trending', sourceId, kind, projectTop10)
+function tipFromRecord(record: ShowcaseExternalRow, kind: DiscoveryKind): CatalogItemOut[] {
+  return record.items.map((item) => toItemOut(readItemToRecord(item), kind))
 }
 
-/**
- * Dica do dia (feature 057, FR-005..FR-008 — `logic/descoberta.md` §6): candidatos do TMDB cruzados com a lista e sorteados com
- * semente do dia. `data` é `[]` quando não há `TIP_MIN` candidatos válidos.
- */
-export function useDailyTip(
-  sourceId: string | null,
-  kind: 'movie' | 'series',
-): DiscoveryRowResult<CatalogItemOut[]> {
-  return useDiscoveryRow('pool', sourceId, kind, projectTip)
+/** Top 10 da semana — regras da 057 (`logic/descoberta.md` §6), produzido em 2º plano pela 087 (`logic/...md` §7). */
+export function useWeeklyTop10(sourceId: string | null, kind: 'movie' | 'series'): DiscoveryRowResult<DiscoveryPick[]> {
+  return useExternalRow('top10', sourceId, kind, top10FromRecord)
+}
+
+/** Dica do dia — regras da 057 (FR-005..FR-008). O sorteio é fixado no período gravado: remontar a tela não o troca. */
+export function useDailyTip(sourceId: string | null, kind: 'movie' | 'series'): DiscoveryRowResult<CatalogItemOut[]> {
+  return useExternalRow('tip', sourceId, kind, tipFromRecord)
 }
 
 /** Prévia de uma categoria para o carrossel da tela hero (feature 053): `pending` = ainda não obtida no aparelho. */
@@ -1903,40 +1776,23 @@ export function useCategoryPreviews(
   sourceId: string | null,
   categories: readonly CatalogCategory[],
 ): ReadonlyMap<number, CategoryPreview> {
-  // Um único `useQuery` para a janela inteira (a tela renderiza a cada tecla e a janela desliza: `useQueries` com um
-  // conjunto de observadores que muda a cada tecla chegou a estourar "Maximum update depth" numa descida longa). O cache
-  // por categoria fica dentro (`fetchQuery`, chave `['category-preview', sourceId, id]`), então deslizar a janela não
-  // relê o disco de quem já foi lido há pouco; a pré-carga invalida as duas camadas (`createPrefetchInvalidator`).
-  const queryClient = useQueryClient()
-  const idsKey = categories.map((category) => category.id).join(',')
-  const query = useQuery({
-    queryKey: categoryPreviewWindowKey(sourceId, idsKey),
-    queryFn: async (): Promise<Map<number, CategoryPreview>> => {
-      const loaded = await Promise.all(
-        categories.map(async (category) => {
-          const preview = await queryClient.fetchQuery({
-            queryKey: categoryPreviewKey(sourceId, category.id),
-            queryFn: () => loadCategoryPreview(sourceId as string, category),
-            staleTime: PREVIEW_STALE_MS,
-            gcTime: 30_000,
-          })
-          return [category.id, preview] as const
-        }),
-      )
-      return new Map(loaded)
-    },
-    enabled: sourceId !== null && categories.length > 0,
-    placeholderData: keepPreviousData,
-  })
-  return query.data ?? EMPTY_PREVIEWS
+  // Feature 089 (R-012): **sem consulta "da janela"** — a chave dela continha os ids visíveis, e cada tecla criava
+  // consulta nova (19,6 eventos de cache por tecla na TV, 33 fps contra 41). O efeito mora em
+  // `useCategoryPreviewWindow.ts`; ele também relê quando a pré-carga (038) invalida a prévia de uma categoria da janela.
+  const porId = new Map(categories.map((category) => [category.id, category]))
+  return useCategoryPreviewWindow<CategoryPreview>(
+    sourceId,
+    categories.map((category) => category.id),
+    categoryPreviewKey,
+    (fonte, id) => loadCategoryPreview(fonte, porId.get(id) as CatalogCategory),
+    PREVIEW_STALE_MS,
+    EMPTY_PREVIEWS,
+  )
 }
 const EMPTY_PREVIEWS: ReadonlyMap<number, CategoryPreview> = new Map()
 /** Dentro desta janela a prévia de uma categoria já lida não é relida ao deslizar. */
 const PREVIEW_STALE_MS = 10_000
 
-export function categoryPreviewWindowKey(sourceId: string | null, idsKey: string) {
-  return ['category-preview', sourceId, 'window', idsKey] as const
-}
 /** Backdrop já guardado por id de item (feature 053, D-006) — só local; ver `useStoredBackdrops`. */
 export function useCachedBackdrops(items: readonly CatalogItemOut[]): ReadonlyMap<string, string> {
   const pairs: BackdropPair[] = []
@@ -1946,7 +1802,6 @@ export function useCachedBackdrops(items: readonly CatalogItemOut[]): ReadonlyMa
   }
   return useStoredBackdrops(pairs)
 }
-const EMPTY_BACKDROPS: ReadonlyMap<string, string> = new Map()
 export { backdropsPending } from './cachedBackdrops'
 
 /**

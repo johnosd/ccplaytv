@@ -23,6 +23,8 @@ Isso conflita com a constitution 1.10.0 em três pontos de "Segredos Fora dos Cl
 ## Decisão
 
 1. **Nada automático.** O app só fala com o serviço por ação da pessoa: apertar Atualizar, adicionar/editar/excluir lista, abrir pela primeira vez uma tela que precisa de ID/chave, ou ler o QR no site. Saem ciclo diário, janela rápida, `liveQuery` de abertura, renovação de convite e consulta ao negar entrada.
+
+**Atualização (ADR-021, 2026-10-21):** foi escolhido um complemento de metadados/legendas com chave padrão protegida. Esta escolha não reativa consulta automática de licença/listas nem modifica o Atualizar. Os novos disparos de integrações devem ser delimitados e compatibilizados com a constitution antes do código; esta nota não cria uma exceção automática. Ver [ADR-021](ADR-021-chaves-padrao-protegidas-byok.md).
 2. **Atualizar com escopo e pausa.** `refresh('lists')` = exclusões → envios → busca → publicação do snapshot; `refresh('license')` = só licença. Pausa de 10 s por escopo, medida pelo relógio injetado, sem requisição na repetição.
 3. **Cadastro preguiçoso.** O `enroll` deixa de rodar no mount; ocorre uma vez, na primeira necessidade de ID/chave (Adicionar, bloqueio, Portal & licença) ou no primeiro Atualizar.
 4. **Teste local de 7 dias.** Tabela `localTrial` criada na primeira abertura do build comercial, com marca d'água do relógio; decisão de acesso = licença assinada válida **ou** teste local vigente; `revoked` assinado vence. **Âncora**: `POST /devices/enroll` aceita `trialStartedAt`; o serviço grava `min(created_at, valor)` e devolve o início, que a TV reconcilia com `min`. Instalação já em uso herda o início do JWS de teste.

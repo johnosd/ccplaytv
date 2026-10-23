@@ -21,6 +21,11 @@ export interface AssemblySlot<K extends string = string> {
   anchor?: boolean
   /** Sem ela resolvida nem o teto revela (a lista de categorias de Filmes/Séries). */
   required?: boolean
+  /**
+   * Feature 086 (FR-013): a tela NUNCA espera por esta leitura — ela depende de serviço externo. A fileira entra quando
+   * o dado existir, sem mover o foco (FR-018). Rede lenta ou fora do ar deixa de atrasar a montagem.
+   */
+  external?: boolean
 }
 
 export interface AssemblyInput<K extends string = string> {
@@ -81,8 +86,9 @@ export function stepAssembly<K extends string>(prev: AssemblyState<K>, input: As
     if (input.progressivePassed && readyKeys.length > 0) {
       return { phase: 'revealed', reason: 'ready', shown: readyKeys, deferred: [] }
     }
-    // 3. Pronta: todas as leituras resolvidas e as capas da primeira tela carregadas.
-    if (slots.every(isResolved) && input.imagesSettled) {
+    // 3. Pronta: todas as leituras locais resolvidas e as capas da primeira tela carregadas. As de serviço externo não
+    //    entram nesta conta (FR-013): esperar por rede foi o que atrasava a tela.
+    if (slots.every((slot) => slot.external || isResolved(slot)) && input.imagesSettled) {
       return { phase: 'revealed', reason: 'ready', shown: readyKeys, deferred: [] }
     }
     // 4. Teto: revela com o que tem; uma tela sem qualquer conteúdo ainda espera a leitura obrigatória.

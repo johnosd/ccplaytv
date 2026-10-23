@@ -30,6 +30,15 @@ import { toItemRecord } from './categoryItemRecord'
 import { readJsonArrayStream } from './jsonArrayStream'
 import { readCredential } from './sourceRepository'
 import { SectionTimer, type SectionLoadTimings } from './sectionTimings'
+import { writeCandidatesBatch, type ShowcaseCandidates } from './showcaseCandidates'
+import { beginSectionLoad } from './loadActivity'
+import { refreshScreenDocument } from './screenDocument'
+
+/** Etapa da gravação → campo dos tempos da seção (feature 086, T080). */
+const STAGE_FIELD: Record<string, 'prevIdMs' | 'assignMs' | 'sharedMs' | 'chunksMs' | 'identityMs' | 'pickMs' | 'txMs'> = {
+  prevId: 'prevIdMs', assign: 'assignMs', shared: 'sharedMs', chunks: 'chunksMs', identity: 'identityMs',
+  pick: 'pickMs', tx: 'txMs',
+}
 import {
   isAbortError,
   mapLiveEntry,
@@ -106,9 +115,12 @@ export async function loadSection(
   options: SectionLoadOptions = {},
 ): Promise<SectionLoadResult> {
   const timer = new SectionTimer(options.clock ?? (() => performance.now()))
+  // Feature 086 (T068): enquanto esta carga trabalha, as tarefas adiáveis de segundo plano se calam (R-014).
+  const endLoad = beginSectionLoad()
   try {
     return await runSectionLoad(sourceId, kind, categoryIds, options, timer)
   } finally {
+    endLoad()
     try { options.onTimings?.(timer.finish()) } catch { /* medir nunca atrapalha a carga */ }
   }
 }
@@ -209,6 +221,8 @@ async function runSectionLoad(
     timer.add('readMs', readStart)
   }
 
+  // Feature 086 (FR-003): os candidatos das fileiras de cada categoria, para uma gravação só no fim da seção.
+  const pendingCandidates: ShowcaseCandidates[] = []
   try {
     for (const category of categories) {
       if (options.signal?.aborted) throw new DOMException('Carga cancelada.', 'AbortError')
@@ -236,6 +250,10 @@ async function runSectionLoad(
             timer.values.budgetMs += roomEnd - roomStart
           }
         },
+        // Feature 086 (FR-003): junta os candidatos de todas as categorias e grava uma vez, no fim desta seção.
+        (candidates) => pendingCandidates.push(candidates),
+        // Feature 086 (T080): soma o tempo de cada etapa da gravação, para saber qual delas cresceu.
+        (stage, ms) => { timer.values[STAGE_FIELD[stage] ?? 'prevIdMs'] += ms },
       )
       // Categoria igual à gravada não chama o orçamento: o tempo todo vira "preparar".
       if (roomEnd === 0) timer.add('encodeMs', categoryStart)
@@ -245,6 +263,12 @@ async function runSectionLoad(
       // Igual ao que já estava no aparelho (renovação sem novidade): nada a reler na tela. Avisar assim mesmo relia as
       // vitrines e o índice do tipo inteiro a cada categoria (bug `abrir-app-nao-atualiza-todas-categorias`).
       if (result.written) options.onCategory?.(category.id)
+    }
+    // Feature 086 (FR-003): uma transação para os candidatos de toda a seção, aqui no fim — como a limpeza do preparo.
+    await timer.time('candidatesMs', () => writeCandidatesBatch(pendingCandidates, database)).catch(() => undefined)
+    // Feature 086 (T071): com os candidatos no lugar, o documento da tela é refeito — aqui, não na abertura.
+    if (kind === 'movie' || kind === 'series') {
+      await timer.time('documentMs', () => refreshScreenDocument(sourceId, kind, { database, now: now() })).catch(() => undefined)
     }
     // Feature 085 (D-004): o preparo sai uma vez, no fim, em vez de uma limpeza por categoria.
     if (staged.size > 0) await timer.time('stageClearMs', () => clearStagedItems(sourceId, undefined, database))

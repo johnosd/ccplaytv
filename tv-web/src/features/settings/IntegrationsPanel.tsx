@@ -14,6 +14,7 @@ import {
   TMDB_STATE_CODE,
   TMDB_STATE_LABEL_KEY,
   tmdbActions,
+  SOON_ROW_START,
   SPEED_TEST_ROW,
 } from './integrationsModel'
 
@@ -32,6 +33,8 @@ export interface IntegrationsPanelProps {
   /** Último resultado salvo (só leitura do IndexedDB); `undefined` = nenhum teste salvo. */
   lastSpeedTest?: SpeedTestResult
   speedTestReadFailed?: boolean
+  /** Seção "Legendas" (chaves pessoais, feature 090): fica logo abaixo do card do TMDB. */
+  subtitleKeys?: ReactNode
 }
 
 function formatWhen(epochMs: number, locale: string): string {
@@ -45,7 +48,7 @@ function formatWhen(epochMs: number, locale: string): string {
  * estado (ADR-009), como `AccessibilityPanel`: sempre há um elemento
  * focável, em qualquer estado.
  */
-export function IntegrationsPanel({ status, focusedRow, focusedCol, testing, onActivate, refresh, lastSpeedTest, speedTestReadFailed }: IntegrationsPanelProps): ReactNode {
+export function IntegrationsPanel({ status, focusedRow, focusedCol, testing, onActivate, refresh, lastSpeedTest, speedTestReadFailed, subtitleKeys }: IntegrationsPanelProps): ReactNode {
   const t = useT()
   const language = useLanguage()
   const view: TmdbStatusView = status ?? { state: 'not_configured' }
@@ -105,11 +108,13 @@ export function IntegrationsPanel({ status, focusedRow, focusedCol, testing, onA
         <RefreshStatusLine action={refresh} scope="tmdb" />
       </section>
 
+      {subtitleKeys}
+
       {INTEGRATION_SOON_CARDS.map((card, index) => (
         <section key={card.id} className="integration-card integration-card--soon" aria-label={t(card.titleKey)}>
           <h2 className="integration-card-title">{t(card.titleKey)}</h2>
           {/* Sem `onSelect`: `ComingSoon` já anuncia "Em breve" no clique; o teclado passa por `onActivate` na tela. */}
-          <ComingSoon id={card.id} focused={focusedRow === index + 1} />
+          <ComingSoon id={card.id} focused={focusedRow === SOON_ROW_START + index} />
         </section>
       ))}
       <section className="integration-card" data-service="speedtest" aria-label={t('settings.speed.title')}>

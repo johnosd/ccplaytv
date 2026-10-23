@@ -9,7 +9,7 @@
 // Telas falam com `importApi`, nunca com `lib/` direto (D-001 da 005).
 import type { MessageKey } from '../../lib/i18n/messages/pt'
 import { createTranslator, type Translator } from '../../lib/i18n/translate'
-import { EPG_ERROR_CODE, epgErrorMessage, type EpgStatus } from './importApi'
+import { EPG_ERROR_CODE, EPG_STALE_AFTER_MS, epgErrorMessage, type EpgStatus } from './importApi'
 
 export type ImportRowState = 'waiting' | 'loading' | 'ready' | 'failed' | 'unavailable'
 
@@ -72,11 +72,13 @@ export interface GuideRowInput {
   syncing: boolean
   /** Início desta importação, epoch ms — o que veio antes é de outra sincronização. */
   runStartedAt: number
+  /** Instante de agora, epoch ms (testes; padrão `Date.now()`). */
+  now?: number
 }
 
 /** A linha "Guia" (`logic/progresso-importacao.md` §2). */
 export function guideRow(
-  { importSucceeded, epg, syncing, runStartedAt }: GuideRowInput,
+  { importSucceeded, epg, syncing, runStartedAt, now = Date.now() }: GuideRowInput,
   t: Translator = createTranslator('pt'),
 ): ImportRow {
   const row = (state: ImportRowState, detail?: string): ImportRow => ({
@@ -92,6 +94,9 @@ export function guideRow(
   if (epg.state === 'error' && epg.errorKind && (epg.lastErrorAt ?? 0) >= runStartedAt) {
     return row('failed', `${epgErrorMessage(epg.errorKind, t)} (${EPG_ERROR_CODE})`)
   }
+  // Guia sincronizado há menos de `EPG_STALE_AFTER_MS` (12 h): a importação não pediu outro de propósito (`isEpgDueAfterImport`), então
+  // nada vai rodar. Sem isto a linha ficava em "Carregando" para sempre ao ressincronizar a lista de novo dentro do prazo.
+  if (epg.state === 'linked' && epg.lastSyncAt !== undefined && now - epg.lastSyncAt <= EPG_STALE_AFTER_MS) return row('ready')
   // A sincronização desta importação ainda não começou (ou não terminou).
   return row('loading')
 }

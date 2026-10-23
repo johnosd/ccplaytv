@@ -193,7 +193,7 @@ function isQuota(error: unknown): boolean {
 export async function deleteCategoryItems(database: CatalogDb, categoryId: number): Promise<void> {
   forgetCachedChunks(database, categoryId)
   const category = await database.categories.get(categoryId)
-  await database.transaction('rw', [database.categoryBlocks, database.channels, database.catalogReadManifests, database.catalogReadChunks, categoryChunks(database)], async () => {
+  await database.transaction('rw', [database.categoryBlocks, database.channels, database.catalogReadManifests, database.catalogReadChunks, database.showcaseCandidates, categoryChunks(database)], async () => {
     await database.categoryBlocks.delete(categoryId)
     await categoryChunks(database).where('[categoryId+chunk]').between([categoryId, IDENTITY_CHUNK], [categoryId, Number.MAX_SAFE_INTEGER], true, true).delete()
     if (category) {
@@ -203,6 +203,9 @@ export async function deleteCategoryItems(database: CatalogDb, categoryId: numbe
     }
     await database.catalogReadManifests.delete(categoryId)
     await database.catalogReadChunks.where('categoryId').equals(categoryId).delete()
+    // Feature 086 (FR-011): sem itens no aparelho, os candidatos das fileiras desta categoria também saem — uma fileira
+    // nunca mostra card que não abre.
+    await database.showcaseCandidates.delete(categoryId)
   })
   try {
     await markCategoryReleased(database, categoryId)

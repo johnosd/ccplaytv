@@ -55,6 +55,18 @@ describe('guideRow (feature 038, FR-018/FR-019)', () => {
     expect(guideRow({ importSucceeded: true, epg: { ...epg, lastSyncAt: STARTED + 5 }, syncing: false, runStartedAt: STARTED }).state).toBe('ready')
   })
 
+  // Bug: ressincronizar a lista dentro de 12 h do último guia não pede outro guia, e a linha ficava "Carregando" para sempre.
+  it('guia sincronizado há menos de 12 h (sem nada rodando) está pronto; vencido ou sincronizando continua carregando', () => {
+    const HOUR = 3_600_000
+    const NOW = STARTED + 5 * HOUR
+    const fresh = { state: 'linked' as const, lastSyncAt: STARTED - 2 * HOUR, offsetHours: 0 }
+    expect(guideRow({ importSucceeded: true, epg: fresh, syncing: false, runStartedAt: STARTED, now: NOW }).state).toBe('ready')
+    expect(guideRow({ importSucceeded: true, epg: fresh, syncing: true, runStartedAt: STARTED, now: NOW }).state).toBe('loading')
+    const stale = { ...fresh, lastSyncAt: NOW - 13 * HOUR }
+    expect(guideRow({ importSucceeded: true, epg: stale, syncing: false, runStartedAt: STARTED, now: NOW }).state).toBe('loading')
+    expect(isGuideSettled(guideRow({ importSucceeded: true, epg: fresh, syncing: false, runStartedAt: STARTED, now: NOW }))).toBe(true)
+  })
+
   it('falha desta sincronização: mensagem categorizada com o código, nunca o erro cru; falha antiga não conta', () => {
     const failed = guideRow({
       importSucceeded: true,

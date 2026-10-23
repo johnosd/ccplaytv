@@ -21,6 +21,10 @@ export interface AssemblyReport {
   deferred: string[]
   /** Capas da primeira tela: pedidas e terminadas até a revelação. */
   images: { requested: number; settled: number }
+  /** Feature 086 (FR-026): ms da montagem até cada leitura resolver, por chave de leitura. Só no build de medição. */
+  slotMs?: Readonly<Record<string, number>>
+  /** Feature 086: ms entre a última leitura resolver e a tela estar desenhada. */
+  paintMs?: number
 }
 
 function reports(): AssemblyReport[] {
@@ -35,8 +39,10 @@ export function recordAssembly(report: AssemblyReport): AssemblyReport | null {
   const entry: AssemblyReport = { ...report, pending: [...report.pending], deferred: [...report.deferred], images: { ...report.images } }
   reports().push(entry)
   // Feature 085: as fileiras viram contagem; a chave de cada uma não sai.
+  // Feature 086: `<leitura>Ms` por slot e o tempo de desenho entram como números; as chaves são rótulos fixos do código.
   emitMetric({ source: 'assembly', screen: entry.screen, reason: entry.reason, revealMs: entry.revealMs, pending: entry.pending.length,
-    deferred: entry.deferred.length, imagesRequested: entry.images.requested, imagesSettled: entry.images.settled })
+    deferred: entry.deferred.length, imagesRequested: entry.images.requested, imagesSettled: entry.images.settled,
+    ...(entry.paintMs === undefined ? {} : { paintMs: entry.paintMs }), ...(entry.slotMs ?? {}) })
   logger.log(
     `[perf] montagem ${entry.screen}: ${entry.revealMs}ms (${entry.reason}) capas=${entry.images.settled}/${entry.images.requested}` +
       (entry.pending.length > 0 ? ` pendentes=${entry.pending.join(',')}` : ''),
@@ -45,6 +51,19 @@ export function recordAssembly(report: AssemblyReport): AssemblyReport | null {
 }
 
 /** Atualiza as fileiras adiadas de um relatório já publicado (chegaram depois do teto). */
+/**
+ * Feature 086 (T087): os tempos de **todas** as leituras, quando a última resolve.
+ *
+ * `recordAssembly` reporta o retrato do instante da revelação — e, na TV, a 1ª Home revelou com 5 das 6 leituras ainda
+ * pendentes, então justamente as que interessavam ficaram sem número. Isto fecha essa lacuna sem mexer no que já é
+ * reportado.
+ */
+export function recordAllSlotsSettled(screen: string, slotMs: Record<string, number>, sinceMountMs: number): void {
+  if (!isPerfEnabled()) return
+  emitMetric({ source: 'assembly', screen, settledMs: Math.round(sinceMountMs), ...slotMs })
+  logger.log(`[perf] montagem ${screen}: todas as leituras prontas em ${Math.round(sinceMountMs)}ms`)
+}
+
 export function recordDeferred(entry: AssemblyReport | null, deferred: readonly string[]): void {
   if (!entry || deferred.length === entry.deferred.length) return
   entry.deferred = [...deferred]

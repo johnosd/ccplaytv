@@ -24,6 +24,20 @@ def ms(value: datetime) -> int:
     return int(value.timestamp() * 1000)
 
 
+def license_window(device: DeviceDocument, grants: list[GrantDocument],
+                   now: datetime) -> tuple[datetime, datetime, str]:
+    """Início, fim e estado (`trial|active|revoked`) da licença — a mesma regra do JWS e da leitura sem gravar (090)."""
+    trial_start = device.trial_started_at or device.created_at
+    trial_end = device.trial_expires_at or device.created_at + timedelta(days=7)
+    valid = sorted((value for value in grants if value.status == "valid"), key=lambda value: (value.starts_at, value.order_id))
+    trial_active = trial_start <= now < trial_end
+    ongoing = [value for value in valid if value.starts_at <= now < value.expires_at]
+    if valid and (ongoing or not trial_active):
+        chosen = ongoing[0] if ongoing else valid[-1]
+        return chosen.starts_at, valid[-1].expires_at, "active"
+    return trial_start, trial_end, "trial" if trial_active or not grants else "revoked"
+
+
 class LicensingService:
     def __init__(self, auth: AuthService, crypto: PortalCrypto, journal: JournalWriter):
         self.auth = auth
@@ -93,15 +107,7 @@ class LicensingService:
             if snapshot is None:
                 continue
             device, current, grants, stored_generation = snapshot
-            valid = sorted((value for value in grants if value.status == "valid"), key=lambda value: (value.starts_at, value.order_id))
-            trial_active = device.trial_started_at <= now < device.trial_expires_at
-            ongoing = [value for value in valid if value.starts_at <= now < value.expires_at]
-            if valid and (ongoing or not trial_active):
-                chosen = ongoing[0] if ongoing else valid[-1]
-                start, expiry, status = chosen.starts_at, valid[-1].expires_at, "active"
-            else:
-                start, expiry = device.trial_started_at, device.trial_expires_at
-                status = "trial" if trial_active or not grants else "revoked"
+            start, expiry, status = license_window(device, grants, now)
             token = self.crypto.sign({"iss": ISSUER, "aud": AUDIENCE, "deviceId": principal.device_id,
                 "generation": device.entitlement_generation, "state": status,
                 "startsAt": ms(start), "expiresAt": ms(expiry), "serverTime": ms(now)})
@@ -115,6 +121,31 @@ class LicensingService:
             if await self.repository.transact((device_path, state_path), validate):
                 return token
         raise AuthError("try_again", 409)
+
+    async def has_access(self, principal: Principal, now: datetime) -> bool:
+        """090: licença `active` ou teste vigente, SEM gravar nada (não inicia teste nem gira geração, ao contrário de
+        `entitlement`). Cerca de revogação em curso conta como sem acesso."""
+        device_path = document_path("devices", principal.device_id)
+        state_path = document_path("licensing", "current", device_id=principal.device_id)
+
+        def inspect(rows):
+            self.auth._same_principal(rows[device_path], principal)
+            return TransactionPlan(LicensingStateDocument.model_validate(rows[state_path]) if rows[state_path]
+                                   else LicensingStateDocument(device_id=principal.device_id))
+        state = await self.repository.transact((device_path, state_path), inspect)
+        if state.revocation_fence:
+            return False
+        grant_paths = tuple(document_path("grants", value) for value in state.grant_order_ids)
+        if len(grant_paths) > 99:
+            raise AuthError("service_unavailable", 503)
+
+        def read(rows):
+            self.auth._same_principal(rows[device_path], principal)
+            grants = [GrantDocument.model_validate(rows[path]) for path in grant_paths if rows[path]]
+            return TransactionPlan((DeviceDocument.model_validate(rows[device_path]), grants))
+        device, grants = await self.repository.transact((device_path, *grant_paths), read)
+        start, expiry, status = license_window(device, [g for g in grants if g.device_id == principal.device_id], now)
+        return status in {"trial", "active"} and start <= now < expiry
 
     async def refund(self, *, order_id: str, payment_id: str, status: str,
                      confirmed_at: datetime, provider_updated_at: datetime, now: datetime) -> str:

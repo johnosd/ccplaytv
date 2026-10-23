@@ -429,6 +429,19 @@
   text-align: center;
 }
 
+/* Feature 090: idiomas da busca de legenda lado a lado (←/→ andam entre eles). */
+.player-panel-group--inline {
+  flex-direction: row;
+  flex-wrap: wrap;
+}
+
+/* Feature 090: dica do ajuste da legenda externa, à direita do valor. */
+.player-panel-row-hint {
+  margin-left: auto;
+  font-size: var(--fs-caption);
+  color: inherit;
+}
+
 .player-info-list {
   display: flex;
   flex-direction: column;

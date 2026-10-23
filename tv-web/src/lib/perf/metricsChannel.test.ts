@@ -62,4 +62,10 @@ describe('canal de métricas (feature 085)', () => {
     expect(send).not.toHaveBeenCalled()
     send.mockRestore()
   })
+
+  it('a fonte epg (tempo da sincronização do guia) passa; texto fora da lista fixa não', () => {
+    const channel = createMetricsChannel({ destination: DESTINATION, fetchImpl: vi.fn<typeof fetch>() })
+    channel.emit({ source: 'epg', outcome: 'synced', programs: 10122, totalMs: 2100, errorKind: 'http://painel/x' })
+    expect(channel.pending()).toBe(1)
+  })
 })

@@ -1,0 +1,12 @@
+{
+  "feature": "088-tarefas-longas-navegacao",
+  "lockedAt": "2026-10-22 08:49",
+  "total": 3,
+  "files": [
+    {
+      "path": "tv-web/src/lib/perf/phaseSpans.tarefas-longas-navegacao.contract.test.ts",
+      "sha256": "d987ec624ca140d1c94bc7d8dc196524e91caa63a78ebace8efa11064df77a69",
+      "tests": 3
+    }
+  ]
+}

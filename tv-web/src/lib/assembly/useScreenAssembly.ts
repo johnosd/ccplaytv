@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { recordAssembly, recordDeferred, type AssemblyReport } from '../perf/assemblyTiming'
+import { recordAllSlotsSettled, recordAssembly, recordDeferred, type AssemblyReport } from '../perf/assemblyTiming'
+import { noteFirstReveal } from './firstReveal'
 import {
   ASSEMBLY_CAP_MS,
   LOADING_DELAY_MS,
@@ -42,16 +43,30 @@ export interface ScreenAssembly<K extends string> {
   follow: () => void
 }
 
-/** Decodifica a imagem antes de revelar; o `<img>` do card reaproveita o cache. Nunca `fetch`, nunca loga a URL. */
+/**
+ * Decodifica a imagem antes de revelar; o `<img>` do card reaproveita o cache. Nunca `fetch`, nunca loga a URL.
+ *
+ * Feature 086 (FR-023): estas são as capas da PRIMEIRA tela, e só elas são pedidas assim — as fileiras abaixo da dobra
+ * continuam com o carregamento preguiçoso dos cards (FR-024/FR-025). `fetchPriority: 'high'` põe estas na frente na fila
+ * da rede, que é o que a medição mostrou faltar (3 de 17 prontas na revelação).
+ */
 const decodeImage: ImageLoader = (url) => {
   if (typeof Image === 'undefined') return Promise.resolve()
   const image = new Image()
   if (typeof image.decode !== 'function') return Promise.resolve()
+  const priorityAware = image as HTMLImageElement & { fetchPriority?: string }
+  priorityAware.fetchPriority = 'high'
   image.src = url
   return image.decode().then(
     () => undefined,
     () => undefined,
   )
+}
+
+/** Chave de métrica de uma leitura: `added-movies` → `addedMoviesMs` (o canal só aceita `[a-z][A-Za-z0-9]*`). */
+function slotMetricKey(key: string): string {
+  const camel = key.replace(/[^A-Za-z0-9]+(.)/g, (_whole, next: string) => next.toUpperCase())
+  return `${camel.charAt(0).toLowerCase()}${camel.slice(1)}Ms`
 }
 
 /** Um temporizador de uma vez, contado da montagem. */
@@ -111,6 +126,22 @@ export function useScreenAssembly<K extends string>({
   const current = state.current
 
   const waiting = current.phase === 'waiting'
+  // Feature 086 (FR-026/FR-019): quando cada leitura resolveu e quando a última resolveu, para medir o tempo de desenho.
+  const slotMs = useRef<Record<string, number>>({})
+  const lastResolvedAt = useRef(0)
+  const resolvedKey = slots.map((slot) => (slot.status === 'pending' ? '' : slot.key)).join(',')
+  useEffect(() => {
+    const now = performance.now()
+    for (const slot of slots) {
+      const metric = slotMetricKey(slot.key)
+      if (slot.status === 'pending' || slotMs.current[metric] !== undefined) continue
+      slotMs.current[metric] = Math.round(now - (mountedAt.current || now))
+      lastResolvedAt.current = now
+    }
+    // Só o conjunto de leituras resolvidas importa; `slots` muda de identidade a cada render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [resolvedKey])
+
   const urlsKey = imageUrls.join('\n')
   useEffect(() => {
     let alive = true
@@ -131,6 +162,8 @@ export function useScreenAssembly<K extends string>({
   const revealed = !waiting
   useEffect(() => {
     if (!revealed || report.current) return
+    // Feature 086 (T073): a 1ª revelação da sessão libera a carga da lista, que até aqui não compete com o desenho.
+    noteFirstReveal()
     report.current = recordAssembly({
       screen,
       revealMs: Math.round(performance.now() - mountedAt.current),
@@ -138,10 +171,22 @@ export function useScreenAssembly<K extends string>({
       pending: slots.filter((slot) => slot.status === 'pending').map((slot) => slot.key),
       deferred: current.deferred,
       images: { requested: requested.current.size, settled: settledImages.size },
+      slotMs: { ...slotMs.current },
+      paintMs: lastResolvedAt.current > 0 ? Math.round(performance.now() - lastResolvedAt.current) : undefined,
     })
     // Só na revelação; o resto é registrado pelo efeito das adiadas.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [revealed])
+  // Feature 086 (T087): quando a última leitura resolve, reporta os tempos de todas — inclusive as que ficaram
+  // pendentes na revelação, que na TV eram exatamente as que faltavam no diagnóstico.
+  const allSettled = slots.length > 0 && slots.every((slot) => slot.status !== 'pending')
+  const settledReported = useRef(false)
+  useEffect(() => {
+    if (!allSettled || settledReported.current || mountedAt.current === 0) return
+    settledReported.current = true
+    recordAllSlotsSettled(screen, { ...slotMs.current }, performance.now() - mountedAt.current)
+  }, [allSettled, screen])
+
   const deferredKey = current.deferred.join(',')
   useEffect(() => {
     recordDeferred(report.current, deferredKey === '' ? [] : deferredKey.split(','))

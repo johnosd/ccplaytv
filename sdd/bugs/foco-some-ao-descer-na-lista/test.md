@@ -1,12 +1,18 @@
 # Bug Verification: Foco some ao descer na lista de episódios do detalhe da série
 
 - **Slug**: foco-some-ao-descer-na-lista
-- **Testado**: 2026-10-05
+- **Testado**: 2026-10-22
 - **Assessment**: ./assessment.md
 - **Fix**: ./fix.md
-- **Result**: partial
+- **Result**: verified
 
 ## Summary
+
+Encerrado em 2026-10-22 após confirmação do usuário na TV física: todos os itens do [roteiro único](../ROTEIRO-TV-2026-10-22.md) foram validados com sucesso. No item 1, foco e rolagem dos episódios foram aprovados ao descer e voltar pela lista. A evidência física é o relato do usuário, não uma execução automatizada desta sessão.
+
+Esta atualização é documental; os testes automatizados abaixo não foram reexecutados. As falhas antigas de E2E alheias à correção permanecem registradas, sem novo veredito sobre elas.
+
+### Registro anterior — 2026-10-05
 
 O sintoma original não reproduz mais no Chromium: com uma temporada de 14 episódios a linha focada fica dentro da tela em todos os passos de ↓ e ↑, a página acompanha, e de volta às ações ela volta ao topo. É `partial` porque **a TV física (onde o usuário viu o problema) não foi verificada**, porque a suíte E2E completa teve uma falha intermitente em outro roteiro que passa isolado, e porque dois E2E antigos falham independentemente desta correção.
 
@@ -37,6 +43,8 @@ O sintoma original não reproduz mais no Chromium: com uma temporada de 14 epis�
 
 ## Residual Risks
 
+Registro de 2026-10-05: a pendência de observação física do foco e da fluidez foi encerrada pela confirmação de 2026-10-22. As demais limitações abaixo permanecem como histórico e fora do escopo deste aceite.
+
 - Rolagem em Tizen/Chromium 120 (fluidez de `scrollIntoView` com linhas de 232 px) não foi vista na TV física.
 - Temporadas com centenas de episódios: a lista não rola, então o virtualizador renderiza todas as linhas (já no assessment; não alterado).
 - Anel de foco largo da linha inteira (`.vod-episode-row.tv-focus`): observação visual antiga, fora do escopo.
@@ -44,5 +52,9 @@ O sintoma original não reproduz mais no Chromium: com uma temporada de 14 epis�
 - `metadata-tmdb` e `semelhantes-elenco-ator` seguem vermelhos por motivo anterior a esta correção.
 
 ## Recommendation
+
+Fechar como `verified`, conforme validação física e autorização expressa do usuário em 2026-10-22: "Todos os itens foram validados com sucesso. Podem fechar todos esses bugs".
+
+### Recomendação anterior — 2026-10-05
 
 Segurar até o usuário confirmar na TV que o foco acompanha ao descer pelos episódios; então fechar como `verified`. Se confirmar, o carrossel horizontal vira decisão independente (o bug do foco estará resolvido sem ele). Os dois E2E desatualizados merecem um item próprio.

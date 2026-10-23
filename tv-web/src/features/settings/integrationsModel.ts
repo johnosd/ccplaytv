@@ -1,3 +1,4 @@
+import { SUBTITLE_KEY_ROWS } from './subtitleKeysModel'
 import type { ErrorCode } from '../../lib/errors/errorCatalog'
 import type { MessageKey } from '../../lib/i18n/messages/pt'
 import type { TmdbState, TmdbStatusView } from '../../lib/metadata/types'
@@ -25,8 +26,14 @@ export const INTEGRATION_SOON_CARDS = [
   { id: 'dock-weather', titleKey: 'settings.integrations.soon.dock-weather' },
 ] as const satisfies readonly { id: string; titleKey: MessageKey }[]
 
-/** Linha 0 = card do TMDB; as demais, os cards "Em breve". */
-export const SPEED_TEST_ROW = 1 + INTEGRATION_SOON_CARDS.length
+/**
+ * Linha 0 = card do TMDB; depois, uma linha por fornecedor de legenda (feature 090, chave pessoal); depois os cards
+ * "Em breve"; por último o teste de conexão.
+ */
+export const SUBTITLE_ROW_START = 1
+export const SUBTITLE_ROW_COUNT = SUBTITLE_KEY_ROWS.length
+export const SOON_ROW_START = SUBTITLE_ROW_START + SUBTITLE_ROW_COUNT
+export const SPEED_TEST_ROW = SOON_ROW_START + INTEGRATION_SOON_CARDS.length
 export const INTEGRATIONS_ROW_COUNT = SPEED_TEST_ROW + 1
 
 /** Rótulo do estado no card (`logic/chave-tmdb.md` §7). */

@@ -1,6 +1,10 @@
-// Roteiro E2E da feature 057 (Top 10 da semana e Dica, TMDB, em Filmes e Séries; o Início deixou de tê-los no ad-hoc de
-// 2026-10-09) — gate da constitution ("Testes E2E antes
-// da validação em TV"). Capturas em `test-results/top10-dica-tmdb/`.
+// Roteiro E2E das fileiras do TMDB em Filmes e Séries — regras da feature 057 (Top 10 da semana e Dica; o Início
+// deixou de tê-los no ad-hoc de 2026-10-09), produzidas em segundo plano desde a feature **087**. Gate da constitution
+// ("Testes E2E antes da validação em TV"). Capturas em `test-results/top10-dica-tmdb/`.
+//
+// Feature 087: a tela **não** calcula mais nada — ela lê um resultado que a fila de segundo plano gravou. Por isso o
+// roteiro espera a produção (`esperarProducao`) em vez de esperar um cruzamento na própria tela, e o período gravado
+// passa a ser a validade: dentro dele, abrir a tela não dispara consulta nenhuma.
 //
 // Painel Xtream FICTÍCIO e TMDB SIMULADO (interceptação de `api.themoviedb.org`, nunca a rede real), ambos criados por este script.
 // A chave TMDB é uma sequência fictícia semeada direto no IndexedDB. Mede:
@@ -138,20 +142,45 @@ const SEEDS = {
         tx.onerror = () => reject(tx.error)
       }
     }),
-  dropKeyAndCache: () =>
+  // Feature 087: remover a chave passa pelo caminho **real** (`removeTmdbKey`), que apaga a chave, o cache e o
+  // resultado já produzido na MESMA transação. Apagar só a chave no IndexedDB deixaria o registro para trás, e a
+  // fileira continuaria na tela — exatamente o que o FR-011 proíbe.
+  dropKeyAndCache: async () => {
+    const { removeTmdbKey } = await import('/src/lib/metadata/tmdbKeyRepository.ts')
+    await removeTmdbKey()
+  },
+  // Feature 087 (FR-012): o idioma troca pelo caminho real do app, que avisa quem assina (`subscribeAppLanguage`).
+  switchLanguage: async () => {
+    const { writeAppLanguage } = await import('/src/lib/i18n/appLanguage.ts')
+    writeAppLanguage('en')
+  },
+  // FR-006: marca o Top 10 para refazer e acorda a fila pelo caminho real. Zerar o período é o mesmo "refaça" que a
+  // troca de idioma usa: o registro e os itens ficam, então a fileira não sai da tela enquanto o novo não chega.
+  markTop10Stale: async () => {
+    const { db } = await import('/src/lib/catalog/db.ts')
+    const { wakePrefetch } = await import('/src/features/catalog/prefetchApi.ts')
+    await db.showcaseExternalRows.toCollection().modify((record) => {
+      if (record.row === 'top10') record.periodKey = ''
+    })
+    wakePrefetch()
+  },
+  top10PeriodKeys: async () => {
+    const { db } = await import('/src/lib/catalog/db.ts')
+    const todas = await db.showcaseExternalRows.toArray()
+    return todas.filter((record) => record.row === 'top10').map((record) => record.periodKey)
+  },
+  producedRows: () =>
     new Promise((resolve, reject) => {
       const open = indexedDB.open('ccplaytv')
       open.onerror = () => reject(open.error)
       open.onsuccess = () => {
         const db = open.result
-        const tx = db.transaction(['integrations', 'discoveryCache'], 'readwrite')
-        tx.objectStore('integrations').delete('tmdb')
-        tx.objectStore('discoveryCache').clear()
-        tx.oncomplete = () => {
+        const request = db.transaction('showcaseExternalRows', 'readonly').objectStore('showcaseExternalRows').count()
+        request.onsuccess = () => {
           db.close()
-          resolve()
+          resolve(request.result)
         }
-        tx.onerror = () => reject(tx.error)
+        request.onerror = () => reject(request.error)
       }
     }),
   cacheCount: () =>
@@ -206,6 +235,43 @@ async function goHome(page) {
   await page.waitForSelector('.home-content', { timeout: 10000 })
 }
 
+/**
+ * Feature 087: espera a fila de segundo plano gravar as **quatro** fileiras (Top 10 e Dica, de filmes e de séries).
+ *
+ * A fila faz uma tarefa por rodada e cede a vez à primeira tela da sessão, então isto leva dezenas de segundos — e é
+ * o ponto: a fileira entra com a tela aberta, sem a pessoa sair e voltar. Esperar as quatro também deixa as contagens
+ * de consulta ao TMDB determinísticas no resto do roteiro, em vez de depender de quando a fila termina.
+ */
+/**
+ * Retrato do que o FR-006 proíbe mexer: o elemento focado e toda rolagem diferente de zero na página.
+ *
+ * `getAttribute('class')` em vez de `className` porque em SVG `className` não é string.
+ */
+function focoERolagem(page) {
+  return page.evaluate(() => {
+    const foco = document.querySelector('.tv-focus')
+    const rolagens = [...document.querySelectorAll('*')]
+      .filter((el) => el.scrollTop > 0 || el.scrollLeft > 0)
+      .map((el) => `${el.getAttribute('class') ?? el.tagName}:${el.scrollTop},${el.scrollLeft}`)
+    return {
+      foco: foco === null ? null : `${foco.getAttribute('class') ?? foco.tagName}|${(foco.textContent ?? '').replace(/\s+/g, ' ').trim().slice(0, 40)}`,
+      rolagens,
+    }
+  })
+}
+
+async function esperarProducao(page, minimo = 4, timeoutMs = 120000) {
+  const limite = Date.now() + timeoutMs
+  for (;;) {
+    const total = await page.evaluate(SEEDS.producedRows)
+    if (total >= minimo) return total
+    if (Date.now() > limite) throw new Error(`a fila não produziu ${minimo} fileiras em ${timeoutMs} ms (${total})`)
+    // Espera do lado do Node de propósito: `waitForFunction` com uma Promise trata o objeto como verdadeiro e não
+    // espera o resultado — o roteiro seguia antes de a fila terminar, e a fileira seguinte ainda não existia.
+    await page.waitForTimeout(1000)
+  }
+}
+
 async function run() {
   mkdirSync(SHOTS, { recursive: true })
   const server = await startPanel()
@@ -217,6 +283,7 @@ async function run() {
   const consoleTexts = []
   const externalHosts = new Set()
   const tmdbCalls = []
+  const tmdbLanguages = []
   let tmdbOnline = true
   page.on('pageerror', (error) => pageErrors.push(`[${step}] ${String(error).slice(0, 90)}`))
   page.on('console', (message) => consoleTexts.push(message.text()))
@@ -227,6 +294,7 @@ async function run() {
   await context.route('https://api.themoviedb.org/**', async (route) => {
     const url = new URL(route.request().url())
     tmdbCalls.push(`${url.pathname}${url.searchParams.get('page') ? `?page=${url.searchParams.get('page')}` : ''}`)
+    tmdbLanguages.push(url.searchParams.get('language'))
     const body = tmdbOnline ? tmdbBody(url.pathname, url.searchParams.get('page') ?? '1') : null
     if (body === null) return route.abort('failed')
     return route.fulfill({ status: 200, contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: JSON.stringify(body) })
@@ -264,6 +332,10 @@ async function run() {
     console.log((step = '=== Com chave: o Início continua sem Top 10/Dica (ad-hoc 2026-10-09) ==='))
     // O Início só tem fileiras do aparelho desde o ad-hoc de 2026-10-09; Top 10 e Dica ficam nas vitrines de Filmes e Séries.
     await page.evaluate(SEEDS.putKey, KEY)
+    // Feature 087: quem produz as fileiras é a fila de segundo plano. A chave foi semeada direto no IndexedDB, sem
+    // passar por Integrações — que é quem acorda a fila na hora (FR-010) —, então a sessão é reaberta: é o que acontece
+    // na próxima abertura do app, e dali a fila trabalha.
+    await reopenApp(page)
     await goHome(page)
     await page.waitForTimeout(1500)
     assert(!(await rowLabels(page, '.home-content')).some(isDiscovery), 'Início com chave: nenhuma linha Top 10/Dica')
@@ -271,6 +343,10 @@ async function run() {
 
     console.log((step = '=== Filmes: Top 10 e Dica ==='))
     await openShowcase(page, 'movies')
+    // FR-002/FR-006: a fileira entra com a tela ABERTA, quando a fila termina de produzir.
+    const produzidas = await esperarProducao(page)
+    assert(produzidas >= 4, `a fila produziu as quatro fileiras, 2 tipos x Top 10/Dica (${produzidas})`)
+    await page.waitForSelector('section.vod-row[aria-label="Em alta esta semana"] .content-card', { timeout: 20000 })
     await enterRows(page)
     await gotoRow(page, 'Em alta esta semana', ['Lançamentos', 'Fora do ar'])
     const topRow = 'section.vod-row[aria-label="Em alta esta semana"]'
@@ -326,6 +402,32 @@ async function run() {
     assert(callsTo('/3/trending/movie/week') === 1 && callsTo('/3/trending/tv/week') === 1, `ranking: uma consulta por tipo (${callsTo('/3/trending/movie/week')}, ${callsTo('/3/trending/tv/week')})`)
     assert(callsTo('/3/discover/movie') === 8 && callsTo('/3/discover/tv') === 8, `Dica: 8 páginas por tipo, uma vez (${callsTo('/3/discover/movie')}, ${callsTo('/3/discover/tv')})`)
 
+    console.log((step = '=== A fileira que a fila refaz com a tela aberta não move o foco nem a rolagem (FR-006) ==='))
+    // O foco está fundo nas fileiras (na Dica) e a vitrine está rolada: é o cenário que o FR-006 descreve. A fila refaz
+    // a fileira ACIMA da focada, e nem o foco nem a rolagem podem se mexer por causa disso.
+    const antesDaRefeitura = await focoERolagem(page)
+    assert(antesDaRefeitura.foco !== null, 'há um elemento focado antes de a fila refazer')
+    assert(antesDaRefeitura.rolagens.length > 0, 'a vitrine está rolada antes de a fila refazer')
+    const chamadasAntesDaRefeitura = tmdbCalls.length
+    await page.evaluate(SEEDS.markTop10Stale)
+    let refez = false
+    const limiteRefeitura = Date.now() + 90000
+    while (Date.now() < limiteRefeitura) {
+      const periodos = await page.evaluate(SEEDS.top10PeriodKeys)
+      if (periodos.length > 0 && periodos.every((periodo) => periodo !== '')) {
+        refez = true
+        break
+      }
+      await page.waitForTimeout(500)
+    }
+    assert(refez, 'a fila refez o Top 10 com a tela aberta')
+    const depoisDaRefeitura = await focoERolagem(page)
+    assert(depoisDaRefeitura.foco === antesDaRefeitura.foco, `o foco não se moveu (${antesDaRefeitura.foco} -> ${depoisDaRefeitura.foco})`)
+    assert(JSON.stringify(depoisDaRefeitura.rolagens) === JSON.stringify(antesDaRefeitura.rolagens), 'a rolagem não se moveu')
+    // Refazer o cruzamento não é consultar: o ranking do período já estava guardado (FR-007).
+    assert(tmdbCalls.length === chamadasAntesDaRefeitura, `refazer não consultou o serviço (${tmdbCalls.length - chamadasAntesDaRefeitura})`)
+    await shot(page, '06-foco-estavel-ao-refazer')
+
     console.log((step = '=== Sem rede e com o cache de outra semana/dia: as fileiras vêm do último resultado ==='))
     await page.evaluate(SEEDS.staleCache)
     tmdbOnline = false
@@ -335,7 +437,10 @@ async function run() {
     await openShowcase(page, 'movies')
     const offlineTop = 'section.vod-row[aria-label="Em alta esta semana"]'
     await page.waitForSelector(`${offlineTop} .content-card`, { timeout: 20000 })
-    assert(callsTo('/3/trending/movie/week') > 1 || tmdbCalls.length > callsBeforeOffline, 'tentou a rede (que falhou) antes de usar o cache')
+    // Feature 087 (FR-007/FR-008): o período gravado no resultado é a validade, e ele ainda vale — então **nada** é
+    // pedido ao serviço, nem para falhar, e a fileira é o último resultado produzido. Antes da 087 a tela tentava a
+    // rede a cada abertura e só então caía no cache; agora quem decide buscar o período seguinte é o segundo plano.
+    assert(tmdbCalls.length === callsBeforeOffline, `dentro do período, nenhuma consulta nova (${tmdbCalls.length - callsBeforeOffline})`)
     assert(JSON.stringify(await ranksOf(page, offlineTop)) === JSON.stringify(['1', '2', '3']), 'Filmes offline: a última fileira em alta guardada')
     assert((await page.locator('.error-state, [role="alert"]').count()) === 0, 'nenhum erro na tela sem rede')
     await shot(page, '06-filmes-offline-com-cache')
@@ -352,6 +457,43 @@ async function run() {
     await page.waitForTimeout(500)
     assert(!(await rowLabels(page, '.vod-showcase')).some(isDiscovery), 'Filmes sem chave: sem Top 10/Dica')
     assert(tmdbCalls.length === callsBeforeNoKey, 'sem chave nada é pedido ao TMDB')
+
+    console.log((step = '=== Salvar a chave de novo: as fileiras voltam (quickstart §3.5) ==='))
+    await page.evaluate(SEEDS.putKey, KEY)
+    await reopenApp(page)
+    await openShowcase(page, 'movies')
+    // Duas bastam para provar que voltaram: a fila produz na ordem filmes/Top 10, filmes/Dica, séries...
+    const voltaram = await esperarProducao(page, 2, 90000)
+    assert(voltaram >= 2, `a chave de volta faz a fila produzir de novo (${voltaram} fileiras)`)
+    await page.waitForSelector(`${offlineTop} .content-card`, { timeout: 20000 })
+    assert(JSON.stringify(await ranksOf(page, offlineTop)) === JSON.stringify(['1', '2', '3']), 'as fileiras voltaram, numeradas')
+    await shot(page, '07-filmes-chave-de-volta')
+
+    console.log((step = '=== Trocar o idioma: a fileira CONTINUA e a fila refaz no idioma novo (quickstart §3.6) ==='))
+    // Rótulo em português não serve depois da troca: a fileira do Top 10 é a única com numeral, e o título do item vem
+    // do provedor (nunca traduzido), então os dois são neutros de idioma.
+    const comNumeral = 'section.vod-row:has(.content-card-rank)'
+    const antesDoIdioma = await titlesOf(page, comNumeral)
+    assert(antesDoIdioma.length > 0, 'a fileira numerada está na tela antes da troca')
+    await page.evaluate(SEEDS.switchLanguage)
+    let refezNoIdiomaNovo = false
+    let perdeuAFileira = false
+    const limiteIdioma = Date.now() + 30000
+    while (Date.now() < limiteIdioma) {
+      // A cada tique: a fileira não pode esvaziar nem mudar de conteúdo enquanto o novo resultado não chega (FR-012).
+      if (JSON.stringify(await titlesOf(page, comNumeral)) !== JSON.stringify(antesDoIdioma)) {
+        perdeuAFileira = true
+        break
+      }
+      if (tmdbLanguages.includes('en-US')) {
+        refezNoIdiomaNovo = true
+        break
+      }
+      await page.waitForTimeout(500)
+    }
+    assert(!perdeuAFileira, 'trocar o idioma mantém a fileira com o resultado anterior (FR-012)')
+    assert(refezNoIdiomaNovo, 'e a fila refaz a consulta no idioma novo')
+    await shot(page, '08-filmes-idioma-trocado')
 
     const html = await page.content()
     assert(!html.includes(KEY), 'a chave nunca aparece no DOM')

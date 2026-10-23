@@ -36,22 +36,41 @@ export interface CatalogLedger {
   bySource: Record<string, number>
   /** Bytes por categoria (o orçamento usa como tamanho de cada candidato). */
   byCategory: Map<number, number>
+  /** Linhas do guia no formato antigo, por lista — já contadas aqui; os candidatos não refazem a contagem (085, medido na TV: ~0,7 s). */
+  legacyGuideRows?: Record<string, number>
+}
+
+/**
+ * Linhas do guia no formato antigo. Só existem enquanto a lista não tem o guia novo (`epgStoredBytes` indefinido): a conversão e a publicação do
+ * guia novo as apagam. Não consultar a tabela nas outras é o que importa na TV: depois de esvaziada, qualquer consulta a ela leva ~1 s (medido no
+ * app real, 085/assessment do orçamento), mesmo vazia.
+ */
+async function legacyGuideRowCount(database: CatalogDb, source: SourceRecord): Promise<number> {
+  if (source.epgStoredBytes !== undefined) return 0
+  return database.epgPrograms.where('[sourceId+generation]').between([source.id, -Infinity], [source.id, Infinity]).count()
 }
 
 /** Bytes do guia de uma lista: formato novo (`epgStoredBytes`) + linhas do formato antigo ainda gravadas. */
 export async function guideStoredBytes(database: CatalogDb, source: SourceRecord): Promise<{ bytes: number; legacyRows: number }> {
-  const legacyRows = await database.epgPrograms.where('[sourceId+generation]').between([source.id, -Infinity], [source.id, Infinity]).count()
+  const legacyRows = await legacyGuideRowCount(database, source)
   return { bytes: (source.epgStoredBytes ?? 0) + legacyRows * LEGACY_EPG_ROW_BYTES, legacyRows }
 }
 
+/** Preenchido só no build de medição (`makeRoomFor`): tempo de cada etapa da conta e o tamanho do que ela leu. */
+export type LedgerProbe = Record<string, number>
+
 /** Conta do catálogo + guia + episódios + metadados, por lista e total. */
-export async function catalogLedger(database: CatalogDb): Promise<CatalogLedger> {
+export async function catalogLedger(database: CatalogDb, probe?: LedgerProbe): Promise<CatalogLedger> {
+  const lap = (key: string, since: number) => { if (probe) probe[key] = (probe[key] ?? 0) + (performance.now() - since) }
+  const readStart = performance.now()
   const [categories, manifests, sources, blockKeys] = await Promise.all([
     database.categories.toArray(),
     database.catalogReadManifests.toArray(),
     database.sources.toArray(),
     database.categoryBlocks.toCollection().primaryKeys(),
   ])
+  lap('ledgerReadMs', readStart)
+  if (probe) Object.assign(probe, { categories: categories.length, manifests: manifests.length, sources: sources.length, blocks: blockKeys.length })
   const withBlock = new Set(blockKeys as number[])
   const projection = new Map(manifests.map((manifest) => [manifest.categoryId, manifest.count]))
   const bySource: Record<string, number> = {}
@@ -61,22 +80,34 @@ export async function catalogLedger(database: CatalogDb): Promise<CatalogLedger>
     // Formato antigo sem bloco: só conta se houver linhas da 039 de verdade — a "órfã" (liberada com o banco cheio,
     // carimbada sem itens) não ocupa nada e, contada, faria o orçamento recusar à toa.
     const legacyWithoutBlock = category.storedBytes === undefined && (category.itemsCount ?? 0) > 0 && !withBlock.has(category.id as number)
+    const legacyStart = performance.now()
     const hasRows = legacyWithoutBlock && (await database.channels.where('[sourceId+generation+kind+groupOrder]')
       .equals([category.sourceId, category.generation, category.kind, category.order]).count()) > 0
+    if (legacyWithoutBlock) { lap('ledgerLegacyMs', legacyStart); if (probe) probe.legacyCategories = (probe.legacyCategories ?? 0) + 1 }
     const bytes = legacyWithoutBlock && !hasRows ? 0 : categoryRecordBytes(category, projection.get(category.id as number) ?? 0)
     byCategory.set(category.id as number, bytes)
     add(category.sourceId, bytes)
   }
-  for (const source of sources) {
+  // O guia antigo só é consultado em lista sem o guia novo (`legacyGuideRowCount`); episódios e metadados são contados por lista, em paralelo.
+  const legacyGuideRows: Record<string, number> = {}
+  const countStart = performance.now()
+  const done = (key: string) => <T>(value: T): T => { if (probe) probe[key] = Math.max(probe[key] ?? 0, performance.now() - countStart); return value }
+  const counts = await Promise.all(sources.map(async (source) => {
     const generation = source.activeGeneration
     const [epgRows, episodes, metadata] = await Promise.all([
-      database.epgPrograms.where('[sourceId+generation]').between([source.id, -Infinity], [source.id, Infinity]).count(),
+      legacyGuideRowCount(database, source).then(done('ledgerEpgDoneMs')),
       generation === undefined ? 0 : database.channels.where('[sourceId+generation+kind+groupOrder]')
-        .between([source.id, generation, 'episode', -Infinity], [source.id, generation, 'episode', Infinity]).count(),
-      database.titleMetadata.where('sourceId').equals(source.id).count(),
+        .between([source.id, generation, 'episode', -Infinity], [source.id, generation, 'episode', Infinity]).count().then(done('ledgerEpisodesDoneMs')),
+      database.titleMetadata.where('sourceId').equals(source.id).count().then(done('ledgerMetadataDoneMs')),
     ])
+    return { source, epgRows, episodes, metadata }
+  }))
+  lap('ledgerCountsMs', countStart)
+  for (const { source, epgRows, episodes, metadata } of counts) {
+    legacyGuideRows[source.id] = epgRows
+    if (probe) { probe.epgRows = (probe.epgRows ?? 0) + epgRows; probe.episodes = (probe.episodes ?? 0) + episodes; probe.metadata = (probe.metadata ?? 0) + metadata }
     add(source.id, (source.epgStoredBytes ?? 0) + epgRows * LEGACY_EPG_ROW_BYTES + episodes * LEGACY_ITEM_BYTES + metadata * METADATA_BYTES)
   }
   const total = Object.values(bySource).reduce((sum, value) => sum + value, 0)
-  return { total, bySource, byCategory }
+  return { total, bySource, byCategory, legacyGuideRows }
 }

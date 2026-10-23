@@ -1,0 +1,34 @@
+{
+  "recordedAt": "2026-10-21T23:09:59.391Z",
+  "scope": "PC HTTP only; no downloads",
+  "tests": [
+    {
+      "kind": "movie",
+      "language": "en",
+      "httpStatus": 200,
+      "totalCount": 67,
+      "returnedRows": 50
+    },
+    {
+      "kind": "episode",
+      "language": "en",
+      "httpStatus": 200,
+      "totalCount": 16,
+      "returnedRows": 16
+    },
+    {
+      "kind": "movie",
+      "language": "es",
+      "httpStatus": 200,
+      "totalCount": 62,
+      "returnedRows": 50
+    },
+    {
+      "kind": "episode",
+      "language": "es",
+      "httpStatus": 200,
+      "totalCount": 26,
+      "returnedRows": 26
+    }
+  ]
+}

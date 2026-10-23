@@ -25,10 +25,15 @@ export function PlayerTracksPanel({ model, focusedKey }: PlayerTracksPanelProps)
     focusedRef.current?.scrollIntoView?.({ block: 'nearest' })
   }, [focusedKey])
 
-  function renderRow(row: TracksRow, role: 'radio' | 'button') {
+  function renderRow(row: TracksRow, role: 'radio' | 'button' | 'action') {
     const focused = row.key === focusedKey
+    // `action` (feature 090): botão comum, sem estado de marcado — "Buscar legenda online".
     const stateProps =
-      role === 'radio' ? { role: 'radio' as const, 'aria-checked': row.checked } : { 'aria-pressed': row.checked }
+      role === 'radio'
+        ? { role: 'radio' as const, 'aria-checked': row.checked }
+        : role === 'button'
+          ? { 'aria-pressed': row.checked }
+          : {}
     return (
       <button
         key={row.key}
@@ -44,6 +49,30 @@ export function PlayerTracksPanel({ model, focusedKey }: PlayerTracksPanelProps)
           {row.checked ? '●' : '○'}
         </span>
         <span>{row.label}</span>
+      </button>
+    )
+  }
+
+  /** Ajuste da legenda externa (feature 090, `logic/legenda-externa.md` §4.1): ←/→ mudam, OK zera. */
+  function renderExternalDelay(row: TracksRow) {
+    const focused = row.key === focusedKey
+    return (
+      <button
+        key={row.key}
+        ref={focused ? focusedRef : undefined}
+        type="button"
+        role="slider"
+        aria-label={t('player.tracks.sync')}
+        aria-valuemin={-10_000}
+        aria-valuemax={10_000}
+        aria-valuenow={row.delayMs ?? 0}
+        aria-valuetext={row.label}
+        className={`player-panel-row${focused ? ' tv-focus' : ''}`}
+      >
+        <span>{row.label}</span>
+        <span className="player-panel-row-hint" aria-hidden="true">
+          {t('subtitles.syncHint')}
+        </span>
       </button>
     )
   }
@@ -65,8 +94,14 @@ export function PlayerTracksPanel({ model, focusedKey }: PlayerTracksPanelProps)
           {model.textRows.map((row) => renderRow(row, 'radio'))}
         </div>
         {model.noTextNote && <p className="player-panel-note">{model.noTextNote}</p>}
+        {model.externalSearchRow && renderRow(model.externalSearchRow, 'action')}
 
-        {model.delayRows.length > 0 && (
+        {model.delayRows[0]?.key === 'delay:external' ? (
+          <>
+            <h3 className="player-panel-heading">{t('player.tracks.sync')}</h3>
+            {renderExternalDelay(model.delayRows[0])}
+          </>
+        ) : model.delayRows.length > 0 && (
           <>
             <h3 className="player-panel-heading">{t('player.tracks.sync')}</h3>
             <div role="radiogroup" aria-label={t('player.tracks.sync')} className="player-panel-group">

@@ -44,7 +44,7 @@ export interface PrefetchSchedulerDeps {
    * Limpeza em partes de gerações antigas (feature 038, D-008) — uma parte por
    * chamada, só com o portão aberto. Devolve `true` se ainda sobrou trabalho.
    */
-  housekeeping?: (sourceId: string) => Promise<boolean>
+  /** Tarefas adiáveis; `idle` = fila sem categoria a carregar (tarefa cara só cabe aí — ver `prefetch/index.ts`). */ housekeeping?: (sourceId: string, options: { idle: boolean }) => Promise<boolean>
   /** Recuo do FR-014 (`'neighborhood'`). Padrão `'full'`. */
   scope?: 'full' | 'neighborhood'
   /**
@@ -277,7 +277,7 @@ export function createPrefetchScheduler(deps: PrefetchSchedulerDeps): PrefetchSc
       if (next === undefined) {
         setProgress({ state: 'done', ...last })
         if (deps.housekeeping && gate.blockReason(now(), idleAfterKeyMs) === undefined) {
-          const more = await deps.housekeeping(sourceId).catch(() => false)
+          const more = await deps.housekeeping(sourceId, { idle: true }).catch(() => false)
           if (epoch !== myEpoch) return
           if (more) {
             await wait(gapMs)
@@ -311,7 +311,7 @@ export function createPrefetchScheduler(deps: PrefetchSchedulerDeps): PrefetchSc
       }
 
       if (deps.housekeeping && gate.blockReason(now(), idleAfterKeyMs) === undefined) {
-        await deps.housekeeping(sourceId).catch(() => false)
+        await deps.housekeeping(sourceId, { idle: false }).catch(() => false)
         if (epoch !== myEpoch) return
       }
       await wait(gapMs)

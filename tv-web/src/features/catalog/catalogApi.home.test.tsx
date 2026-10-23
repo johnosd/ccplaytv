@@ -4,6 +4,7 @@ import type { ReactNode } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { useContinueCards, useHomeImages, useRecentlyAdded, type CatalogItemOut } from './catalogApi'
 import { db, type CatalogRecord } from '../../lib/catalog/db'
+import { renewCategoryItems, storeCategories } from '../../lib/catalog/catalogRepository'
 import { buildStableId, updateProgress } from '../../lib/catalog/userStateRepository'
 import { PROVIDER_FIELDS_VERSION } from '../../lib/metadata/titleMetadataStore'
 import * as catalogSearch from '../../lib/catalog/catalogSearch'
@@ -163,10 +164,15 @@ describe('useContinueCards (feature 060, FR-004/FR-010)', () => {
 describe('useRecentlyAdded (feature 060, D-013)', () => {
   it('com `enabled: false` não lê o índice; ao habilitar, devolve os mais novos e a cobertura do mesmo índice', async () => {
     await seedSource()
-    // A passada da vitrine (feature 065) percorre o tipo por categoria, como "Todos".
-    await db.categories.put({ sourceId: SOURCE_ID, generation: 1, kind: 'movie', fetchMode: 'eager', name: 'Cat', order: 0, providerCategoryId: '1' })
-    await add(row({ name: 'Velho', originalName: 'Velho', providerStreamId: 'v', addedAt: 100 }))
-    await add(row({ name: 'Novo', originalName: 'Novo', providerStreamId: 'n', addedAt: 900 }))
+    // Feature 086: as fileiras saem dos candidatos que a gravação da categoria guarda — por isso a categoria é gravada
+    // pelo caminho normal (`renewCategoryItems`), e não com linhas soltas em `channels`.
+    const [categoryId] = await storeCategories([
+      { sourceId: SOURCE_ID, generation: 1, kind: 'movie', fetchMode: 'eager', name: 'Cat', order: 0, providerCategoryId: '1' },
+    ], db)
+    await renewCategoryItems({ sourceId: SOURCE_ID, generation: 1, kind: 'movie', categoryId, groupOrder: 0 }, [
+      row({ name: 'Velho', originalName: 'Velho', providerStreamId: 'v', addedAt: 100 }),
+      row({ name: 'Novo', originalName: 'Novo', providerStreamId: 'n', addedAt: 900 }),
+    ], Date.now(), db)
 
     let enabled = false
     const { result, rerender } = renderHook(() => useRecentlyAdded(SOURCE_ID, 'movie', enabled), { wrapper: wrapper() })

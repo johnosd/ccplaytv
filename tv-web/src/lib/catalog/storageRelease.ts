@@ -45,22 +45,28 @@ async function stagedPartsOfOthers(database: CatalogDb, activeSourceId?: string)
 }
 
 /** Monta os candidatos de `logic/orcamento.md` §3, na ordem de entrada (o planejador ordena). */
-export async function releaseCandidates(database: CatalogDb, context: CandidateContext): Promise<ReleaseCandidate[]> {
+export async function releaseCandidates(database: CatalogDb, context: CandidateContext, probe?: Record<string, number>): Promise<ReleaseCandidate[]> {
+  const lap = (key: string, since: number) => { if (probe) probe[key] = (probe[key] ?? 0) + (performance.now() - since) }
   const result: ReleaseCandidate[] = []
+  const stagingStart = performance.now()
   const staging = await stagedPartsOfOthers(database, context.activeSourceId)
   const discovery = await database.table('discoveryCache').count()
   if (staging + discovery > 0) {
     result.push({ key: 'temporary', scope: 'temporary', bytes: (staging + discovery) * METADATA_BYTES, lastUsedAt: 0,
       refetchable: true, pinned: false })
   }
+  lap('candStagingMs', stagingStart)
   const sources = await database.sources.toArray()
+  const guideStart = performance.now()
   // Guia ainda em linhas (formato anterior à 082, ~10× maior que o comprimido): refazível pela próxima sincronização.
   for (const source of sources) {
-    const guide = await guideStoredBytes(database, source)
-    if (guide.legacyRows === 0) continue
-    result.push({ key: `legacy-guide:${source.id}`, scope: 'temporary', sourceId: source.id, bytes: guide.legacyRows * LEGACY_EPG_ROW_BYTES,
+    // O ledger já contou as linhas antigas do guia desta lista: refazer a contagem custava ~0,7 s no app real (085).
+    const legacyRows = context.ledger.legacyGuideRows?.[source.id] ?? (await guideStoredBytes(database, source)).legacyRows
+    if (legacyRows === 0) continue
+    result.push({ key: `legacy-guide:${source.id}`, scope: 'temporary', sourceId: source.id, bytes: legacyRows * LEGACY_EPG_ROW_BYTES,
       lastUsedAt: 0, refetchable: true, pinned: false })
   }
+  lap('candGuideMs', guideStart)
   for (const source of sources) {
     if (source.id === context.activeSourceId) continue
     const bytes = context.ledger.bySource[source.id] ?? 0
@@ -70,7 +76,9 @@ export async function releaseCandidates(database: CatalogDb, context: CandidateC
     }
   }
   if (context.activeSourceId) {
+    const categoriesStart = performance.now()
     const categories = await database.categories.where('sourceId').equals(context.activeSourceId).toArray()
+    lap('candCategoriesMs', categoriesStart)
     for (const category of categories) {
       const categoryId = category.id as number
       const bytes = context.ledger.byCategory.get(categoryId) ?? 0

@@ -11,6 +11,7 @@ import { db, type CatalogDb, type CategoryRecord } from './db'
 import { catalogLedger } from './storageLedger'
 import { pinnedUserCategories, releaseCandidate, releaseCandidates } from './storageRelease'
 import { readStorageEstimate } from './storageRelief'
+import { emitMetric } from '../perf/metricsChannel'
 
 const MB = 1024 * 1024
 
@@ -116,9 +117,14 @@ export async function makeRoomFor(
 ): Promise<{ fits: boolean; released: ReleaseCandidate[] }> {
   const database = options.database ?? db
   const now = options.now ?? Date.now()
+  // Só no build de medição (085/082): tempo por etapa, enviado ao canal de métricas. No build normal `probe` é `undefined`.
+  const probe: Record<string, number> | undefined = import.meta.env.VITE_CCPLAY_METRICS_REPORT ? {} : undefined
+  const startedAt = performance.now()
   try {
-    const ledger = await catalogLedger(database)
+    const ledger = await catalogLedger(database, probe)
+    const ledgerAt = performance.now()
     const reported = await readStorageEstimate()
+    if (probe) probe.estimateMs = performance.now() - ledgerAt
     const quota = reported?.quota ?? FALLBACK_QUOTA_BYTES
     const capBytes = options.config?.capBytes ?? catalogCapBytes(quota)
     const state: BudgetState = {
@@ -134,7 +140,9 @@ export async function makeRoomFor(
       lastUsedOf: (category: CategoryRecord) => Math.max(category.lastUsedAt ?? 0, touched.get(touchKey(database, category.id as number)) ?? 0),
       isRecent: (category: CategoryRecord) => now - Math.max(category.lastUsedAt ?? 0, touched.get(touchKey(database, category.id as number)) ?? 0) < PIN_WINDOW_MS,
     }
-    let candidates = await releaseCandidates(database, context)
+    const candidatesAt = performance.now()
+    let candidates = await releaseCandidates(database, context, probe)
+    if (probe) probe.candidatesMs = performance.now() - candidatesAt
     let plan = planStorageRelease(state, needBytes, candidates, options.mode)
     // Favoritos e "Continuar assistindo" só custam a resolução quando o plano chegaria à lista ativa (A-01).
     if (plan.some((candidate) => candidate.scope === 'active-category')) {
@@ -151,10 +159,40 @@ export async function makeRoomFor(
       freed += candidate.bytes
       if (notice && notice[1].length > 0) for (const listener of releaseListeners) listener(notice[0], notice[1])
     }
+    if (probe) {
+      probe.ledgerMs = ledgerAt - startedAt
+      probe.totalMs = performance.now() - startedAt
+      probe.released = released.length
+      emitMetric({ source: 'budget', mode: options.mode, ...Object.fromEntries(Object.entries(probe).map(([key, value]) => [key, Math.round(value * 10) / 10])) })
+    }
     return { fits: ledger.total - freed + needBytes <= capBytes, released }
   } catch {
     return { fits: true, released: [] }
   }
+}
+
+/**
+ * Medição do orçamento SEM gravar nem liberar nada (feature 085/082): roda só as etapas de leitura de `makeRoomFor` (conta, estimativa do
+ * navegador, candidatos) e manda os tempos ao canal de métricas. Só o `PerfOverlay` do build de medição a chama; sem o canal é no-op.
+ */
+export async function probeBudget(database: CatalogDb = db): Promise<void> {
+  if (!import.meta.env.VITE_CCPLAY_METRICS_REPORT) return
+  const probe: Record<string, number> = {}
+  const startedAt = performance.now()
+  try {
+    const ledger = await catalogLedger(database, probe)
+    const ledgerAt = performance.now()
+    // A lista com mais bytes no aparelho faz o papel de lista ativa (a medição não grava nem libera nada).
+    const sourceId = Object.entries(ledger.bySource).sort((a, b) => b[1] - a[1])[0]?.[0]
+    await readStorageEstimate()
+    probe.estimateMs = performance.now() - ledgerAt
+    const candidatesAt = performance.now()
+    await releaseCandidates(database, { activeSourceId: sourceId, ledger, lastUsedOf: () => 0, isRecent: () => false }, probe)
+    probe.candidatesMs = performance.now() - candidatesAt
+    probe.ledgerMs = ledgerAt - startedAt
+    probe.totalMs = performance.now() - startedAt
+    emitMetric({ source: 'budget', mode: 'probe', ...Object.fromEntries(Object.entries(probe).map(([key, value]) => [key, Math.round(value * 10) / 10])) })
+  } catch { /* medir nunca atrapalha o app */ }
 }
 
 const touched = new Map<string, number>()

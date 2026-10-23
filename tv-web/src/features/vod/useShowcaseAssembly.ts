@@ -17,6 +17,8 @@ export type ShowcaseSlotKey = 'continue' | 'top10' | 'favorites' | 'added' | 'ra
 const SLOT_ORDER: readonly ShowcaseSlotKey[] = ['continue', 'top10', 'favorites', 'added', 'rated', 'tip', 'because', 'categories']
 /** Leituras locais: prontas no 1º render (reabrir a tela) = a vitrine aparece na hora, como antes. */
 const PRIMARY = new Set<ShowcaseSlotKey>(['categories', 'continue', 'favorites', 'added'])
+/** Feature 086 (FR-013): dependem de serviço externo — a tela nunca espera por elas; entram quando o dado existir. */
+const EXTERNAL = new Set<ShowcaseSlotKey>(['top10', 'tip', 'because'])
 
 interface Read<T> {
   data: T | undefined
@@ -110,6 +112,7 @@ export function useShowcaseAssembly(
         : slotStatusOf(readOf(reads, key), () => itemsOf(reads, key).length === 0),
     primary: PRIMARY.has(key),
     required: key === 'categories',
+    external: EXTERNAL.has(key),
   }))
   return useScreenAssembly({ screen: section, slots, imageUrls, extraPending })
 }

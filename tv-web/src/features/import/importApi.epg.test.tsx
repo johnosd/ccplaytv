@@ -73,7 +73,7 @@ describe('gatilhos de EPG em importApi', () => {
     })
     await flush()
 
-    expect(requestEpgSync).toHaveBeenCalledWith(SOURCE_ID)
+    expect(requestEpgSync).toHaveBeenCalledWith(SOURCE_ID, { defer: true })
   })
 
   it('importação falha ou cancelada não sincroniza', async () => {
@@ -96,7 +96,7 @@ describe('gatilhos de EPG em importApi', () => {
 
     expect(opened.triggered).toBe(false)
     expect(runImport).not.toHaveBeenCalled()
-    expect(requestEpgSync).toHaveBeenCalledWith(SOURCE_ID)
+    expect(requestEpgSync).toHaveBeenCalledWith(SOURCE_ID, { defer: true })
   })
 
   it('abrir a fonte com o EPG em dia, desativado ou sem endereço não faz nada', async () => {
@@ -131,7 +131,7 @@ describe('gatilhos de EPG em importApi', () => {
 
     expect(opened.triggered).toBe(true)
     expect(runImport).toHaveBeenCalledTimes(1)
-    expect(requestEpgSync).toHaveBeenCalledWith(SOURCE_ID)
+    expect(requestEpgSync).toHaveBeenCalledWith(SOURCE_ID, { defer: true })
   })
   it('abrir com importação devida e EPG vencido pede o EPG já, qualquer que seja o desfecho da importação', async () => {
     const due = { lastSuccessfulSyncAt: NOW - 60 * 60 * 1000, epgLastSyncAt: NOW - EPG_STALE_AFTER_MS - 1000 }
@@ -147,7 +147,7 @@ describe('gatilhos de EPG em importApi', () => {
 
       expect(opened.triggered).toBe(true)
       expect(requestEpgSync).toHaveBeenCalledTimes(1)
-      expect(requestEpgSync).toHaveBeenCalledWith(SOURCE_ID)
+      expect(requestEpgSync).toHaveBeenCalledWith(SOURCE_ID, { defer: true })
     }
   })
 

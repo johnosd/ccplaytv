@@ -9,6 +9,8 @@ import {
   type StreamInfo,
   type TrackChoice,
 } from '../lib/player/tracks'
+import type { SubtitleLanguage } from '../lib/subtitles/types'
+import { formatExternalDelay, subtitleLanguageName, type ExternalPanelInput } from './externalSubtitleRows'
 
 /**
  * Modelo dos painéis "Áudio e legendas" e "Info do stream" (feature 029,
@@ -16,7 +18,9 @@ import {
  * decide foco e desenha são o `PlayerLayer` e os componentes de painel.
  */
 
-export type TracksRowGroup = 'audio' | 'ad' | 'text' | 'delay'
+export { formatExternalDelay, stepExternalDelay, subtitleLanguageName, type ExternalPanelInput } from './externalSubtitleRows'
+
+export type TracksRowGroup = 'audio' | 'ad' | 'text' | 'delay' | 'external' | 'externalSearch'
 
 export interface TracksRow {
   /** Estável entre relidas: `audio:<id>`, `ad`, `text:off`, `text:<id>`, `delay:<ms>`. */
@@ -34,14 +38,18 @@ export interface TracksRow {
   trackId?: string
   /** Só em `delay`: o atraso em ms. */
   delayMs?: number
+  /** Só em `external` (feature 090): o idioma da legenda externa guardada. */
+  language?: SubtitleLanguage
 }
 
 export interface TracksPanelModel {
   audioRows: TracksRow[]
   adRow: TracksRow
   textRows: TracksRow[]
-  /** Vazio quando não há nenhuma faixa de texto (a sincronização some). */
+  /** Vazio quando não há nenhuma faixa de texto (a sincronização some). Com a externa ativa: só `delay:external`. */
   delayRows: TracksRow[]
+  /** Feature 090: "Buscar legenda online" (depois do grupo Legendas); `null` sem legenda externa disponível. */
+  externalSearchRow: TracksRow | null
   noAudioNote: string | null
   noTextNote: string | null
   /** Todas as linhas focáveis, na ordem vertical do painel. */
@@ -61,7 +69,12 @@ function delayLabel(ms: number, t: Translator): string {
 }
 
 /** Constrói o modelo do painel de faixas a partir do que o motor informou e da escolha atual. */
-export function buildTracksPanel(tracks: MediaTrack[], choice: TrackChoice, t: Translator = createTranslator('pt')): TracksPanelModel {
+export function buildTracksPanel(
+  tracks: MediaTrack[],
+  choice: TrackChoice,
+  t: Translator = createTranslator('pt'),
+  external?: ExternalPanelInput,
+): TracksPanelModel {
   const labels = trackLabels(tracks, t)
   const labelOf = new Map(tracks.map((track, i) => [track, labels[i]]))
 
@@ -97,8 +110,10 @@ export function buildTracksPanel(tracks: MediaTrack[], choice: TrackChoice, t: T
 
   const textTracks = tracks.filter((t) => t.kind === 'text')
   const anyTextActive = textTracks.some((t) => t.active)
+  const stored = external?.stored ?? []
+  const activeExternal = stored.find((entry) => entry.active)
   const textRows: TracksRow[] = [
-    { key: 'text:off', group: 'text', label: t('player.tracks.off'), checked: !anyTextActive, disabled: false },
+    { key: 'text:off', group: 'text', label: t('player.tracks.off'), checked: !anyTextActive && !activeExternal, disabled: false },
     ...textTracks.map<TracksRow>((t) => ({
       key: `text:${t.id}`,
       group: 'text',
@@ -107,10 +122,43 @@ export function buildTracksPanel(tracks: MediaTrack[], choice: TrackChoice, t: T
       disabled: false,
       trackId: t.id,
     })),
+    ...stored.map<TracksRow>((entry) => ({
+      key: `external:${entry.language}`,
+      group: 'external',
+      label: t('subtitles.external', { language: subtitleLanguageName(entry.language, t) }),
+      checked: entry.active,
+      disabled: false,
+      language: entry.language,
+    })),
   ]
 
-  const delayRows: TracksRow[] =
-    textTracks.length === 0
+  const externalSearchRow: TracksRow | null = external
+    ? {
+        key: 'external:search',
+        group: 'externalSearch',
+        label:
+          external.search.mode === 'shortcut'
+            ? t('subtitles.searchIn', { language: subtitleLanguageName(external.search.language, t) })
+            : t('subtitles.search'),
+        checked: false,
+        disabled: external.search.disabledMessage !== undefined,
+        disabledMessage: external.search.disabledMessage,
+        language: external.search.language,
+      }
+    : null
+
+  const delayRows: TracksRow[] = activeExternal
+    ? [
+        {
+          key: 'delay:external',
+          group: 'delay',
+          label: t('subtitles.sync', { value: formatExternalDelay(activeExternal.delayMs, t) }),
+          checked: false,
+          disabled: false,
+          delayMs: activeExternal.delayMs,
+        },
+      ]
+    : textTracks.length === 0
       ? []
       : SUBTITLE_DELAYS_MS.map<TracksRow>((ms) => {
           const earlier = ms < 0
@@ -134,8 +182,9 @@ export function buildTracksPanel(tracks: MediaTrack[], choice: TrackChoice, t: T
     textRows,
     delayRows,
     noAudioNote: audioRows.length === 0 ? t('player.tracks.noAudio') : null,
-    noTextNote: textTracks.length === 0 ? t('player.tracks.noText') : null,
-    rows: [...audioRows, adRow, ...textRows, ...delayRows],
+    noTextNote: textTracks.length === 0 && stored.length === 0 ? t('player.tracks.noText') : null,
+    externalSearchRow,
+    rows: [...audioRows, adRow, ...textRows, ...(externalSearchRow ? [externalSearchRow] : []), ...delayRows],
   }
 }
 

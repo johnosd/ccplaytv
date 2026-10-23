@@ -11,7 +11,7 @@
  * interface travaria o controle remoto (FR-003, SC-002).
  */
 
-import { syncEpg, type SyncEpgResult } from './epgSync'
+import { syncEpg, type EpgPhase, type SyncEpgResult } from './epgSync'
 
 export interface EpgSyncRequest {
   type: 'sync'
@@ -20,6 +20,8 @@ export interface EpgSyncRequest {
 
 export type EpgWorkerResponse =
   | { type: 'done'; result: SyncEpgResult }
+  /** Marca de progresso (rótulo fixo + ms): a thread da interface a manda ao canal de métricas, se houver. */
+  | { type: 'progress'; phase: EpgPhase; ms: number }
   /** Só o nome do erro atravessa: a mensagem crua pode embutir endereço com credencial (ADR-010). */
   | { type: 'error'; name: string }
 
@@ -28,9 +30,12 @@ const scope = self as unknown as DedicatedWorkerGlobalScope
 scope.onmessage = async (event: MessageEvent<EpgSyncRequest>) => {
   const message = event.data
   if (message.type !== 'sync') return
+  scope.postMessage({ type: 'progress', phase: 'start', ms: 0 } satisfies EpgWorkerResponse)
 
   try {
-    const result = await syncEpg(message.sourceId)
+    const result = await syncEpg(message.sourceId, {
+      onPhase: (phase, ms) => scope.postMessage({ type: 'progress', phase, ms } satisfies EpgWorkerResponse),
+    })
     scope.postMessage({ type: 'done', result } satisfies EpgWorkerResponse)
   } catch (error) {
     scope.postMessage({

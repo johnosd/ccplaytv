@@ -4,6 +4,9 @@ import { prefetchScheduler, setPrefetchCategoryDone } from '../../lib/catalog/pr
 import { protectCatalogSource } from '../../lib/catalog/storageRelief'
 import { subscribeCatalogReleases, touchSource } from '../../lib/catalog/storageBudget'
 import { db } from '../../lib/catalog/db'
+import { onScreenDocumentRefreshed } from '../../lib/catalog/screenDocument'
+import { markExternalRowsForRefresh, onExternalRowRefreshed } from '../../lib/catalog/externalRows'
+import { subscribeAppLanguage } from '../../lib/i18n/appLanguage'
 import type { PrefetchHint } from '../../lib/catalog/prefetch/prefetchOrder'
 import type { PrefetchProgress } from '../../lib/catalog/prefetch/prefetchScheduler'
 
@@ -39,8 +42,17 @@ export const ALL_PAGES_REFETCH_MAX = 2
  */
 export const SEARCH_INDEX_REFRESH_MS = 10_000
 
-/** `['catalog-search-index', fonte, tipo]`: o índice. A vitrine tem mais elementos e segue invalidada a cada lote. */
+/** `['catalog-search-index', fonte, tipo]`: o índice de busca. */
 const CATALOG_INDEX_KEY_LENGTH = 3
+
+/**
+ * Consultas que percorrem o tipo inteiro e por isso têm remontagem limitada (feature 084, FR-006): o índice de busca e,
+ * desde a feature 086, o índice de nomes do Top 10/Dica. A vitrine NÃO entra aqui: desde a 086 ela lê candidatos
+ * guardados, é barata, e precisa acompanhar cada lote para a fileira não ficar velha com a tela aberta (FR-008).
+ */
+function isHeavyIndexKey(queryKey: readonly unknown[]): boolean {
+  return queryKey.length === CATALOG_INDEX_KEY_LENGTH || queryKey[queryKey.length - 1] === 'discovery-entries'
+}
 
 /**
  * Invalida, agrupado, o que depende de uma categoria que acabou de chegar ao
@@ -108,9 +120,9 @@ export function createPrefetchInvalidator(queryClient: QueryClient, batchMs = IN
         : [...pendingSource.byKind.keys()].map((kind) => ['catalog-search-index', sourceId, kind])
       for (const prefix of indexPrefixes) {
         // A vitrine e o resto sob o prefixo seguem como sempre; o índice (3 elementos) é remontado com limite.
-        void queryClient.invalidateQueries({ queryKey: prefix, predicate: (query) => query.queryKey.length !== CATALOG_INDEX_KEY_LENGTH })
+        void queryClient.invalidateQueries({ queryKey: prefix, predicate: (query) => !isHeavyIndexKey(query.queryKey) })
         refreshIndexes(queryClient.getQueryCache()
-          .findAll({ queryKey: prefix, predicate: (query) => query.queryKey.length === CATALOG_INDEX_KEY_LENGTH })
+          .findAll({ queryKey: prefix, predicate: (query) => isHeavyIndexKey(query.queryKey) })
           .map((query) => query.queryKey))
       }
       for (const kind of pendingSource.byKind.keys()) {
@@ -175,10 +187,32 @@ export function usePrefetchForSource(sourceId: string | null): void {
     const invalidator = createPrefetchInvalidator(queryClient)
     setPrefetchCategoryDone(invalidator.categoryDone)
     const unsubscribe = subscribeCatalogReleases((sourceId, categoryIds) => categoryIds.forEach((id) => invalidator.categoryDone(sourceId, id)))
+    // Feature 086 (T081/FR-008): a abertura aceita o documento de tela vencido de propósito — é o que a mantém rápida
+    // sob carga. Quando a fila de 2º plano o refaz, a vitrine daquele tipo relê, e só ela: sem isto o conteúdo novo
+    // apareceria apenas se a pessoa saísse e voltasse.
+    const unsubscribeDocument = onScreenDocumentRefreshed((sourceId, kind) => {
+      void queryClient.invalidateQueries({ queryKey: ['catalog-search-index', sourceId, kind, 'showcase'] })
+    })
+    // Feature 087 (T028/FR-006): o mesmo para o Top 10 e a Dica. A invalidação da pré-carga depende de uma categoria
+    // chegar, e o produtor roda quando não há mais nenhuma a chegar — sem este aviso a fileira só entraria na próxima
+    // visita. Invalida só a chave daquele tipo: o foco e a rolagem ficam onde estão.
+    const unsubscribeExternal = onExternalRowRefreshed((sourceId, kind) => {
+      void queryClient.invalidateQueries({ queryKey: ['catalog-search-index', sourceId, kind, 'external'] })
+    })
+    // Feature 087 (FR-012): trocar o idioma **mantém** a fileira na tela com o resultado anterior e marca para refazer.
+    // A assimetria com remover a chave é deliberada: trocar o idioma não é pedido para esvaziar nada.
+    const unsubscribeLanguage = subscribeAppLanguage(() => {
+      void markExternalRowsForRefresh().then(() => {
+        prefetchScheduler.wake()
+      })
+    })
     return () => {
       setPrefetchCategoryDone(undefined)
       invalidator.dispose()
       unsubscribe()
+      unsubscribeDocument()
+      unsubscribeExternal()
+      unsubscribeLanguage()
     }
   }, [queryClient])
 

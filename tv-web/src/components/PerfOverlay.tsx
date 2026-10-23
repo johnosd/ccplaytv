@@ -1,7 +1,13 @@
 import { useEffect, useState, useSyncExternalStore } from 'react'
 import { createActiveFrameTracker, type ActiveFrameStats } from '../lib/perf/activeFrames'
+import { createLongTaskTracker } from '../lib/perf/longTasks'
+import { closeRenderSpan, installKeySpan, snapshotSharedSpans, takeSharedIntervals } from '../lib/perf/phaseSpans'
+import { attributeLongTasks } from '../lib/perf/longTaskAttribution'
+import { createKeyDelayTracker } from '../lib/perf/keyDelay'
+import { snapshotActivityCounters } from '../lib/perf/activityCounters'
 import { subscribeEntryReports, takeEntryReports, type EntryReport } from '../lib/perf/entryTiming'
 import { emitMetric } from '../lib/perf/metricsChannel'
+import { probeBudget } from '../lib/catalog/storageBudget'
 
 /**
  * Painel de medição da feature 038 (FR-012), só no build de medição
@@ -9,6 +15,20 @@ import { emitMetric } from '../lib/perf/metricsChannel'
  * entradas medidas, **só números** e a seção; nunca nome de categoria/item,
  * URL ou credencial. Não é focável e não intercepta tecla.
  */
+/**
+ * **Modo controle** (`VITE_CCPLAY_PERF_QUIET=1`): mede sem se intrometer.
+ *
+ * Por que existe. As duas rodadas de 2026-10-22 atribuíram **95,4%** do tempo em que a thread fica presa a trabalho
+ * **fora** das etapas medidas, e nenhuma fonte do canal (pre-carga, carga da lista, produtor da 087, montagem)
+ * explicou. Sobrou uma suspeita que não se pode deixar de pé: **este painel**. Ele faz `setState` a cada quadro lento
+ * e outro a cada 500 ms — ~10 re-renders por janela de 5 s, contra uma mediana de **9 tarefas longas** por janela.
+ *
+ * Com a flag ligada ficam de pe só as medidas **passivas**: o `PerformanceObserver` de `longtask`, o laço de quadros
+ * (que apenas lê o relógio e soma em variáveis locais) e a emissao a cada 5 s. Saem o painel visual e **todo**
+ * `setState`. Se `longTaskMs` cair, o número media o medidor; se ficar igual, o problema é do app.
+ */
+const QUIETO = import.meta.env.VITE_CCPLAY_PERF_QUIET === '1'
+
 let snapshot: EntryReport[] = []
 function getSnapshot(): EntryReport[] {
   const all = takeEntryReports()
@@ -28,36 +48,82 @@ export function PerfOverlay() {
     const mountedAt = performance.now()
     let lastKey = mountedAt
     const tracker = createActiveFrameTracker()
-    const onKey = () => { lastKey = performance.now(); tracker.onKey(lastKey) }
-    const refresh = window.setInterval(() => setKeyedFrames(tracker.snapshot(performance.now())), 500)
+    // Assessment `tarefa-longa-na-leitura-categoria-gorda`: distingue quadro longo POR código nosso de quadro longo
+    // por pausa de memória. Agregado na mesma janela dos quadros, para não inundar o canal.
+    const longTasks = createLongTaskTracker()
+    // Feature 089: o atraso de cada tarefa longa desde a última tecla, o discriminador que a 088 não tinha.
+    const atrasos = createKeyDelayTracker()
+    const desinstalarTecla = installKeySpan()
+    const onKey = () => { lastKey = performance.now(); tracker.onKey(lastKey); atrasos.onKey(lastKey) }
+    // No modo controle o painel não existe, então este `setState` de 500 ms não tem para quem renderizar — e é
+    // justamente um dos suspeitos. A janela de tecla continua indo ao canal pelo lote de 5 s abaixo.
+    const refresh = QUIETO ? 0 : window.setInterval(() => setKeyedFrames(tracker.snapshot(performance.now())), 500)
     window.addEventListener('keydown', onKey, true)
     // Feature 085: a cada ~5 s os quadros lentos e a janela de tecla vão ao canal (no-op fora do build de medição).
     let slow = 0
     let idleSlow = 0
+    // Feature 086 (FR-026): o pico de heap da sessão entra junto dos quadros; só existe no Chromium da TV.
+    let peakHeap = 0
+    const heapNow = (): number => {
+      const memory = (performance as { memory?: { usedJSHeapSize?: number } }).memory
+      return typeof memory?.usedJSHeapSize === 'number' ? memory.usedJSHeapSize : 0
+    }
     const report = window.setInterval(() => {
       const keyed = tracker.snapshot(performance.now())
-      emitMetric({ source: 'frames', slow, idleSlow, ...(keyed ? { fps: keyed.fps, worstMs: keyed.worstMs, over50: keyed.over50 } : {}) })
+      peakHeap = Math.max(peakHeap, heapNow())
+      const longas = longTasks.snapshot()
+      // Feature 088: as etapas nomeadas vão no MESMO lote, para a leitura cruzar quadro x tarefa longa x etapa.
+      const etapas = snapshotSharedSpans()
+      // T025: parte o tempo preso ENTRE as etapas, para que "fora de todas" seja uma medida com número — e não o
+      // resíduo de uma subtração, que a Fase 3 deixou em 76%.
+      // `takeWindows()` DRENA a lista: chamar de novo devolveria vazio e as chaves de atraso sairiam sempre nulas
+      // — um bug silencioso que passa em todo teste unitário e só apareceria como "a medição não mediu nada" depois
+      // de gastar uma rodada de TV. Uma leitura, duas contas.
+      const janelasLongas = longTasks.takeWindows()
+      const atribuicao = attributeLongTasks(janelasLongas, takeSharedIntervals())
+      const porAtraso = atrasos.snapshot(janelasLongas)
+      // T022: quantas vezes cada subsistema foi acionado na janela — a medida que separa as três candidatas
+      // que sobraram da rodada 1. Instalada em `main.tsx`, porque o cache de consultas vive acima deste nó.
+      const acionamentos = snapshotActivityCounters()
+      emitMetric({ source: 'frames', slow, idleSlow, ...(keyed ? { fps: keyed.fps, worstMs: keyed.worstMs, over50: keyed.over50 } : {}),
+        ...(longas ?? {}),
+        ...(etapas ?? {}),
+        ...(atribuicao ?? {}),
+        ...(porAtraso ?? {}),
+        ...(acionamentos ?? {}),
+        ...(peakHeap > 0 ? { heapMB: Math.round(peakHeap / 1048576), heapNowMB: Math.round(heapNow() / 1048576) } : {}) })
     }, 5_000)
+    // Feature 085/082: o orçamento medido sem gravar nada, 3× (20 s, 80 s e 140 s depois de abrir), para ter as etapas
+    // no app real. **Opt-in desde a feature 086 (T088)**: na TV estas três chamadas custaram 1,2–4,9 s cada e apareceram
+    // disputando o aparelho com a abertura das telas — ou seja, a medição alterava o que estava medindo. Ligue com
+    // `VITE_CCPLAY_BUDGET_PROBE=1` quando o alvo for o orçamento; para medir a montagem, deixe desligado.
+    const budgetTimers = import.meta.env.VITE_CCPLAY_BUDGET_PROBE === '1'
+      ? [20_000, 80_000, 140_000].map((delay) => window.setTimeout(() => { void probeBudget() }, delay))
+      : []
     let previous = performance.now()
     let active = true
     let frame = 0
     const tick = (now: number) => {
       if (!active) return
       tracker.onFrame(now)
+      // Feature 088: o 1º quadro depois da tecla fecha a etapa `render`.
+      closeRenderSpan()
       if (now - previous > 100) {
         slow += 1
-        setSlowFrames((count) => count + 1)
+        if (!QUIETO) setSlowFrames((count) => count + 1)
         if (now - mountedAt > 15_000 && previous - lastKey > 2_000) {
           idleSlow += 1
-          setIdleSlowFrames((count) => count + 1)
+          if (!QUIETO) setIdleSlowFrames((count) => count + 1)
         }
       }
       previous = now
       frame = requestAnimationFrame(tick)
     }
     frame = requestAnimationFrame(tick)
-    return () => { active = false; cancelAnimationFrame(frame); window.clearInterval(refresh); window.clearInterval(report); window.removeEventListener('keydown', onKey, true) }
+    return () => { active = false; cancelAnimationFrame(frame); window.clearInterval(refresh); window.clearInterval(report); budgetTimers.forEach((timer) => window.clearTimeout(timer)); window.removeEventListener('keydown', onKey, true); longTasks.dispose(); atrasos.dispose(); desinstalarTecla() }
   }, [])
+  // O painel inteiro sai no modo controle: nenhum nó, nenhuma classe, nada para o navegador recalcular.
+  if (QUIETO) return null
   const last = reports.slice(-6)
   // A entrada mais recente que já pintou a 1ª página (SC-002 é lido na TV a cada entrada).
   const firstPage = [...reports].reverse().find((report) => report.phases.firstPaint !== undefined)?.phases.firstPaint

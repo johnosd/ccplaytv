@@ -13,6 +13,7 @@ import type { BlockItem, CatalogDb, CatalogRecord, CategoryBlockRecord, Category
 import { blockItemId, identityKey, itemsSignature, legacyRowsOf, type BlockTarget } from './categoryBlocks'
 import { encodeBlockChunks, encodeIdentityIndex, sharedOf } from './blockCodec'
 import { categoryChunks, IDENTITY_CHUNK, type CategoryChunkRecord } from './chunkTables'
+import { pickCandidates, writeCandidates, type ShowcaseCandidates } from './showcaseCandidates'
 import { forgetCachedChunks, readHeaderChunks, readIdentityIndex } from './blockChunks'
 import { noteMovedIds } from './blockMemo'
 import { invalidateCategoryReadModel } from './readProjection'
@@ -30,6 +31,12 @@ export interface PreparedBlock {
   moves: Array<[number, number]>
   signature: string
   storedBytes: number
+  /**
+   * Feature 086 (FR-003): os candidatos das fileiras desta categoria, escolhidos **aqui**, onde os itens já estão em
+   * mãos. Guardamos os candidatos (~60 itens) e **nunca** o bloco inteiro (~1 300): retê-lo custou 8× na carga de
+   * séries na TV (R-014). `undefined` para `channel`, que não tem fileiras calculadas.
+   */
+  candidates?: ShowcaseCandidates
 }
 
 export interface BlockWriteOptions {
@@ -37,6 +44,17 @@ export interface BlockWriteOptions {
   convert?: boolean
   /** Chamado com os bytes codificados antes da transação; `false` = não há espaço (orçamento, `makeRoomFor`). */
   room?: (needBytes: number) => Promise<boolean>
+  /**
+   * Feature 086 (FR-003): recebe os candidatos em vez de gravá-los aqui. Quem carrega uma seção inteira junta os de
+   * todas as categorias e grava **uma vez**, no fim — uma transação por categoria custou 34 transações extras numa
+   * carga de filmes (R-014). Sem isto, a gravação acontece na hora, que é o certo para uma categoria só.
+   */
+  collectCandidates?: (candidates: ShowcaseCandidates) => void
+  /**
+   * Feature 086 (T080): recebe o tempo de cada etapa da gravação (`prevId`, `assign`, `shared`, `chunks`, `identity`,
+   * `pick`, `tx`). Só para medir — sem ela, nada é cronometrado.
+   */
+  onStage?: (stage: string, ms: number) => void
 }
 
 export class BlockRevisionConflict extends Error {}
@@ -122,11 +140,20 @@ export async function prepareBlockWrite(target: BlockTarget, items: readonly Cat
   const oldCount = old ? (old.format === 2 ? (old.count ?? 0) : (old.items ?? []).length) : undefined
   if (!options.convert && old && category.itemsSignature === signature && oldCount === items.length) return 'unchanged'
 
-  const { previous, legacy } = await previousIdentities(database, target, old)
-  const { blockItems, moves } = assignBlockItems(target, items, previous, category.seriesEpisodesFetchedAt)
-  const shared = sharedOf(blockItems)
-  const encoded = await encodeBlockChunks(blockItems, shared)
-  const identity = await encodeIdentityIndex(blockItems, (item) => identityKey({ ...item, kind: target.kind }))
+  // Medição por etapa (feature 086, T080): o `encodeMs` da carga por seção cobre tudo isto de uma vez, e na TV ele
+  // saltou de 1 262 para ~8 300 ms em filmes sem que se soubesse qual etapa cresceu. Só números, e só quando pedido.
+  const stage = options.onStage
+  const timed = async <T>(name: string, run: () => T | Promise<T>): Promise<T> => {
+    if (!stage) return run()
+    const at = performance.now()
+    try { return await run() } finally { stage(name, performance.now() - at) }
+  }
+
+  const { previous, legacy } = await timed('prevId', () => previousIdentities(database, target, old))
+  const { blockItems, moves } = await timed('assign', () => assignBlockItems(target, items, previous, category.seriesEpisodesFetchedAt))
+  const shared = await timed('shared', () => sharedOf(blockItems))
+  const encoded = await timed('chunks', () => encodeBlockChunks(blockItems, shared))
+  const identity = await timed('identity', () => encodeIdentityIndex(blockItems, (item) => identityKey({ ...item, kind: target.kind })))
   const revision = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`
   const storedBytes = encoded.reduce((sum, chunk) => sum + chunk.bytes.byteLength, identity.byteLength + HEADER_BYTES)
   const owner = { categoryId: target.categoryId, sourceId: target.sourceId, generation: target.generation, revision }
@@ -136,8 +163,16 @@ export async function prepareBlockWrite(target: BlockTarget, items: readonly Cat
   ]
   const header: CategoryBlockRecord = { ...target, format: 2, shared, count: blockItems.length, chunkCount: encoded.length,
     storedBytes, revision }
+  // Feature 086 (FR-003/R-013): escolhidos com os itens que já estão em mãos, sem nenhuma leitura extra. `now` do
+  // parâmetro é o carimbo de obtenção da categoria; a régua de ano de "Bem avaliados" compara com o ano CORRENTE,
+  // então aqui vai `Date.now()` (`logic/selecoes-guardadas.md` §3).
+  const rowKind: 'movie' | 'series' | undefined =
+    target.kind === 'movie' ? 'movie' : target.kind === 'series' ? 'series' : undefined
+  const candidates = rowKind === undefined
+    ? undefined
+    : await timed('pick', () => pickCandidates({ ...target, kind: rowKind, order: category.order }, blockItems, Date.now()))
   return { target, expected: headerState(old), header, rows, legacyIds: legacy.map((row) => row.id as number), moves,
-    signature, storedBytes }
+    signature, storedBytes, candidates }
 }
 
 /** Fase 2: roda **dentro** de uma transação `rw` com `blockWriteTables`. Só banco — nada de compressão aqui. */
@@ -182,8 +217,16 @@ export async function writeCompressedBlock(target: BlockTarget, items: readonly 
     }
     if (options.room && !(await options.room(prepared.storedBytes))) return { written: false, storageFull: true }
     try {
+      const txAt = performance.now()
       const written = await database.transaction('rw', blockWriteTables(database), () => commitBlockWrite(prepared, now, database, options))
+      options.onStage?.('tx', performance.now() - txAt)
       forgetCachedChunks(database, target.categoryId)
+      // Feature 086 (FR-003): os candidatos já saíram da codificação (`prepareBlockWrite`). Quem carrega uma seção
+      // junta e grava uma vez no fim; sem coletor, grava aqui mesmo. Falha aqui nunca derruba a gravação do catálogo.
+      if (written && prepared.candidates) {
+        if (options.collectCandidates) options.collectCandidates(prepared.candidates)
+        else await writeCandidates(prepared.candidates, database).catch(() => undefined)
+      }
       return { written }
     } catch (error) {
       if (error instanceof BlockRevisionConflict && attempt < 2) continue

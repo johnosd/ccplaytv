@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { CatalogDb, type CatalogRecord } from './db'
 import { getChannel, listChannels, storeCategories, storeCategoryItems } from './catalogRepository'
 import { makeRoomFor, PIN_WINDOW_MS, subscribeCatalogReleases, touchCategory } from './storageBudget'
-import { categoryStoredBytes, METADATA_BYTES } from './storageLedger'
+import { categoryStoredBytes, LEGACY_EPG_ROW_BYTES, METADATA_BYTES } from './storageLedger'
 import { releaseCandidates, releaseInactiveList, releaseTemporary } from './storageRelease'
 import { catalogLedger } from './storageLedger'
 import { epgChunks } from './chunkTables'
@@ -126,6 +126,32 @@ describe('liberação do orçamento', () => {
     const ledger = await catalogLedger(database)
     const candidates = await releaseCandidates(database, { activeSourceId: 'ativa', ledger, lastUsedOf: () => 0, isRecent: () => false })
     expect(candidates.filter((candidate) => candidate.refetchable).map((candidate) => candidate.key)).toEqual(['category:1'])
+  })
+
+  // Ajuste ad-hoc (assessment orcamento-armazenamento-makeroomfor): os candidatos reaproveitam a contagem de guia antigo do ledger.
+  it('o candidato de guia antigo usa a contagem do ledger e as listas são contadas em paralelo, com o mesmo resultado', async () => {
+    for (let index = 0; index < 3; index += 1) {
+      await database.epgPrograms.add({ sourceId: 'outra', generation: 1, channelKey: `c${index}`, title: 't', start: index, stop: index + 1 } as never)
+    }
+    const ledger = await catalogLedger(database)
+    expect(ledger.legacyGuideRows).toEqual({ ativa: 0, outra: 3 })
+    // O banco tem 3 linhas, mas o candidato obedece ao ledger entregue (prova de que não refaz a contagem).
+    const candidates = await releaseCandidates(database, { activeSourceId: 'ativa', ledger: { ...ledger, legacyGuideRows: { ativa: 0, outra: 7 } }, lastUsedOf: () => 0, isRecent: () => false })
+    expect(candidates.find((candidate) => candidate.key === 'legacy-guide:outra')?.bytes).toBe(7 * LEGACY_EPG_ROW_BYTES)
+    // Sem a contagem no ledger (conta feita por outro caminho), cai para a contagem do próprio banco.
+    const { legacyGuideRows: _omit, ...withoutCount } = ledger
+    const fallback = await releaseCandidates(database, { activeSourceId: 'ativa', ledger: withoutCount, lastUsedOf: () => 0, isRecent: () => false })
+    expect(fallback.find((candidate) => candidate.key === 'legacy-guide:outra')?.bytes).toBe(3 * LEGACY_EPG_ROW_BYTES)
+  })
+
+  it('metadados e guia antigo são atribuídos à lista certa', async () => {
+    await database.titleMetadata.bulkPut([
+      { stableId: 'a|movie|1', sourceId: 'ativa' }, { stableId: 'a|movie|2', sourceId: 'ativa' }, { stableId: 'o|movie|1', sourceId: 'outra' },
+    ] as never)
+    await database.epgPrograms.add({ sourceId: 'ativa', generation: 1, channelKey: 'c', title: 't', start: 0, stop: 1 } as never)
+    const ledger = await catalogLedger(database)
+    expect(ledger.bySource).toEqual({ ativa: 2 * METADATA_BYTES + LEGACY_EPG_ROW_BYTES, outra: METADATA_BYTES })
+    expect(ledger.legacyGuideRows).toEqual({ ativa: 1, outra: 0 })
   })
 
   // Feature 085, T013: o preparo é contado e liberado só por chave de índice (FR-001, FR-005).

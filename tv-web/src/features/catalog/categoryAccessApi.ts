@@ -27,7 +27,6 @@ const CATALOG_QUERY_KEYS = [
   'similar-titles',
   'person-titles',
   'series-episodes',
-  'tmdb-discovery',
   'cached-title-view',
 ]
 

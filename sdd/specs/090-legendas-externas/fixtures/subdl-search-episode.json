@@ -1,0 +1,13 @@
+{
+  "status": true,
+  "results": [{ "sd_id": 1, "type": "tv", "name": "Serie Ficticia", "tmdb_id": 99 }],
+  "subtitles": [
+    { "release_name": "Serie.Ficticia.S01E02.WEB", "name": "x", "lang": "English", "language": "EN", "url": "/subtitle/111-222.zip?api_key=CHAVE_FICTICIA_NAO_REPASSAR", "season": 1, "episode": 2, "hi": false, "full_season": false },
+    { "release_name": "Serie.Ficticia.SEASON.1.Pack", "name": "x", "lang": "English", "language": "EN", "url": "/subtitle/333-444.zip?api_key=CHAVE_FICTICIA_NAO_REPASSAR", "season": 1, "episode": null, "hi": true, "full_season": true },
+    { "release_name": "Serie.Ficticia.S01E05.WEB", "name": "x", "lang": "English", "language": "EN", "url": "/subtitle/555-666.zip?api_key=CHAVE_FICTICIA_NAO_REPASSAR", "season": 1, "episode": 5, "hi": false, "full_season": false },
+    { "release_name": "Serie.Ficticia.S02.Pack", "name": "x", "lang": "English", "language": "EN", "url": "/subtitle/777-888.zip?api_key=CHAVE_FICTICIA_NAO_REPASSAR", "season": 2, "episode": null, "hi": false, "full_season": true },
+    { "release_name": "Episodios.1-3", "name": "x", "lang": "English", "language": "EN", "url": "/subtitle/999-111.zip?api_key=CHAVE_FICTICIA_NAO_REPASSAR", "season": 1, "episode": 1, "episode_from": 1, "episode_end": 3, "hi": false, "full_season": false },
+    { "release_name": "Espanhol", "name": "x", "lang": "spanish", "language": "ES", "url": "/subtitle/121-212.zip?api_key=CHAVE_FICTICIA_NAO_REPASSAR", "season": 1, "episode": 2, "hi": false, "full_season": false },
+    { "release_name": "URL.Estranha", "name": "x", "lang": "English", "language": "EN", "url": "https://outro.host/subtitle/1-2.zip", "season": 1, "episode": 2, "hi": false, "full_season": false }
+  ]
+}

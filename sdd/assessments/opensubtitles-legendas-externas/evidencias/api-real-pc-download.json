@@ -1,0 +1,52 @@
+{
+  "recordedAt": "2026-10-21T23:08:00.143Z",
+  "scope": "PC Node HTTP; not browser, emulator, or physical TV",
+  "keyConfigured": true,
+  "maxDownloadsRequested": 1,
+  "tests": [
+    {
+      "label": "search-movie-pt-br",
+      "httpStatus": 200,
+      "elapsedMs": 252,
+      "totalCount": 35,
+      "returnedRows": 35,
+      "rateLimitRemaining": "4",
+      "corsOrigin": "*",
+      "corsHeaders": "Origin, Authorization, Accept, Api-Key, Content-Type, X-User-Agent"
+    },
+    {
+      "label": "search-episode-pt-br",
+      "httpStatus": 200,
+      "elapsedMs": 46,
+      "totalCount": 14,
+      "returnedRows": 14,
+      "rateLimitRemaining": "4",
+      "corsOrigin": "*",
+      "corsHeaders": "Origin, Authorization, Accept, Api-Key, Content-Type, X-User-Agent"
+    },
+    {
+      "label": "cors-preflight-origin-null",
+      "httpStatus": 200,
+      "elapsedMs": 245,
+      "rateLimitRemaining": null,
+      "corsOrigin": "*",
+      "corsHeaders": "*"
+    },
+    {
+      "label": "request-one-download",
+      "httpStatus": 200,
+      "elapsedMs": 335,
+      "remaining": 99,
+      "rateLimitRemaining": "4",
+      "corsOrigin": "*",
+      "corsHeaders": "Origin, Authorization, Accept, Api-Key, Content-Type, X-User-Agent"
+    },
+    {
+      "label": "fetch-one-subtitle-file",
+      "httpStatus": 200,
+      "bytes": 85662,
+      "hasSubtitleTimestamps": true,
+      "subtitleContentSaved": false
+    }
+  ]
+}

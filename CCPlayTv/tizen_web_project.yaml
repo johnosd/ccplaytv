@@ -82,7 +82,19 @@ files:
   - assets/LockedCategoryState.js
   - assets/Modal.js
   - assets/verifyNetwork.js
-  - assets/storageBudget.js
+  - assets/vodShowcase.js
+  - assets/firstReveal.js
+  # Feature 090: o padrão de produção das legendas externas é carregado por
+  # `import()` só depois de o vídeo começar a tocar (D-012) — `runtime.js` é esse
+  # chunk; os outros quatro são módulos que ele compartilha com as rotas e que o
+  # empacotador passou a separar.
+  - assets/runtime.js
+  - assets/storageRelief.js
+  # Chaves pessoais de legenda (BYOK): compartilhado entre `runtime.js` e a aba Integrações.
+  - assets/subtitleCredentials.js
+  - assets/titleMetadataStore.js
+  - assets/translate.js
+  - assets/viewChoice.js
   # Worker de importação (feature 005), alcançado a partir de
   # `importRunner.ts` — que `importApi.ts` chama. Enquanto nada no grafo do
   # app criasse esse Worker, o empacotador não emitia o arquivo e esta linha

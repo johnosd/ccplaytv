@@ -12,8 +12,9 @@ import {
 import { reconcileRun, type ImportHandle } from '../../lib/catalog/importPipeline'
 import { runImport } from '../../lib/catalog/importRunner'
 import { decideOnOpen } from '../../lib/catalog/freshness'
-import { EPG_ERROR_CODE, epgErrorMessage, isEpgDueAfterImport, isEpgStale, isValidEpgUrl } from '../../lib/epg/epgStatus'
+import { EPG_ERROR_CODE, EPG_STALE_AFTER_MS, epgErrorMessage, isEpgDueAfterImport, isEpgStale, isValidEpgUrl } from '../../lib/epg/epgStatus'
 import { isEpgSyncing, requestEpgSync, subscribeEpgSyncing } from '../../lib/epg/epgRunner'
+import { armFirstReveal } from '../../lib/assembly/firstReveal'
 import { setEpgEnabled, setEpgManualUrl, setEpgOffsetHours } from '../../lib/epg/epgRepository'
 import type { EpgStatus } from '../../lib/epg/types'
 import type { SourceAccount } from '../../lib/catalog/sourceAccount'
@@ -23,7 +24,7 @@ import { forgetLiveSource } from '../live/liveSessionMemory'
 
 // Telas falam só com `importApi`/`catalogApi`, nunca com `lib/` direto (D-001
 // da feature 005): o que a tela de EPG precisa de `lib/epg` sai por aqui.
-export { EPG_ERROR_CODE, epgErrorMessage, isValidEpgUrl }
+export { EPG_ERROR_CODE, EPG_STALE_AFTER_MS, epgErrorMessage, isValidEpgUrl }
 export type { EpgStatus }
 import { logger } from '../../lib/logger'
 
@@ -286,7 +287,7 @@ async function startLocalImport(sourceId: string): Promise<ImportHandle> {
   void handle.completion.then(
     async (run) => {
       const after = run.status === 'completed' ? await db.sources.get(sourceId).catch(() => undefined) : undefined
-      if (after && isEpgDueAfterImport(before, after, run.startedAt, Date.now())) void requestEpgSync(sourceId)
+      if (after && isEpgDueAfterImport(before, after, run.startedAt, Date.now())) void requestEpgSync(sourceId, { defer: true })
     },
     () => {
       // Já tratado abaixo (erro não categorizado).
@@ -487,11 +488,12 @@ export function useOpenSource() {
       // ausência dessa linha falharia **só na TV**, como abertura de fonte
       // que rejeita sem motivo aparente (R-002). São 36 linhas: não há o que
       // adiar.
+      armFirstReveal() // Feature 086 (T083): a carga e o guia passam a esperar a Home desta lista aparecer.
       const action = decideOnOpen(source, Date.now())
       // Feature 030 (FR-009) + bug `epg-nao-atualiza-depois-primeira-carga`: o EPG vencido
       // (> 12 h) atualiza em segundo plano em **toda** abertura, sem esperar a importação —
       // antes só sem importação a fazer, o que com o prazo de 10 min quase nunca acontecia.
-      if (isEpgStale(source, Date.now())) void requestEpgSync(sourceId)
+      if (isEpgStale(source, Date.now())) void requestEpgSync(sourceId, { defer: true })
 
       if (action === 'none') return { triggered: false, import_job_id: null } satisfies OpenSourceResponse
       const handle = await startLocalImport(sourceId)

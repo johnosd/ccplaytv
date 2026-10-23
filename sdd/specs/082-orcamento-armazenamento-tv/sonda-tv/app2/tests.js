@@ -390,5 +390,73 @@ window.T = (function () {
     return out
   }
 
-  return { guia: guia, ambiente: ambiente, cpu: cpu, compressao: compressao, worker: worker, idb: idb, render: render, foco083: foco083, rede: rede, memoriaHeap: memoriaHeap, memoriaBuffers: memoriaBuffers }
+  /* Feature 090 (T053): o navegador da TV (origem `file://`) consegue falar com o OpenSubtitles? Chave FALSA de propósito:
+     o preflight não depende de a chave valer, e assim nenhuma credencial entra na TV. Devolve só status e nomes de erro. */
+  async function osCors() {
+    var out = { origin: location.origin, chromium: (/Chrome\/([\d.]+)/.exec(navigator.userAgent) || [])[1] || null, steps: {} }
+    var fake = 'chave-falsa-de-teste-090-0000000000'
+    var base = 'https://api.opensubtitles.com/api/v1'
+    async function attempt(name, url, init) {
+      try {
+        var response = await fetch(url, init)
+        out.steps[name] = { status: response.status }
+      } catch (error) {
+        out.steps[name] = { threw: error && error.name ? error.name : 'Error' }
+      }
+      P.log('osCors ' + name + ': ' + JSON.stringify(out.steps[name]))
+    }
+    await attempt('semCabecalhoCustom', base + '/infos/formats', {})
+    await attempt('preflightApiKey', base + '/subtitles?languages=en&tmdb_id=10331', { headers: { 'Api-Key': fake } })
+    await attempt('preflightApiKeyEXUserAgent', base + '/subtitles?languages=en&tmdb_id=10331', { headers: { 'Api-Key': fake, 'X-User-Agent': 'ccplayTv v1' } })
+    await attempt('postDownload', base + '/download', { method: 'POST', headers: { 'Api-Key': fake, 'Content-Type': 'application/json', 'X-User-Agent': 'ccplayTv v1' }, body: JSON.stringify({ file_id: 1 }) })
+    await attempt('controleSubdl', 'https://api.subdl.com/api/v1/subtitles?film_name=test&subs_per_page=1&api_key=' + fake, {})
+    return out
+  }
+
+  /* Feature 090 (T053), segunda etapa: busca + download REAIS do OpenSubtitles na TV com a chave de DESENVOLVIMENTO, entregue
+     por um servidor temporário só ao IP da TV (nunca gravada nem logada; só status, host do link e tamanhos saem daqui). */
+  async function osReal() {
+    var out = { steps: {} }
+    var keyUrl = (window.PROBE_BASE_URL || '').replace(':8770', ':8771') + '/k'
+    var key
+    try { key = (await (await fetch(keyUrl)).text()).trim() } catch (error) { out.steps.chave = { threw: error && error.name } ; return out }
+    out.steps.chave = { recebida: key.length > 8 }
+    var base = 'https://api.opensubtitles.com/api/v1'
+    var fileId
+    try {
+      var found = await fetch(base + '/subtitles?languages=en&tmdb_id=10331', { headers: { 'Api-Key': key, Accept: 'application/json' } })
+      var body = found.ok ? await found.json() : {}
+      fileId = body && body.data && body.data[0] && body.data[0].attributes && body.data[0].attributes.files[0].file_id
+      out.steps.busca = { status: found.status, resultados: body && body.data ? body.data.length : 0, temFileId: typeof fileId === 'number' }
+    } catch (error) { out.steps.busca = { threw: error && error.name } }
+    P.log('osReal busca: ' + JSON.stringify(out.steps.busca))
+    if (typeof fileId !== 'number') return out
+    async function download(name, headers) {
+      try {
+        var asked = await fetch(base + '/download', { method: 'POST', headers: headers, body: JSON.stringify({ file_id: fileId }) })
+        var payload = await asked.json().catch(function () { return {} })
+        out.steps[name] = { status: asked.status, temLink: typeof payload.link === 'string', hostLink: typeof payload.link === 'string' ? new URL(payload.link).hostname : null, restante: payload.remaining === undefined ? null : payload.remaining }
+        P.log('osReal ' + name + ': ' + JSON.stringify(out.steps[name]))
+        return asked.ok && typeof payload.link === 'string' ? payload.link : null
+      } catch (error) {
+        out.steps[name] = { threw: error && error.name }
+        P.log('osReal ' + name + ': ' + JSON.stringify(out.steps[name]))
+        return null
+      }
+    }
+    var link = await download('downloadComXUserAgent', { 'Api-Key': key, 'Content-Type': 'application/json', Accept: 'application/json', 'X-User-Agent': 'ccplayTv v1' })
+    if (!link) link = await download('downloadSemXUserAgent', { 'Api-Key': key, 'Content-Type': 'application/json', Accept: 'application/json' })
+    if (link) {
+      try {
+        var file = await fetch(link)
+        var bytes = new Uint8Array(await file.arrayBuffer())
+        out.steps.arquivo = { status: file.status, bytes: bytes.length }
+      } catch (error) { out.steps.arquivo = { threw: error && error.name } }
+      P.log('osReal arquivo: ' + JSON.stringify(out.steps.arquivo))
+    }
+    key = null
+    return out
+  }
+
+  return { osReal: osReal, osCors: osCors, guia: guia, ambiente: ambiente, cpu: cpu, compressao: compressao, worker: worker, idb: idb, render: render, foco083: foco083, rede: rede, memoriaHeap: memoriaHeap, memoriaBuffers: memoriaBuffers }
 })()

@@ -8,6 +8,10 @@ const TESTES_TS_COM_DOM = [
   'src/navigation/lastSource.test.ts',
   'src/features/shell/clock.test.ts',
   'src/lib/imeProbe.test.ts',
+  'src/lib/perf/autopilot.test.ts',
+  // Feature 089: contrato TRAVADO, e mexe no DOM (.tv-focus, .nav-item) — por ser travado nao pode levar
+  // o comentario `@vitest-environment`, que mudaria o SHA256 do arquivo.
+  'src/lib/perf/autopilot.tarefas-longas-fora-navegacao.contract.test.ts',
   'src/lib/motionPreference.fundacao-visual.contract.test.ts',
   'src/lib/motionPreference.test.ts',
   'src/lib/onlineStatus.test.ts',
@@ -15,6 +19,9 @@ const TESTES_TS_COM_DOM = [
   'src/lib/tizenColorKey.test.ts',
   'src/lib/tizenExit.test.ts',
   'src/lib/tizenMediaKeys.test.ts',
+  // Feature 086: o documento de tela mora no `localStorage` (decidido pela sonda, T070), então o teste precisa de DOM.
+  'src/lib/catalog/screenDocument.test.ts',
+  'src/lib/catalog/screenDocument.aviso.test.ts',
   'src/lib/catalog/sourceConnectionCheck.ime-formularios.contract.test.ts',
   'src/lib/catalog/sourceConnectionCheck.test.ts',
   'src/lib/focus/usePosterColumnWidth.test.ts',

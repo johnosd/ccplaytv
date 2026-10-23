@@ -1,5 +1,6 @@
 /** Ciclo de vida das gerações: gravar lote, alocar, publicar, coletar e descartar. Parte da divisão de `catalogRepository.ts` (feature 063); a fachada reexporta. */
 
+import { clearScreenDocuments } from '../screenDocumentStore'
 import { db, type CatalogDb, type CatalogRecord } from '../db'
 import { KIND_MAX, KIND_MIN, blockKeysOutsideGeneration, blocksOfGeneration, blocksOfSource } from '../categoryBlocks'
 import {
@@ -79,6 +80,9 @@ export async function publishGeneration(
     [database.sources, database.channels, database.categories, database.storedEntries, database.categoryBlocks, database.catalogReadManifests, database.catalogReadChunks, categoryChunks(database)] as any,
     async () => {
       await database.sources.update(sourceId, { activeGeneration: generation, updatedAt: Date.now() })
+      // Feature 086 (T089): geração nova = fileiras de outra safra. A leitura do documento não consulta o banco, então
+      // quem troca a geração é que precisa apagá-lo.
+      clearScreenDocuments(sourceId)
       // Blocos de outras gerações (feature 039, §8): pelas chaves do índice,
       // nunca lendo os blocos (um filtro `.and()` leria todos, inclusive os novos).
       const staleBlocks = await blockKeysOutsideGeneration(database, sourceId, generation)

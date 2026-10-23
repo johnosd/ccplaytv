@@ -163,4 +163,19 @@ describe('prefetchScheduler (feature 038)', () => {
     await vi.advanceTimersByTimeAsync(20 * 60 * 1000)
     expect(housekeeping).toHaveBeenCalledTimes(3)
   })
+
+  // Feature 087 (T050): a limpeza roda entre categorias E com a fila vazia, e tarefa **cara** só cabe no segundo
+  // caso. Quem decide é o `idle` desta chamada: montar o índice de um tipo inteiro entre categorias da pré-carga
+  // dava, na TV, quadro de 1750 ms e entrada em categoria de 3,7 s.
+  it('a limpeza entre categorias vem com `idle: false`; só a que roda sem nada a fazer vem com `idle: true`', async () => {
+    const housekeeping = vi.fn(async (_sourceId: string, _options: { idle: boolean }) => false)
+    const { scheduler } = setup(channels(1), { housekeeping })
+    scheduler.start('f')
+    await vi.advanceTimersByTimeAsync(5000)
+
+    const idles = housekeeping.mock.calls.map((chamada) => chamada[1].idle)
+    expect(idles.length).toBeGreaterThanOrEqual(2)
+    expect(idles[0]).toBe(false)
+    expect(idles.slice(1).every((valor) => valor === true)).toBe(true)
+  })
 })

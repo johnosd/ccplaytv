@@ -69,6 +69,8 @@ barreira real que o cliente não pode cruzar sozinho (ex.: proteger uma
 chave compartilhada que o produto decida oferecer), tratado como
 complemento opcional, nunca como pré-requisito de uso.**
 
+**Atualização (ADR-021, 2026-10-21):** o usuário escolheu oferecer chaves padrão de TMDB/OpenSubtitles mantidas privadas no serviço do ccplayTv, com credencial pessoal opcional e caminho direto quando permitido. A exceção de complemento para chave compartilhada passa a ter essa aplicação concreta; núcleo local e proibição de chave compartilhada no cliente permanecem. Novas operações/disparos dependem da compatibilização normativa descrita na [ADR-021](ADR-021-chaves-padrao-protegidas-byok.md).
+
 **Atualização (ADR-012):** surge uma terceira categoria que esta decisão não previa:
 a **página-ponte estática HTTPS** — um HTML estático em hospedagem gratuita, sem
 lógica de servidor, sem dados e sem segredo, cujo único papel é dar origem http(s) a

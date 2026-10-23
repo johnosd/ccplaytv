@@ -14,7 +14,9 @@
  */
 
 import type { EpgWorkerResponse } from './epgWorker'
-import { syncEpg, type SyncEpgResult } from './epgSync'
+import { emitMetric } from '../perf/metricsChannel'
+import { syncEpg, type EpgPhase, type SyncEpgResult } from './epgSync'
+import { waitForFirstReveal } from '../assembly/firstReveal'
 
 type FinishedListener = (sourceId: string, result: SyncEpgResult) => void
 
@@ -23,6 +25,11 @@ const syncingListeners = new Set<() => void>()
 const finishedListeners = new Set<FinishedListener>()
 
 const FAILED_UNREADABLE: SyncEpgResult = { outcome: 'failed', errorKind: 'unreadable' }
+
+/** Fase do guia → canal de métricas (no-op fora do build de medição). */
+function reportPhase(phase: EpgPhase, ms: number): void {
+  emitMetric({ source: 'epg', phase, ms })
+}
 
 function createWorker(): Worker | undefined {
   if (typeof Worker === 'undefined') return undefined
@@ -38,7 +45,7 @@ function createWorker(): Worker | undefined {
 
 function runInWorker(sourceId: string): Promise<SyncEpgResult> {
   const worker = createWorker()
-  if (!worker) return syncEpg(sourceId).catch(() => FAILED_UNREADABLE)
+  if (!worker) return syncEpg(sourceId, { onPhase: reportPhase }).catch(() => FAILED_UNREADABLE)
 
   return new Promise<SyncEpgResult>((resolve) => {
     let settled = false
@@ -51,7 +58,8 @@ function runInWorker(sourceId: string): Promise<SyncEpgResult> {
 
     worker.onmessage = (event: MessageEvent<EpgWorkerResponse>) => {
       const message = event.data
-      if (message.type === 'done') settle(message.result)
+      if (message.type === 'progress') reportPhase(message.phase, message.ms)
+      else if (message.type === 'done') settle(message.result)
       else settle(FAILED_UNREADABLE)
     }
     worker.onerror = () => {
@@ -60,11 +68,12 @@ function runInWorker(sourceId: string): Promise<SyncEpgResult> {
       if (settled) return
       settled = true
       worker.terminate()
-      void syncEpg(sourceId)
+      void syncEpg(sourceId, { onPhase: reportPhase })
         .catch(() => FAILED_UNREADABLE)
         .then(resolve)
     }
     worker.postMessage({ type: 'sync', sourceId })
+    reportPhase('sent', 0)
   })
 }
 
@@ -72,15 +81,36 @@ function notifySyncing(): void {
   for (const listener of [...syncingListeners]) listener()
 }
 
+export interface RequestEpgSyncOptions {
+  /**
+   * Feature 086 (T081): sincronização **automática** (abertura, fim de importação) espera a primeira tela da sessão
+   * aparecer, com o teto de `FIRST_REVEAL_WAIT_MS`.
+   *
+   * Por que: na TV, a sincronização de 11 668 programas levou 5,8 s e caiu em cima da abertura do Início, que revelou
+   * pelo teto com **todas** as leituras pendentes. Ela roda num Worker, mas ainda disputa o IndexedDB e chama o
+   * orçamento (`room` 1 836 ms na medição). Adiar o início é o que tira essa disputa do primeiro desenho.
+   *
+   * **Nunca** para o que a pessoa pediu ("Sincronizar agora", salvar o endereço XMLTV, ativar o guia): ali a espera
+   * seria a resposta à ação dela.
+   */
+  defer?: boolean
+}
+
 /**
  * Pede uma sincronização. Nunca rejeita: falha é um resultado
  * (`outcome: 'failed'`), já registrado no estado da fonte.
  */
-export function requestEpgSync(sourceId: string): Promise<SyncEpgResult> {
+export function requestEpgSync(sourceId: string, options: RequestEpgSyncOptions = {}): Promise<SyncEpgResult> {
   const existing = inFlight.get(sourceId)
   if (existing) return existing
 
-  const promise = runInWorker(sourceId).then((result) => {
+  const startedAt = performance.now()
+  // `inFlight` é registrado já agora (abaixo), então a UI mostra "sincronizando" durante a espera — o pedido existe,
+  // só não começou.
+  const started = options.defer === true ? waitForFirstReveal().then(() => runInWorker(sourceId)) : runInWorker(sourceId)
+  const promise = started.then((result) => {
+    // Feature 085/082 (SC-007): tempo total da sincronização (rede + leitura + gravação), só números e rótulos fixos.
+    emitMetric({ source: 'epg', outcome: result.outcome, errorKind: result.errorKind, programs: result.programCount, totalMs: Math.round(performance.now() - startedAt) })
     inFlight.delete(sourceId)
     notifySyncing()
     for (const listener of [...finishedListeners]) listener(sourceId, result)

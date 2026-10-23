@@ -59,4 +59,10 @@ export function registerLateCatalogSchemas(db: Dexie): void {
     categoryChunks: '[categoryId+chunk], [sourceId+generation]',
     epgChunks: '[sourceId+generation+channelKey], [sourceId+generation]',
   })
+  // Feature 090: legendas externas guardadas (uma por idioma por item) e chaves pessoais de legenda (BYOK). Tabelas
+  // novas, sem .upgrade(). Acesso em `lib/subtitles/subtitleTables.ts`; nenhuma das duas entra no backup (072).
+  db.version(27).stores({
+    externalSubtitles: '[stableId+language], stableId, sourceId, lastUsedAt',
+    subtitleCredentials: 'provider',
+  })
 }

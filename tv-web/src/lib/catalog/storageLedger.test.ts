@@ -43,9 +43,18 @@ describe('storageLedger', () => {
     expect(read).not.toHaveBeenCalled()
     expect(get).not.toHaveBeenCalled()
     expect(blocks).not.toHaveBeenCalled()
-    const expected = stored + 2 * LEGACY_ITEM_BYTES + 42 + LEGACY_EPG_ROW_BYTES + LEGACY_ITEM_BYTES
+    // Lista com o guia novo (`epgStoredBytes`): as linhas antigas NÃO são consultadas (a conversão/publicação as apaga, e consultar a tabela esvaziada
+    // custa ~1 s na TV — ajuste do orçamento, 085). Por isso a linha antiga de `epgPrograms` deste cenário fica fora da conta.
+    const expected = stored + 2 * LEGACY_ITEM_BYTES + 42 + LEGACY_ITEM_BYTES
     expect(ledger.total).toBe(expected)
     expect(ledger.bySource).toEqual({ s: expected })
+    expect(ledger.legacyGuideRows).toEqual({ s: 0 })
+    // Sem o guia novo, as linhas antigas entram na conta (estimativa por linha).
+    await database.sources.update('s', { epgStoredBytes: undefined })
+    const legacyGuide = await catalogLedger(database)
+    expect(legacyGuide.total).toBe(expected - 42 + LEGACY_EPG_ROW_BYTES)
+    expect(legacyGuide.legacyGuideRows).toEqual({ s: 1 })
+    await database.sources.update('s', { epgStoredBytes: 42 })
     expect(ledger.byCategory.get(compressed)).toBe(stored)
 
     // Órfã (carimbada sem itens, liberada com o banco cheio): não entra na conta.

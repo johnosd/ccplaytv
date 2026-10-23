@@ -14,17 +14,10 @@ import {
   reconcileChoiceFocus,
   type ChoicePanelModel,
 } from '../playerViewPanels'
-import {
-  ASPECT_SWITCH_FAILED_KEY,
-  ASPECT_UNAVAILABLE_KEY,
-  QUALITY_SINGLE_KEY,
-  QUALITY_SWITCH_FAILED_KEY,
-  QUALITY_UNAVAILABLE_KEY,
-  TRACK_SWITCH_FAILED_KEY,
-  TRACKS_UNAVAILABLE_KEY,
-  INFO_UNAVAILABLE_KEY,
-} from './playerMessages'
+import { TRACK_SWITCH_FAILED_KEY, TRACKS_UNAVAILABLE_KEY, INFO_UNAVAILABLE_KEY } from './playerMessages'
+import { activateViewControl, selectViewChoice } from './panelControls'
 import type { InfoSnapshot, PanelState } from './playerLayerTypes'
+import type { ExternalSubtitles } from './useExternalSubtitles'
 import type { PlayerChrome } from './usePlayerChrome'
 
 export interface PlayerPanelsParams {
@@ -39,6 +32,8 @@ export interface PlayerPanelsParams {
   onTrackChoiceChange: ((choice: TrackChoice) => void) | undefined
   initialViewChoice: ViewChoice | null | undefined
   onViewChoiceChange: ((choice: ViewChoice) => void) | undefined
+  /** Feature 090: legenda externa (linhas do painel, diálogo de busca, ajuste). */
+  external: ExternalSubtitles
 }
 
 export interface PlayerPanels {
@@ -73,6 +68,7 @@ export function usePlayerPanels({
   onTrackChoiceChange,
   initialViewChoice,
   onViewChoiceChange,
+  external,
 }: PlayerPanelsParams): PlayerPanels {
   const t = useT()
   const { clearHideTimer, focusedIndexRef, rerender, scheduleHide, seekBarFocusedRef, setFocused, setLevel } = chrome
@@ -100,6 +96,7 @@ export function usePlayerPanels({
    * mexida quando há idioma a ligar: a sessão já nasce desativada (D-005).
    */
   function reapplyTrackChoice(session: PlayerServiceSession) {
+    external.onFirstPlaying(session)
     if (!session.supportsTracks) return
     const tracks = session.getTracks()
     if (!tracks) return
@@ -150,6 +147,8 @@ export function usePlayerPanels({
     onTrackChoiceChange?.(choiceRef.current)
   }
 
+  const tracksModel = () => buildTracksPanel(panelTracksRef.current, choiceRef.current, t, external.panelInput())
+
   /** Lê do motor o que o painel de info mostra: dados técnicos + rótulo do áudio ativo. */
   function readInfoSnapshot(session: PlayerServiceSession): InfoSnapshot {
     const tracks = session.getTracks() ?? []
@@ -167,6 +166,7 @@ export function usePlayerPanels({
     const session = sessionRef.current
     const panel = panelRef.current
     if (!session || !panel) return
+    if (panel.kind === 'subtitleSearch') return
     if (panel.kind === 'info') {
       panelInfoRef.current = readInfoSnapshot(session)
     } else if (panel.kind === 'aspect' || panel.kind === 'quality') {
@@ -181,8 +181,7 @@ export function usePlayerPanels({
     } else {
       const tracks = session.getTracks()
       if (tracks) panelTracksRef.current = tracks
-      const model = buildTracksPanel(panelTracksRef.current, choiceRef.current, t)
-      panelRef.current = { ...panel, focusKey: reconcileTracksFocus(model, panel.focusKey) }
+      panelRef.current = { ...panel, focusKey: reconcileTracksFocus(tracksModel(), panel.focusKey) }
     }
     rerender()
   }
@@ -195,14 +194,15 @@ export function usePlayerPanels({
   }
 
   function openTracksPanel(session: PlayerServiceSession) {
-    const tracks = session.getTracks()
-    if (!tracks || tracks.length === 0) {
+    const tracks = session.getTracks() ?? []
+    // Sem faixas do motor, o painel só abre se houver legenda externa (feature 090).
+    if (tracks.length === 0 && !external.availableRef.current) {
       showToast(t(TRACKS_UNAVAILABLE_KEY))
       scheduleHide()
       return
     }
     panelTracksRef.current = tracks
-    const model = buildTracksPanel(tracks, choiceRef.current, t)
+    const model = tracksModel()
     clearHideTimer()
     panelRef.current = { kind: 'tracks', focusKey: initialTracksFocusKey(model), originIndex: focusedIndexRef.current }
     rerender()
@@ -219,6 +219,7 @@ export function usePlayerPanels({
   function closePanel() {
     const panel = panelRef.current
     if (!panel) return
+    if (panel.kind === 'subtitleSearch') return external.closeSearch()
     panelRef.current = null
     seekBarFocusedRef.current = false
     setLevel('full')
@@ -231,25 +232,8 @@ export function usePlayerPanels({
    * Devolve `true` quando o controle é dele — quem chama não faz mais nada.
    */
   function activatePanelControl(control: ChromeControl, session: PlayerServiceSession): boolean {
-    if (control.id === 'aspect') {
-      if (control.availability === 'real') openChoicePanel(session, 'aspect')
-      else {
-        showToast(t(ASPECT_UNAVAILABLE_KEY))
-        scheduleHide()
-      }
-      return true
-    }
-    if (control.id === 'quality') {
-      // Decide com a leitura de agora, não com a do último render (`logic` §2.4).
-      refreshQualityOptions(session)
-      const count = qualityOptionsRef.current.length
-      if (session.supportsQuality && count >= 2) openChoicePanel(session, 'quality')
-      else {
-        showToast(t(session.supportsQuality && count === 1 ? QUALITY_SINGLE_KEY : QUALITY_UNAVAILABLE_KEY))
-        scheduleHide()
-      }
-      return true
-    }
+    const view = { t, showToast, scheduleHide, qualityOptionsRef, refreshQualityOptions, openChoicePanel }
+    if (activateViewControl(control, session, view)) return true
     if (control.id !== 'tracks' && control.id !== 'info') return false
     if (control.availability === 'real') {
       if (control.id === 'tracks') openTracksPanel(session)
@@ -263,6 +247,11 @@ export function usePlayerPanels({
 
   function handlePanelDirection(direction: 'up' | 'down' | 'left' | 'right') {
     const panel = panelRef.current
+    if (panel?.kind === 'subtitleSearch') return external.searchDirection(direction)
+    // Feature 090: ←/→ só agem no ajuste da legenda externa.
+    if (panel?.kind === 'tracks' && panel.focusKey === 'delay:external' && (direction === 'left' || direction === 'right')) {
+      return external.stepDelay(direction)
+    }
     // Info só tem "Fechar": setas não movem nada. Em tracks, ←/→ também não.
     if (!panel || panel.kind === 'info' || direction === 'left' || direction === 'right') return
     if (panel.kind === 'aspect' || panel.kind === 'quality') {
@@ -273,8 +262,7 @@ export function usePlayerPanels({
       rerender()
       return
     }
-    const model = buildTracksPanel(panelTracksRef.current, choiceRef.current, t)
-    panelRef.current = { ...panel, focusKey: moveTracksFocus(model, panel.focusKey, direction) }
+    panelRef.current = { ...panel, focusKey: moveTracksFocus(tracksModel(), panel.focusKey, direction) }
     rerender()
   }
 
@@ -287,32 +275,20 @@ export function usePlayerPanels({
       closePanel()
       return
     }
+    if (panel.kind === 'subtitleSearch') return external.searchSelect()
     if (panel.kind === 'aspect' || panel.kind === 'quality') {
-      const choiceRow = choiceModelFor(session, panel.kind).rows.find((r) => r.key === panel.focusKey)
-      if (!choiceRow) return
-      if (panel.kind === 'aspect' && choiceRow.mode !== undefined) {
-        if (session.setAspectMode(choiceRow.mode)) commitView({ aspect: choiceRow.mode })
-        else showToast(t(ASPECT_SWITCH_FAILED_KEY))
-      } else if (panel.kind === 'quality' && choiceRow.qualityId !== undefined) {
-        if (session.selectQuality(choiceRow.qualityId)) {
-          commitView({
-            quality: choiceRow.qualityId === null || choiceRow.height === undefined ? 'auto' : { height: choiceRow.height },
-          })
-        } else {
-          showToast(t(QUALITY_SWITCH_FAILED_KEY))
-        }
-      }
+      selectViewChoice(session, panel.kind, panel.focusKey, { t, showToast, choiceModelFor, commitView })
       // A marcação reflete o que o motor realmente fez, inclusive na falha.
       refreshPanel()
       return
     }
-    const model = buildTracksPanel(panelTracksRef.current, choiceRef.current, t)
-    const row = model.rows.find((r) => r.key === panel.focusKey)
+    const row = tracksModel().rows.find((r) => r.key === panel.focusKey)
     if (!row) return
     if (row.disabled) {
       if (row.disabledMessage) showToast(row.disabledMessage)
       return
     }
+    if (external.selectRow(row)) return refreshPanel()
     const track = panelTracksRef.current.find((t) => t.id === row.trackId)
     if (row.group === 'audio' || row.group === 'ad') {
       if (row.trackId === undefined || !session.selectAudioTrack(row.trackId)) {
@@ -322,9 +298,11 @@ export function usePlayerPanels({
         commitChoice({ audioLanguage: normalizeLanguage(track?.language) ?? null })
       }
     } else if (row.group === 'text') {
-      if (!session.selectTextTrack(row.trackId ?? null)) {
+      // "Desativadas" sem faixas do motor (só a externa existia) não depende do motor.
+      if (!session.selectTextTrack(row.trackId ?? null) && !(row.trackId === undefined && !session.supportsTracks)) {
         showToast(t(TRACK_SWITCH_FAILED_KEY.text))
       } else {
+        external.deactivate()
         commitChoice({ textLanguage: normalizeLanguage(track?.language) ?? null })
       }
     } else if (row.delayMs !== undefined) {

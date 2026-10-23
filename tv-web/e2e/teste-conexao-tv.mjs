@@ -103,7 +103,7 @@ try {
   await page.locator('.settings-screen').waitFor()
   await page.keyboard.press('ArrowUp')
   await page.keyboard.press('ArrowRight')
-  for (let i = 0; i < 3; i++) await page.keyboard.press('ArrowDown')
+  for (let i = 0; i < 5; i++) await page.keyboard.press('ArrowDown') // do card do TMDB: OpenSubtitles, SubDL, IA, Clima, teste de conexão (a 090 pôs duas linhas de legenda)
   await openCard()
   assert.equal((await stats()).calls.length, 0)
   await page.screenshot({ path: `${shots}/ready-pt.png` })

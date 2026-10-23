@@ -1,0 +1,202 @@
+/**
+ * Candidatos das fileiras calculadas, por categoria (feature 086, `logic/selecoes-guardadas.md` §1 e §3).
+ *
+ * Quem grava uma categoria também guarda, dela, os poucos itens que podem entrar em "Adicionados recentemente" e em
+ * "Bem avaliados" — com os itens que já estão em mãos, sem nenhuma leitura extra. A tela deixa de varrer o tipo inteiro.
+ *
+ * Por que isto é exato: um item que não está entre os `RECENT_CANDIDATES` mais novos **da sua categoria** não pode estar
+ * entre os 12 mais novos **do tipo**; o mesmo vale para o pool de "Bem avaliados" (§2.1 do logic).
+ */
+
+import { db, type BlockItem, type CatalogDb, type CatalogReadItem, type CatalogRecord, type ShowcaseCandidatesRecord } from './db'
+import { createRecentlyAddedAccumulator, showcaseSeed, toShowcaseItem } from './showcaseSelection'
+import { createRatedSelectionAccumulator } from './ratedSelection'
+import { readBlockChunks } from './blockChunks'
+import { isSectionLoadActive } from './loadActivity'
+import { markScreenDocumentsStale } from './screenDocumentStore'
+
+/**
+ * Teto de tempo de uma rodada do preenchimento em segundo plano (T068). Uma categoria que leve mais que isto consome o
+ * intervalo inteiro, e o agendador espera a próxima rodada em vez de emendar outra descompressão.
+ */
+const FILL_BUDGET_MS = 400
+
+/** Os mais novos guardados por categoria: um item fora dos 12 mais novos da sua categoria nunca entra nos 12 do tipo. */
+export const RECENT_CANDIDATES = 12
+/** Pool de "Bem avaliados" (36) mais folga para o dedupe entre categorias (`logic/selecoes-guardadas.md` §2.1). */
+export const RATED_CANDIDATES = 48
+
+/** O que o card precisa, sem reabrir o bloco da categoria. Mesmo conjunto de `projectReadItem`. */
+export type ShowcaseCandidateItem = CatalogReadItem
+
+export type ShowcaseCandidates = ShowcaseCandidatesRecord
+
+export interface CandidateTarget {
+  sourceId: string
+  generation: number
+  kind: 'movie' | 'series'
+  categoryId: number
+  groupOrder: number
+  order: number
+}
+
+/** Campos que faltam num `BlockItem` (o bloco guarda o resto no cabeçalho) para ele virar um registro completo. */
+function asRecord(item: CatalogRecord | BlockItem, target: CandidateTarget, position: number): CatalogRecord {
+  return {
+    ...(item as CatalogRecord),
+    sourceId: target.sourceId,
+    generation: target.generation,
+    kind: target.kind,
+    categoryId: target.categoryId,
+    groupOrder: target.groupOrder,
+    categoryPosition: (item as CatalogRecord).categoryPosition ?? position,
+  }
+}
+
+/** Item cru mais a sua posição: o que os acumuladores precisam, sem o custo de projetar (T079). */
+interface Entry {
+  item: CatalogRecord | BlockItem
+  position: number
+}
+
+/**
+ * Os mesmos campos de `RATED_FIELDS`, lidos do item **cru**. Têm de devolver exatamente os mesmos valores que a
+ * varredura lê do item projetado, senão os dois caminhos divergem (contrato C1): `id` é o id local, que o bloco já
+ * atribuiu, e os demais são campos que a projeção copia sem transformar.
+ */
+const ENTRY_FIELDS = {
+  id: (entry: Entry) => String(entry.item.id),
+  name: (entry: Entry) => entry.item.name,
+  rating: (entry: Entry) => entry.item.providerRating,
+  year: (entry: Entry) => entry.item.year,
+  addedAt: (entry: Entry) => entry.item.addedAt,
+}
+
+/**
+ * Escolhe os candidatos de uma categoria a partir dos itens que estão sendo gravados. Função pura: não toca o banco.
+ * Os dois conjuntos saem dos MESMOS acumuladores que a varredura usa (`logic/selecoes-guardadas.md` §2).
+ *
+ * **Projeta só os escolhidos** (T079): projetar os itens todos custou `encodeMs` 1 262 → 8 274 ms na carga de filmes da
+ * TV (43 549 itens = ~87 mil objetos por carga). Os acumuladores precisam de cinco campos, que o item cru já tem; o
+ * `CatalogReadItem` é construído no fim, para as ~60 linhas que sobram.
+ */
+export function pickCandidates(
+  target: CandidateTarget,
+  items: readonly (CatalogRecord | BlockItem)[],
+  now: number,
+): ShowcaseCandidates {
+  const recent = createRecentlyAddedAccumulator<Entry>((entry) => entry.item.addedAt, RECENT_CANDIDATES)
+  // A seleção de "Bem avaliados" guarda o pool com folga: quem escolhe os 12 finais é a mesclagem, com todas as categorias.
+  const rated = createRatedSelectionAccumulator<Entry>(ENTRY_FIELDS, {
+    now,
+    seed: showcaseSeed(target.sourceId, target.kind, now),
+    limit: RATED_CANDIDATES,
+    min: 1,
+  })
+  let eligibleCount = 0
+  const currentYear = new Date(now).getFullYear()
+  for (let position = 0; position < items.length; position += 1) {
+    const entry: Entry = { item: items[position], position }
+    recent.add(entry)
+    rated.add(entry)
+    if (isEligible(items[position], currentYear)) eligibleCount += 1
+  }
+  const project = (entry: Entry): CatalogReadItem => toShowcaseItem(asRecord(entry.item, target, entry.position))
+  return {
+    categoryId: target.categoryId,
+    sourceId: target.sourceId,
+    generation: target.generation,
+    kind: target.kind,
+    order: target.order,
+    recent: recent.finish().map(project),
+    rated: rated.finish().picked.map(project),
+    eligibleCount,
+    itemsCount: items.length,
+  }
+}
+
+/** Mesma régua de elegibilidade de "Bem avaliados" (nota 6,0–9,9 e ano conhecido), só para a contagem por categoria. */
+function isEligible(item: CatalogRecord | BlockItem, currentYear: number): boolean {
+  const rating = item.providerRating
+  if (typeof rating !== 'number' || !Number.isFinite(rating) || rating < 6 || rating >= 10) return false
+  return typeof item.year === 'number' && Number.isInteger(item.year) && item.year >= 1888 && item.year <= currentYear + 1
+}
+
+/** Grava os candidatos de uma categoria (chamado por quem grava a categoria, nunca pela tela). */
+export async function writeCandidates(candidates: ShowcaseCandidates, database: CatalogDb = db): Promise<void> {
+  await database.showcaseCandidates.put(candidates)
+  // T071/T084: candidato novo muda as fileiras. O documento é marcado como **vencido**, não apagado: a tela continua
+  // mostrando o de um instante atrás e o refresh de 2º plano o troca (FR-008). Apagar fazia a pré-carga derrubar o
+  // documento a cada categoria, e a abertura do Início voltava a custar ~1,8 s na TV.
+  markScreenDocumentsStale(candidates.sourceId, candidates.kind)
+}
+
+/**
+ * Grava os candidatos de várias categorias de uma vez (FR-003: "ao fim de cada carga por seção"). Uma transação em vez
+ * de uma por categoria — na TV, 34 transações extras numa carga de filmes custaram caro (R-014).
+ */
+export async function writeCandidatesBatch(candidates: readonly ShowcaseCandidates[], database: CatalogDb = db): Promise<void> {
+  if (candidates.length === 0) return
+  await database.showcaseCandidates.bulkPut(candidates as ShowcaseCandidates[])
+  for (const sourceId of new Set(candidates.map((row) => row.sourceId))) {
+    for (const kind of new Set(candidates.map((row) => row.kind))) markScreenDocumentsStale(sourceId, kind)
+  }
+}
+
+// Não existe um `clearCandidates` aqui de propósito (FR-011): quem apaga os candidatos é `deleteCategoryItems`
+// (`blockChunks.ts`), **na mesma transação** que apaga o bloco — atomicidade que uma função chamada de fora
+// quebraria, deixando por um instante uma fileira com card que não abre. Travado por
+// `showcaseRows.liberacao-orcamento.test.ts`.
+
+/** Candidatos da geração ativa de uma lista e tipo, na ordem da fonte. Nunca lê blocos. */
+export async function readCandidates(
+  sourceId: string,
+  kind: 'movie' | 'series',
+  database: CatalogDb = db,
+): Promise<ShowcaseCandidates[]> {
+  const generation = (await database.sources.get(sourceId))?.activeGeneration
+  if (generation === undefined) return []
+  const rows = await database.showcaseCandidates.where('[sourceId+generation+kind]').equals([sourceId, generation, kind]).toArray()
+  return rows.sort((a, b) => a.order - b.order || a.categoryId - b.categoryId)
+}
+
+/**
+ * Preenche os candidatos de UMA categoria que já está gravada mas ainda não os tem (feature 086, task T029).
+ *
+ * Sem isto, uma lista que já estava no aparelho antes desta feature nunca ganharia fileiras: o catálogo não é regravado,
+ * e é a gravação que escreve os candidatos. Roda em segundo plano, uma categoria por vez, como a conversão de blocos da
+ * feature 082 — nunca na abertura da tela.
+ *
+ * @returns `true` se preencheu uma categoria (há mais trabalho a fazer), `false` quando não falta nenhuma.
+ */
+export async function fillNextCandidates(sourceId: string, database: CatalogDb = db): Promise<boolean> {
+  // T068: com uma carga em andamento, esta tarefa se cala — descomprimir um bloco aqui degradou a carga e as leituras
+  // de categoria na TV (R-014). `false` = "nada a fazer agora"; a próxima rodada do agendador tenta de novo.
+  if (isSectionLoadActive()) return false
+  const generation = (await database.sources.get(sourceId))?.activeGeneration
+  if (generation === undefined) return false
+  const categories = (await database.categories.where('sourceId').equals(sourceId).toArray())
+    .filter((category) => category.generation === generation && (category.kind === 'movie' || category.kind === 'series'))
+  if (categories.length === 0) return false
+  const existing = new Set(await database.showcaseCandidates.where('[sourceId+generation+kind]')
+    .between([sourceId, generation, 'movie'], [sourceId, generation, 'series'], true, true).primaryKeys() as number[])
+  const pending = categories.find((category) => !existing.has(category.id as number) && (category.itemsCount ?? 0) > 0)
+  if (!pending) return false
+  const categoryId = pending.id as number
+  const startedAt = Date.now()
+  const items = await readBlockChunks(database, categoryId)
+  if (items.length === 0) {
+    // Categoria carimbada com itens mas sem bloco (liberada pelo orçamento): grava vazio para não tentar de novo.
+    await writeCandidates({ categoryId, sourceId, generation, kind: pending.kind as 'movie' | 'series', order: pending.order,
+      recent: [], rated: [], eligibleCount: 0, itemsCount: 0 }, database)
+    return true
+  }
+  await writeCandidates(
+    pickCandidates({ sourceId, generation, kind: pending.kind as 'movie' | 'series', categoryId, groupOrder: pending.order, order: pending.order },
+      items, Date.now()),
+    database,
+  )
+  // Orçamento por rodada (T068): esta categoria sozinha já consumiu o quanto cabe num intervalo de segundo plano, então
+  // devolve `false` para o agendador esperar a próxima rodada em vez de emendar outra descompressão.
+  return Date.now() - startedAt < FILL_BUDGET_MS
+}

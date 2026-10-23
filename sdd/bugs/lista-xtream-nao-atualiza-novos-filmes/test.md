@@ -1,12 +1,18 @@
 # Bug Verification: Lista Xtream não traz filmes/séries/canais novos ao abrir o app
 
 - **Slug**: lista-xtream-nao-atualiza-novos-filmes
-- **Testado**: 2026-10-09
+- **Testado**: 2026-10-22
 - **Assessment**: ./assessment.md
 - **Fix**: ./fix.md
-- **Result**: partial
+- **Result**: verified
 
 ## Summary
+
+Encerrado em 2026-10-22 após confirmação do usuário na TV física: todos os itens do [roteiro único](../ROTEIRO-TV-2026-10-22.md) foram validados com sucesso. O item 5 foi aprovado ao reabrir o app após mais de 10 minutos fechado e navegar por 1–2 minutos durante a renovação, com usabilidade aceita e sem ressalva de armazenamento relatada.
+
+A evidência física é qualitativa e fornecida pelo usuário; não houve nova medição de CPU, memória ou disco, nem confirmação separada do gatilho de app residente/M3U. Esta atualização é documental; os testes automatizados abaixo não foram reexecutados.
+
+### Registro anterior — 2026-10-09
 
 O sintoma não reproduz mais. Com a lista Xtream real, no navegador, uma
 categoria de filmes "nova" volta ao reabrir a lista sincronizada há 1 h e ao
@@ -45,6 +51,8 @@ PASSOU — D2: filme removido pelo provedor some da categoria
 
 ## Residual Risks
 
+Registro de 2026-10-09: o aceite de usabilidade durante a renovação na TV foi confirmado em 2026-10-22. As limitações de medição quantitativa, simulação do provedor e cobertura de app residente/M3U abaixo continuam registradas; não são apresentadas como novas medições físicas.
+
 - **Não medido na TV**: atualizar a cada abertura (> 10 min) repete as leituras
   de estrutura e, pela pré-carga, os downloads por seção (`get_live_streams`,
   `get_vod_streams`, `get_series`) e a regravação dos blocos. Antes isso
@@ -61,6 +69,10 @@ PASSOU — D2: filme removido pelo provedor some da categoria
   abertura (> 10 min). Não foi medido.
 
 ## Recommendation
+
+Fechar como `verified`, conforme validação física do item 5 e autorização expressa do usuário em 2026-10-22: "Todos os itens foram validados com sucesso. Podem fechar todos esses bugs". O aceite da navegação na TV encerra a pendência física; não constitui um benchmark de recursos.
+
+### Recomendação anterior — 2026-10-09
 
 **Decisão do usuário (2026-10-09):** a passada na TV física fica para depois. O
 bug segue **aberto** (`partial`) até ela. O que dava para cobrir com Playwright

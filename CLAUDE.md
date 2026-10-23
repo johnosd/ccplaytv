@@ -133,7 +133,7 @@ requesting a `tizen-tv`/`tizen-emulator` validation pass.
 
 ## The constitution is a real gate
 
-`.planning/memory/constitution.md` (v1.15.0) holds 13 non-negotiable
+`.planning/memory/constitution.md` (v1.16.0) holds 13 non-negotiable
 principles, checked by `sdd-plan` and binding on any change — not just on
 formally planned features. The ones most easily violated by accident:
 
@@ -472,3 +472,94 @@ already used by their surroundings.
 
 O catálogo e o guia são gravados comprimidos em pedaços. Leia por `readBlockChunks`, nunca por `block.items`; nunca
 descomprima dentro de uma transação; todo gravador novo chama `makeRoomFor`.
+
+# Regra da feature 086
+
+As fileiras calculadas de Início/Filmes/Séries (Adicionados, Bem avaliados, Porque você assistiu) saem de
+`showcaseCandidates` — candidatos por categoria, gravados por quem grava a categoria. **A abertura de tela nunca percorre
+o tipo inteiro**: nada de `iterateKindRecordBatches`, `loadSearchIndex` ou `selectShowcaseRowsByScan` no caminho da
+montagem. Leitura que depende de serviço externo é marcada `external` no slot da montagem: a tela nunca espera por rede.
+**Top 10 e Dica saíram deste caminho na feature 087** — veja a regra abaixo.
+
+A abertura lê o **documento de tela** (`screenDocument.ts`, no `localStorage`) e só cai nos candidatos se ele não valer.
+Medido na TV: com a carga da lista em curso, ler o documento custa p95 0,8 ms, contra ~20 ms num `get` do IndexedDB e
+223 ms num banco separado — o gargalo é a **thread**, não a fila. O documento é refeito pela carga por seção e pela fila
+do prefetch, **nunca** na abertura; quem grava candidatos o invalida (`clearScreenDocuments`), senão a fileira não
+acompanha a pré-carga.
+
+Sobre categoria escondida/travada: ela continua sendo **decidida na leitura**, nunca pelo dado guardado. O documento
+registra o conjunto de categorias excluídas de quando foi construído; se a visibilidade mudar, ele é recusado e a
+mesclagem dos candidatos assume. Não faça o documento guardar só o resultado sem esse conjunto.
+
+# Regra da feature 087
+
+O **Top 10** e a **Dica** são produzidos em segundo plano (`lib/catalog/externalRows.ts`, no `housekeeping` da fila do
+prefetch) e gravados em `showcaseExternalRows`. A tela **só lê** (`readExternalRow`): nunca consulta o TMDB e nunca monta
+o índice de nomes do tipo. As **regras** de seleção continuam em `lib/metadata/discoveryRules.ts` (feature 057, contrato
+travado) — a 087 mudou **onde** e **quando** rodam, nada do que escolhem.
+
+O produtor **carrega as suas próprias barreiras**: devolve `false` enquanto `isSectionLoadActive()` ou
+`!isFirstRevealDone()`. O portão do agendador (`prefetch/activityGate.ts`) só sabe de tecla, player, app
+oculto e rede, e o `housekeeping` é chamado depois de **cada categoria** da carga — sem as barreiras, o
+índice do tipo inteiro seria remontado a cada categoria que chega. **Toda tarefa adiável cara nova precisa
+fazer o mesmo.**
+
+A validade do registro é o **período** (semana no Top 10, dia na Dica) **mais a cobertura gravada** (`coveredCategories`/
+`totalCategories`): uma categoria que chega depois não muda o período, e sem a cobertura na conta a fileira ficaria parada
+até a semana virar. Abaixo do mínimo de cruzados **grava vazio** — é o que impede a fila de remontar o índice do tipo a
+cada rodada. Resposta de outro período (serviço fora do ar) **não** é gravada: o guardado continua valendo.
+
+Quem grava **avisa** (`onExternalRowRefreshed`), e `usePrefetchForSource` invalida só `['catalog-search-index', fonte, tipo,
+'external']` — sem esse aviso a fileira só apareceria na próxima visita, porque a invalidação da pré-carga depende de uma
+categoria chegar. Remover a chave do TMDB apaga `showcaseExternalRows` na mesma transação (`removeTmdbKey`); trocar o
+idioma **mantém** o registro e só zera o `periodKey`.
+
+# Regra da feature 088 — o caminho de navegação está medido, e inocentado
+
+Antes de otimizar a navegação das vitrines "porque está travando", leia
+`sdd/specs/088-tarefas-longas-navegacao/evidencias/` (três rodadas na TV de referência, 2026-10-22). A thread fica presa
+**28%** do tempo numa janela de 5 s, com quadro de até 817 ms — e a atribuição por tarefa longa
+(`lib/perf/longTaskAttribution.ts`) mostra onde esse tempo **não** está:
+
+| Hipótese | Medida | Veredito |
+| --- | --- | --- |
+| O manipulador de tecla (`useRemoteNav`) | **0,1%** do tempo preso (0,6 ms por tecla) | eliminada |
+| O re-render entre a tecla e o primeiro quadro | **4,5%** | eliminada |
+| Decodificação/pintura de capa | **10 ms** por capa | eliminada |
+| Pré-carga, carga da lista, produtor do Top 10/Dica, montagem de tela | medianas **planas** com e sem | refutadas |
+| O próprio painel de medição | queda de **5%** sem ele; pior quadro idêntico | refutada |
+| **Fora de todas as etapas medidas** | **95,4%** | **é aqui, e não se sabe o quê** |
+
+Então: **memoizar a vitrine à mão, cortar `overscan` ou trocar a receita de foco não devolve fluidez** — são menos de
+5% do problema, com número do aparelho. O React Compiler **desiste** de memoizar `VodShowcaseScreen.tsx` (o
+`useVirtualizer` na linha 483 dispara `react(incompatible-library)`), e nem isso muda a conta.
+
+Duas armadilhas de medição que custaram caro aqui: **não compare tempo de parede com tempo de thread** (dividir
+`renderMs` por `longTaskMs` deu "o render é 23%" quando são 4,5%); e um intervalo que abre no pedido de uma imagem e
+fecha no `onLoad` mede **espera**, não trabalho (registrou 266 s numa janela de 5 s).
+
+# Regra da feature 089 — a sonda só mede cards se o roteiro não usar `←`
+
+**Até 2026-10-22 a sonda automática media 53% de navegação na LISTA LATERAL de categorias, não nos cards.** O roteiro
+de `lib/perf/autopilot.ts` dava teclas horizontais para os dois lados; ao alcançar o primeiro cartão, o `←` seguinte
+devolve o foco à lista lateral (comportamento **correto** do app, features 052/053) e dali os `→` **paginam as
+categorias**. Isso vale para os números das features **087, 088 e das três primeiras rodadas da 089**: eles comparam
+entre si, mas não medem navegação de cards. O roteiro agora usa **só `→` e `↓`** (verificado: 0% na lista) — e detectar
+a saída para dar "uma tecla contrária" **não funciona**, porque na lista lateral `←`/`→` paginam e o foco fica preso.
+
+Da redução que a 089 aplicou: `useCategoryPreviews` (`features/catalog/catalogApi.ts`) **não** mantém mais uma consulta
+"da janela" com os ids visíveis na chave — cada tecla recriava a consulta e disparava um `fetchQuery` por categoria. A
+decisão de o que buscar está em `features/catalog/previewWindow.ts`, e **stale e invalidado contam como faltando**,
+senão a prévia para de acompanhar a pré-carga da 038. Ganho medido na TV: thread presa 30% → 26%, 40 → 44 fps.
+`catalogApi.ts` está **no teto de linhas** do ratchet (2052): lógica nova vai num arquivo ao lado.
+
+E uma lição de atribuição: **contagem não é tempo**. O `queriesN` (eventos do cache de consultas) correlacionava com o
+tempo preso e levou ao alvo certo, mas a previsão de que ele **cairia** com a mudança estava errada — ele não caiu, e o
+ganho veio de outro lado da mesma mudança. Mede-se antes e depois; não se declara a causa pela contagem.
+
+
+# Regra da feature 090 — legenda externa: nada fora do player, nada antes do `playing`
+
+A legenda externa (OpenSubtitles/SubDL, `lib/subtitles/`) é **desenhada pelo app** pelo tempo da mídia (`parseSubtitleFile` → `createExternalCueDriver` → `SubtitleOverlay`); não usa `setExternalSubtitlePath` do AVPlay. **Nada dela roda fora do player nem antes do primeiro `playing`**: o alvo e a memória são lidos num único passo ocioso (`requestIdleCallback`) depois dele, e o padrão de produção (`lib/subtitles/runtime.ts`) só entra por `import()` dinâmico — um import estático no player muda a divisão de chunks e quebra o pacote Tizen (confira `findUnlistedFiles` depois do build). A rede só acontece por ação da pessoa (constitution 1.16.0, exceções (k) serviço e (l) chave pessoal; ADR-021): focar nunca busca.
+
+A chave pessoal de legenda (`subtitleCredentials`) só passa por `subtitleCredentials.ts` → `subtitleSearch.ts` → `fetch` do próprio fornecedor: nunca em estado de tela, log, erro, backup ou serviço. O CORS do OpenSubtitles se decide **na TV**, não no PC (o Chromium do PC o recusa em `file://`; a TV não). Leia `sdd/specs/090-legendas-externas/logic/legenda-externa.md` antes de mexer.

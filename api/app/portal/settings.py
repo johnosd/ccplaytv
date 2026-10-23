@@ -51,6 +51,13 @@ class PortalSettings(BaseSettings):
     # 073/R-001: o sandbox do Mercado Pago só aceita Pix com um pagador que seja usuário de teste. Só staging/test;
     # produção recusa a configuração (validador abaixo) e usa o e-mail sintético.
     pix_test_payer_email: str | None = Field(default=None, max_length=254, pattern=r"^[^@\s]{1,64}@[^@\s]{1,189}$")
+    # 090 (ADR-021, constitution (k)): chaves padrão de legenda do ccplayTv, só no servidor. Ausente = fornecedor
+    # desligado; as duas ausentes = legendas indisponíveis (503). Não exigidas em produção até o gate G-1.
+    opensubtitles_api_key: SecretStr | None = Field(default=None, repr=False)
+    subdl_api_key: SecretStr | None = Field(default=None, repr=False)
+    # Provisórios até o G-1 (cota contratada): downloads somam os dois fornecedores.
+    subtitles_downloads_per_day: int = Field(default=10, ge=1, le=10000)
+    subtitles_searches_per_hour: int = Field(default=60, ge=1, le=10000)
 
     @model_validator(mode="after")
     def isolated_environment(self) -> "PortalSettings":

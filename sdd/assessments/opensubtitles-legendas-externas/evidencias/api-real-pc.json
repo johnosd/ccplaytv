@@ -1,0 +1,40 @@
+{
+  "recordedAt": "2026-10-21T23:07:37.839Z",
+  "scope": "PC Node HTTP; not browser, emulator, or physical TV",
+  "keyConfigured": true,
+  "maxDownloadsRequested": 1,
+  "tests": [
+    {
+      "label": "search-movie-pt-br",
+      "httpStatus": 200,
+      "elapsedMs": 248,
+      "totalCount": 35,
+      "returnedRows": 35,
+      "rateLimitRemaining": "4",
+      "corsOrigin": "*",
+      "corsHeaders": "Origin, Authorization, Accept, Api-Key, Content-Type, X-User-Agent"
+    },
+    {
+      "label": "search-episode-pt-br",
+      "httpStatus": 200,
+      "elapsedMs": 320,
+      "totalCount": 14,
+      "returnedRows": 14,
+      "rateLimitRemaining": "4",
+      "corsOrigin": "*",
+      "corsHeaders": "Origin, Authorization, Accept, Api-Key, Content-Type, X-User-Agent"
+    },
+    {
+      "label": "cors-preflight-origin-null",
+      "httpStatus": 200,
+      "elapsedMs": 247,
+      "rateLimitRemaining": null,
+      "corsOrigin": "*",
+      "corsHeaders": "*"
+    },
+    {
+      "label": "request-one-download",
+      "outcome": "no-candidate"
+    }
+  ]
+}

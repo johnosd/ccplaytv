@@ -11,6 +11,7 @@
 
 import type { CategoryKind } from './db'
 import { emitMetric } from '../perf/metricsChannel'
+import { waitForFirstReveal } from '../assembly/firstReveal'
 import { loadSection, type SectionLoadOutcome, type SectionLoadTimings } from './sectionLoader'
 import type { SectionWorkerRequest, SectionWorkerResponse } from './sectionWorker'
 
@@ -49,6 +50,11 @@ function runOnMainThread(
   options: RunSectionOptions,
 ): Promise<SectionLoadOutcome> {
   const waitUntilAllowed = async () => {
+    // Feature 086 (T073): a carga não disputa a thread com o primeiro desenho da sessão. A espera fica AQUI, em quem
+    // decide o momento de carregar, e não dentro de `loadSection` — que também roda no Worker, onde nenhuma tela
+    // revela, e é chamado direto por testes. Tem teto curto (`FIRST_REVEAL_WAIT_MS`), então uma lista sendo
+    // adicionada agora, quando a carga é justamente o que a pessoa espera, atrasa pouco.
+    await waitForFirstReveal(options.signal)
     while (options.isBlocked() && !options.signal?.aborted) {
       await new Promise((resolve) => setTimeout(resolve, GATE_POLL_MS))
     }
