@@ -1,7 +1,7 @@
 {
   "candidate": {
     "variant": "commercial",
-    "revision": "195a6d4b34334128ddfd06589fd564df018310ef",
+    "revision": "2429e022f278a2b49b6814ebd81861182e383b6b",
     "dirtyPaths": [],
     "buildMode": "commercial",
     "version": "0.2.1",
@@ -10,7 +10,7 @@
   },
   "kit": {
     "kitVersion": "0.2.1",
-    "manifestSha256": "ea2f9237f866c6e95d332212b3bf9a0a36e14b5e2d22fd3631246cca8444124d"
+    "manifestSha256": "6b0e5ad273f2df4fc8a939447b0c14bb4d0f5b2fc687df7bf3aae432d838bb2f"
   },
   "results": [
     {
@@ -176,7 +176,7 @@
       "status": "Pending",
       "detail": "item ainda não entregue",
       "owner": "release",
-      "nextAction": "definir a lista de teste autorizada, guardar o segredo no cofre e registrar validUntil em demo-access.md"
+      "nextAction": "publicar bridge/teste/ (merge na main), conferir a URL da lista e mudar o status para Pass"
     },
     {
       "id": "INT-KIT-SECRETS",
@@ -250,5 +250,5 @@
       "revision"
     ]
   },
-  "generatedAt": "2026-10-23T22:03:14.337Z"
+  "generatedAt": "2026-10-23T22:48:22.147Z"
 }

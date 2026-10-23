@@ -108,10 +108,10 @@
       "artifacts": [
         {
           "path": "demo-access.md",
-          "sha256": "35f2d2b13ba6477110644f2764586f53704f41b14809bba1cedc7c95034d05da"
+          "sha256": "9ba078351593ee2e43f24729ec3f5d49b52ba25a9387d318176700615897babd"
         }
       ],
-      "nextAction": "definir a lista de teste autorizada, guardar o segredo no cofre e registrar validUntil em demo-access.md"
+      "nextAction": "publicar bridge/teste/ (merge na main), conferir a URL da lista e mudar o status para Pass"
     }
   ]
 }

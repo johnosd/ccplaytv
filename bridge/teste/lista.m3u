@@ -1,0 +1,11 @@
+#EXTM3U
+#EXTINF:-1 group-title="Canais | Teste Blender",Big Buck Bunny (teste HLS)
+https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8
+#EXTINF:-1 group-title="Canais | Teste Blender",Tears of Steel (teste HLS)
+https://demo.unified-streaming.com/k8s/features/stable/video/tears-of-steel/tears-of-steel.ism/.m3u8
+#EXTINF:-1 group-title="Filmes | Blender",Sintel - Trailer 480p (2010)
+https://download.blender.org/durian/trailer/sintel_trailer-480p.mp4
+#EXTINF:-1 group-title="Filmes | Blender",Sintel - Trailer 720p (2010)
+https://download.blender.org/durian/trailer/sintel_trailer-720p.mp4
+#EXTINF:-1 group-title="Filmes | Blender",Sintel (2010)
+https://download.blender.org/demo/movies/Sintel.2010.1080p.mkv

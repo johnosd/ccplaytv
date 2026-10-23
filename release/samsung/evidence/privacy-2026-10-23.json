@@ -1,0 +1,8 @@
+{
+  "gate": "SAM-KIT-PRIVACY",
+  "url": "https://johnosd.github.io/ccplaytv/privacidade/",
+  "status": 200,
+  "date": "2026-10-23",
+  "by": "execução sdd (agente)",
+  "check": "versão com legendas externas e chave de legenda pelo portal; seção #ko (coreano) para o Seller Office; publicada pelo merge do PR #13 (edab062d) e deploy Pages: GET 200, pt/en/es/ko, sem <script>, conteúdo idêntico a bridge/privacidade/index.html"
+}
