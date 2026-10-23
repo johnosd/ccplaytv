@@ -1,7 +1,7 @@
 {
   "candidate": {
     "variant": "commercial",
-    "revision": "1aab7bb759431654d3d7428a62f73978c0a78281",
+    "revision": "4aa2bcaf986e95a4c008600787bcacfb87791a84",
     "dirtyPaths": [],
     "buildMode": "commercial",
     "version": "0.2.1",
@@ -117,13 +117,13 @@
     {
       "id": "SAM-SEC-AUTHOR",
       "status": "Pass",
-      "detail": "primeira versão: certificado de autor registrado (SHA-256 d09a0baec14b10284c210965434c3ed441162ed8060d35d4075707d887200d05)"
+      "detail": "mesma assinatura de autor da versão publicada"
     },
     {
       "id": "INT-SEC-CUSTODY",
       "status": "Blocked",
-      "detail": "identidade do certificado de autor não registrada em release/samsung/custody.json",
-      "nextAction": "registrar o fingerprint público do certificado em custody.json"
+      "detail": "sem backup verificado do certificado de autor: perdê-lo impede atualizar o app publicado",
+      "nextAction": "guardar backup do certificado e registrar backup.verifiedAt em custody.json"
     },
     {
       "id": "SAM-REG-PACKAGENAME",
@@ -254,5 +254,5 @@
       "revision"
     ]
   },
-  "generatedAt": "2026-10-23T21:29:21.574Z"
+  "generatedAt": "2026-10-23T21:32:28.762Z"
 }
